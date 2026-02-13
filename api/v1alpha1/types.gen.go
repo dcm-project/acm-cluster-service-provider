@@ -121,11 +121,11 @@ type ClusterStatus string
 
 // ClusterList Paginated list of clusters
 type ClusterList struct {
+	// Clusters List of clusters
+	Clusters *[]Cluster `json:"clusters,omitempty"`
+
 	// NextPageToken Token to fetch the next page of results
 	NextPageToken *string `json:"next_page_token,omitempty"`
-
-	// Results List of clusters
-	Results *[]Cluster `json:"results,omitempty"`
 }
 
 // ClusterMetadata Metadata for the cluster
@@ -196,11 +196,17 @@ type Health struct {
 	// Path Canonical path of the resource
 	Path *string `json:"path,omitempty"`
 
-	// State Health state
-	State *string `json:"state,omitempty"`
+	// Status Health status
+	Status *string `json:"status,omitempty"`
 
 	// Type Resource type identifier
 	Type *string `json:"type,omitempty"`
+
+	// Uptime Seconds since SP started
+	Uptime *int `json:"uptime,omitempty"`
+
+	// Version SP build version string
+	Version *string `json:"version,omitempty"`
 }
 
 // ProviderHints Provider-specific configuration hints

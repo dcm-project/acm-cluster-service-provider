@@ -468,6 +468,8 @@ type ListClustersResponse struct {
 	HTTPResponse              *http.Response
 	JSON200                   *ClusterList
 	ApplicationproblemJSON400 *Error
+	ApplicationproblemJSON401 *Error
+	ApplicationproblemJSON403 *Error
 	ApplicationproblemJSON500 *Error
 }
 
@@ -492,6 +494,8 @@ type CreateClusterResponse struct {
 	HTTPResponse              *http.Response
 	JSON201                   *Cluster
 	ApplicationproblemJSON400 *Error
+	ApplicationproblemJSON401 *Error
+	ApplicationproblemJSON403 *Error
 	ApplicationproblemJSON409 *Error
 	ApplicationproblemJSON422 *Error
 	ApplicationproblemJSON500 *Error
@@ -516,6 +520,8 @@ func (r CreateClusterResponse) StatusCode() int {
 type DeleteClusterResponse struct {
 	Body                      []byte
 	HTTPResponse              *http.Response
+	ApplicationproblemJSON401 *Error
+	ApplicationproblemJSON403 *Error
 	ApplicationproblemJSON404 *Error
 	ApplicationproblemJSON500 *Error
 }
@@ -540,6 +546,8 @@ type GetClusterResponse struct {
 	Body                      []byte
 	HTTPResponse              *http.Response
 	JSON200                   *Cluster
+	ApplicationproblemJSON401 *Error
+	ApplicationproblemJSON403 *Error
 	ApplicationproblemJSON404 *Error
 	ApplicationproblemJSON500 *Error
 }
@@ -663,6 +671,20 @@ func ParseListClustersResponse(rsp *http.Response) (*ListClustersResponse, error
 		}
 		response.ApplicationproblemJSON400 = &dest
 
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -702,6 +724,20 @@ func ParseCreateClusterResponse(rsp *http.Response) (*CreateClusterResponse, err
 			return nil, err
 		}
 		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 409:
 		var dest Error
@@ -743,6 +779,20 @@ func ParseDeleteClusterResponse(rsp *http.Response) (*DeleteClusterResponse, err
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -782,6 +832,20 @@ func ParseGetClusterResponse(rsp *http.Response) (*GetClusterResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
 		var dest Error

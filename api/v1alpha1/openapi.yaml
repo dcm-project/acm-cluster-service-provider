@@ -26,9 +26,9 @@ servers:
     description: Root
 
 tags:
-  - name: clusters
+  - name: Clusters
     description: Cluster management operations
-  - name: health
+  - name: Health
     description: Health check operations
 
 paths:
@@ -41,7 +41,7 @@ paths:
         this endpoint returns immediately with a PENDING status. Use GET /clusters/{clusterId}
         to poll for cluster readiness.
       tags:
-        - clusters
+        - Clusters
       parameters:
         - name: id
           in: query
@@ -52,9 +52,7 @@ paths:
           required: false
           schema:
             type: string
-            pattern: '^[a-z]([-a-z0-9]*[a-z0-9])?$'
-            minLength: 1
-            maxLength: 63
+            pattern: '^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$'
       requestBody:
         required: true
         content:
@@ -80,6 +78,18 @@ paths:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '422':
           description: Unsupported platform or version
           content:
@@ -98,7 +108,7 @@ paths:
       summary: List all clusters
       description: Returns a paginated list of all clusters managed by this service provider.
       tags:
-        - clusters
+        - Clusters
       parameters:
         - name: page_token
           in: query
@@ -114,7 +124,7 @@ paths:
             type: integer
             format: int32
             minimum: 1
-            maximum: 100
+            maximum: 1000
             default: 50
       responses:
         '200':
@@ -125,6 +135,18 @@ paths:
                 $ref: '#/components/schemas/ClusterList'
         '400':
           description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
           content:
             application/problem+json:
               schema:
@@ -142,7 +164,7 @@ paths:
       summary: Get cluster details
       description: Returns the details of a specific cluster including its current status.
       tags:
-        - clusters
+        - Clusters
       parameters:
         - $ref: '#/components/parameters/ClusterIdPath'
       responses:
@@ -152,6 +174,18 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Cluster'
+        '401':
+          description: Unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Cluster not found
           content:
@@ -172,12 +206,24 @@ paths:
         Initiates deletion of a cluster. The deletion is asynchronous; this endpoint returns
         immediately. The cluster will be removed from the system once deletion completes.
       tags:
-        - clusters
+        - Clusters
       parameters:
         - $ref: '#/components/parameters/ClusterIdPath'
       responses:
         '204':
           description: Cluster deletion initiated
+        '401':
+          description: Unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Cluster not found
           content:
@@ -197,7 +243,7 @@ paths:
       summary: Health check
       description: Returns the health status of the service provider.
       tags:
-        - health
+        - Health
       responses:
         '200':
           description: Service is healthy
@@ -215,9 +261,7 @@ components:
       description: DCM-level cluster resource identifier (id field)
       schema:
         type: string
-        pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
-        minLength: 1
-        maxLength: 63
+        pattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'
 
   schemas:
     Cluster:
@@ -237,7 +281,7 @@ components:
       properties:
         id:
           type: string
-          pattern: '^[a-z09]([-a-z0-9]*[a-z0-9])?$'
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
           description: >-
             DCM-level resource identifier. Server-generated UUID if not
             client-specified via the ?id= query parameter on creation.
@@ -389,9 +433,7 @@ components:
           description: >-
             Human-readable cluster name. Used as the K8s HostedCluster
             metadata.name. Must be unique within the target namespace.
-          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
-          minLength: 1
-          maxLength: 63
+          pattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'
         labels:
           type: object
           description: Key-value labels for the cluster
@@ -440,7 +482,7 @@ components:
       type: object
       description: Paginated list of clusters
       properties:
-        results:
+        clusters:
           type: array
           description: List of clusters
           items:
@@ -461,8 +503,10 @@ components:
           - health
       required:
         - type
-        - state
+        - status
         - path
+        - version
+        - uptime
       properties:
         type:
           type: string
@@ -470,9 +514,9 @@ components:
           readOnly: true
           description: Resource type identifier
           example: "acm-cluster-service-provider.dcm.io/health"
-        state:
+        status:
           type: string
-          description: Health state
+          description: Health status
           readOnly: true
           example: "healthy"
         path:
@@ -480,6 +524,16 @@ components:
           readOnly: true
           description: Canonical path of the resource
           example: "health"
+        version:
+          type: string
+          readOnly: true
+          description: SP build version string
+          example: "1.0.0"
+        uptime:
+          type: integer
+          readOnly: true
+          description: Seconds since SP started
+          example: 3600
 
     Error:
       type: object
