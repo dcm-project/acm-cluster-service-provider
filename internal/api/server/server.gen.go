@@ -129,11 +129,11 @@ type ClusterStatus string
 
 // ClusterList Paginated list of clusters
 type ClusterList struct {
+	// Clusters List of clusters
+	Clusters *[]Cluster `json:"clusters,omitempty"`
+
 	// NextPageToken Token to fetch the next page of results
 	NextPageToken *string `json:"next_page_token,omitempty"`
-
-	// Results List of clusters
-	Results *[]Cluster `json:"results,omitempty"`
 }
 
 // ClusterMetadata Metadata for the cluster
@@ -204,11 +204,17 @@ type Health struct {
 	// Path Canonical path of the resource
 	Path *string `json:"path,omitempty"`
 
-	// State Health state
-	State *string `json:"state,omitempty"`
+	// Status Health status
+	Status *string `json:"status,omitempty"`
 
 	// Type Resource type identifier
 	Type *string `json:"type,omitempty"`
+
+	// Uptime Seconds since SP started
+	Uptime *int `json:"uptime,omitempty"`
+
+	// Version SP build version string
+	Version *string `json:"version,omitempty"`
 }
 
 // ProviderHints Provider-specific configuration hints
@@ -599,6 +605,24 @@ func (response ListClusters400ApplicationProblemPlusJSONResponse) VisitListClust
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListClusters401ApplicationProblemPlusJSONResponse Error
+
+func (response ListClusters401ApplicationProblemPlusJSONResponse) VisitListClustersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListClusters403ApplicationProblemPlusJSONResponse Error
+
+func (response ListClusters403ApplicationProblemPlusJSONResponse) VisitListClustersResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ListClusters500ApplicationProblemPlusJSONResponse Error
 
 func (response ListClusters500ApplicationProblemPlusJSONResponse) VisitListClustersResponse(w http.ResponseWriter) error {
@@ -631,6 +655,24 @@ type CreateCluster400ApplicationProblemPlusJSONResponse Error
 func (response CreateCluster400ApplicationProblemPlusJSONResponse) VisitCreateClusterResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateCluster401ApplicationProblemPlusJSONResponse Error
+
+func (response CreateCluster401ApplicationProblemPlusJSONResponse) VisitCreateClusterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateCluster403ApplicationProblemPlusJSONResponse Error
+
+func (response CreateCluster403ApplicationProblemPlusJSONResponse) VisitCreateClusterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -678,6 +720,24 @@ func (response DeleteCluster204Response) VisitDeleteClusterResponse(w http.Respo
 	return nil
 }
 
+type DeleteCluster401ApplicationProblemPlusJSONResponse Error
+
+func (response DeleteCluster401ApplicationProblemPlusJSONResponse) VisitDeleteClusterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteCluster403ApplicationProblemPlusJSONResponse Error
+
+func (response DeleteCluster403ApplicationProblemPlusJSONResponse) VisitDeleteClusterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DeleteCluster404ApplicationProblemPlusJSONResponse Error
 
 func (response DeleteCluster404ApplicationProblemPlusJSONResponse) VisitDeleteClusterResponse(w http.ResponseWriter) error {
@@ -709,6 +769,24 @@ type GetCluster200JSONResponse Cluster
 func (response GetCluster200JSONResponse) VisitGetClusterResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCluster401ApplicationProblemPlusJSONResponse Error
+
+func (response GetCluster401ApplicationProblemPlusJSONResponse) VisitGetClusterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetCluster403ApplicationProblemPlusJSONResponse Error
+
+func (response GetCluster403ApplicationProblemPlusJSONResponse) VisitGetClusterResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
 
 	return json.NewEncoder(w).Encode(response)
 }
