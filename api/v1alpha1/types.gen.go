@@ -22,6 +22,13 @@ const (
 	READY        ClusterStatus = "READY"
 )
 
+// Defines values for ControlPlaneSpecCount.
+const (
+	N1 ControlPlaneSpecCount = 1
+	N3 ControlPlaneSpecCount = 3
+	N5 ControlPlaneSpecCount = 5
+)
+
 // Defines values for ErrorType.
 const (
 	ALREADYEXISTS       ErrorType = "ALREADY_EXISTS"
@@ -69,8 +76,8 @@ type Cluster struct {
 	// Kubeconfig Base64-encoded kubeconfig for cluster access. Populated when cluster status is READY. Empty during PENDING, PROVISIONING, or FAILED states.
 	Kubeconfig *string `json:"kubeconfig,omitempty"`
 
-	// Metadata Optional metadata for the cluster
-	Metadata *ClusterMetadata `json:"metadata,omitempty"`
+	// Metadata Metadata for the cluster
+	Metadata ClusterMetadata `json:"metadata"`
 
 	// Nodes Node configuration for the cluster
 	Nodes ClusterNodes `json:"nodes"`
@@ -106,13 +113,16 @@ type ClusterList struct {
 	Results *[]Cluster `json:"results,omitempty"`
 }
 
-// ClusterMetadata Optional metadata for the cluster
+// ClusterMetadata Metadata for the cluster
 type ClusterMetadata struct {
 	// Annotations Key-value annotations for the cluster
 	Annotations *map[string]string `json:"annotations,omitempty"`
 
 	// Labels Key-value labels for the cluster
 	Labels *map[string]string `json:"labels,omitempty"`
+
+	// Name Human-readable name for the cluster
+	Name string `json:"name"`
 }
 
 // ClusterNodes Node configuration for the cluster
@@ -121,13 +131,13 @@ type ClusterNodes struct {
 	ControlPlane ControlPlaneSpec `json:"control_plane"`
 
 	// Workers Worker node specification
-	Workers *WorkerSpec `json:"workers,omitempty"`
+	Workers WorkerSpec `json:"workers"`
 }
 
 // ControlPlaneSpec Control plane node specification
 type ControlPlaneSpec struct {
 	// Count Number of control plane nodes
-	Count int `json:"count"`
+	Count ControlPlaneSpecCount `json:"count"`
 
 	// Cpu Number of CPU cores per control plane node
 	Cpu int `json:"cpu"`
@@ -138,6 +148,9 @@ type ControlPlaneSpec struct {
 	// Storage Storage per control plane node (e.g., "120GB", "500GB")
 	Storage *string `json:"storage,omitempty"`
 }
+
+// ControlPlaneSpecCount Number of control plane nodes
+type ControlPlaneSpecCount int
 
 // Error RFC 7807 compliant error response
 type Error struct {
