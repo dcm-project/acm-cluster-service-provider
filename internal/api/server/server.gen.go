@@ -21,9 +21,15 @@ const (
 	Kubevirt  ACMProviderHintsPlatform = "kubevirt"
 )
 
+// Defines values for ClusterServiceType.
+const (
+	ClusterServiceTypeCluster ClusterServiceType = "cluster"
+)
+
 // Defines values for ClusterStatus.
 const (
 	DELETED      ClusterStatus = "DELETED"
+	DELETING     ClusterStatus = "DELETING"
 	FAILED       ClusterStatus = "FAILED"
 	PENDING      ClusterStatus = "PENDING"
 	PROVISIONING ClusterStatus = "PROVISIONING"
@@ -96,6 +102,9 @@ type Cluster struct {
 	// ProviderHints Provider-specific configuration hints
 	ProviderHints *ProviderHints `json:"provider_hints,omitempty"`
 
+	// ServiceType Service type identifier. Must be "cluster" for this SP.
+	ServiceType ClusterServiceType `json:"service_type"`
+
 	// Status Current status of the cluster
 	Status *ClusterStatus `json:"status,omitempty"`
 
@@ -105,9 +114,12 @@ type Cluster struct {
 	// UpdateTime Timestamp when the cluster was last updated
 	UpdateTime *time.Time `json:"update_time,omitempty"`
 
-	// Version OpenShift version for the cluster (e.g., "4.14.0", "4.15.2")
+	// Version OpenShift version for the cluster (e.g., "4.17", "4.17.6"). For v1, the SP accepts OpenShift versions directly, matching ClusterImageSet resources on the ACM Hub. The DCM upstream cluster spec uses Kubernetes versions; the mapping is OCP 4.x = K8s 1.(x+13).
 	Version string `json:"version"`
 }
+
+// ClusterServiceType Service type identifier. Must be "cluster" for this SP.
+type ClusterServiceType string
 
 // ClusterStatus Current status of the cluster
 type ClusterStatus string
@@ -129,7 +141,7 @@ type ClusterMetadata struct {
 	// Labels Key-value labels for the cluster
 	Labels *map[string]string `json:"labels,omitempty"`
 
-	// Name Human-readable name for the cluster
+	// Name Cluster resource name. Used as the canonical cluster identifier.
 	Name string `json:"name"`
 }
 
@@ -154,7 +166,7 @@ type ControlPlaneSpec struct {
 	Memory string `json:"memory"`
 
 	// Storage Storage per control plane node (e.g., "120GB", "500GB")
-	Storage *string `json:"storage,omitempty"`
+	Storage string `json:"storage"`
 }
 
 // ControlPlaneSpecCount Number of control plane nodes
@@ -214,7 +226,7 @@ type WorkerSpec struct {
 	Memory string `json:"memory"`
 
 	// Storage Storage per worker node (e.g., "120GB", "500GB")
-	Storage *string `json:"storage,omitempty"`
+	Storage string `json:"storage"`
 }
 
 // ClusterIdPath defines model for ClusterIdPath.
@@ -229,12 +241,6 @@ type ListClustersParams struct {
 	MaxPageSize *int32 `form:"max_page_size,omitempty" json:"max_page_size,omitempty"`
 }
 
-// CreateClusterParams defines parameters for CreateCluster.
-type CreateClusterParams struct {
-	// Id Client-assigned cluster identifier
-	Id *string `form:"id,omitempty" json:"id,omitempty"`
-}
-
 // CreateClusterJSONRequestBody defines body for CreateCluster for application/json ContentType.
 type CreateClusterJSONRequestBody = Cluster
 
@@ -245,7 +251,7 @@ type ServerInterface interface {
 	ListClusters(w http.ResponseWriter, r *http.Request, params ListClustersParams)
 	// Create a new cluster
 	// (POST /clusters)
-	CreateCluster(w http.ResponseWriter, r *http.Request, params CreateClusterParams)
+	CreateCluster(w http.ResponseWriter, r *http.Request)
 	// Delete a cluster
 	// (DELETE /clusters/{clusterId})
 	DeleteCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath)
@@ -269,7 +275,7 @@ func (_ Unimplemented) ListClusters(w http.ResponseWriter, r *http.Request, para
 
 // Create a new cluster
 // (POST /clusters)
-func (_ Unimplemented) CreateCluster(w http.ResponseWriter, r *http.Request, params CreateClusterParams) {
+func (_ Unimplemented) CreateCluster(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -338,21 +344,8 @@ func (siw *ServerInterfaceWrapper) ListClusters(w http.ResponseWriter, r *http.R
 // CreateCluster operation middleware
 func (siw *ServerInterfaceWrapper) CreateCluster(w http.ResponseWriter, r *http.Request) {
 
-	var err error
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params CreateClusterParams
-
-	// ------------- Optional query parameter "id" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "id", r.URL.Query(), &params.Id)
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateCluster(w, r, params)
+		siw.Handler.CreateCluster(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -594,8 +587,7 @@ func (response ListClusters500ApplicationProblemPlusJSONResponse) VisitListClust
 }
 
 type CreateClusterRequestObject struct {
-	Params CreateClusterParams
-	Body   *CreateClusterJSONRequestBody
+	Body *CreateClusterJSONRequestBody
 }
 
 type CreateClusterResponseObject interface {
@@ -807,10 +799,8 @@ func (sh *strictHandler) ListClusters(w http.ResponseWriter, r *http.Request, pa
 }
 
 // CreateCluster operation middleware
-func (sh *strictHandler) CreateCluster(w http.ResponseWriter, r *http.Request, params CreateClusterParams) {
+func (sh *strictHandler) CreateCluster(w http.ResponseWriter, r *http.Request) {
 	var request CreateClusterRequestObject
-
-	request.Params = params
 
 	var body CreateClusterJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {

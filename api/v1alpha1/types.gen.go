@@ -13,9 +13,15 @@ const (
 	Kubevirt  ACMProviderHintsPlatform = "kubevirt"
 )
 
+// Defines values for ClusterServiceType.
+const (
+	ClusterServiceTypeCluster ClusterServiceType = "cluster"
+)
+
 // Defines values for ClusterStatus.
 const (
 	DELETED      ClusterStatus = "DELETED"
+	DELETING     ClusterStatus = "DELETING"
 	FAILED       ClusterStatus = "FAILED"
 	PENDING      ClusterStatus = "PENDING"
 	PROVISIONING ClusterStatus = "PROVISIONING"
@@ -88,6 +94,9 @@ type Cluster struct {
 	// ProviderHints Provider-specific configuration hints
 	ProviderHints *ProviderHints `json:"provider_hints,omitempty"`
 
+	// ServiceType Service type identifier. Must be "cluster" for this SP.
+	ServiceType ClusterServiceType `json:"service_type"`
+
 	// Status Current status of the cluster
 	Status *ClusterStatus `json:"status,omitempty"`
 
@@ -97,9 +106,12 @@ type Cluster struct {
 	// UpdateTime Timestamp when the cluster was last updated
 	UpdateTime *time.Time `json:"update_time,omitempty"`
 
-	// Version OpenShift version for the cluster (e.g., "4.14.0", "4.15.2")
+	// Version OpenShift version for the cluster (e.g., "4.17", "4.17.6"). For v1, the SP accepts OpenShift versions directly, matching ClusterImageSet resources on the ACM Hub. The DCM upstream cluster spec uses Kubernetes versions; the mapping is OCP 4.x = K8s 1.(x+13).
 	Version string `json:"version"`
 }
+
+// ClusterServiceType Service type identifier. Must be "cluster" for this SP.
+type ClusterServiceType string
 
 // ClusterStatus Current status of the cluster
 type ClusterStatus string
@@ -121,7 +133,7 @@ type ClusterMetadata struct {
 	// Labels Key-value labels for the cluster
 	Labels *map[string]string `json:"labels,omitempty"`
 
-	// Name Human-readable name for the cluster
+	// Name Cluster resource name. Used as the canonical cluster identifier.
 	Name string `json:"name"`
 }
 
@@ -146,7 +158,7 @@ type ControlPlaneSpec struct {
 	Memory string `json:"memory"`
 
 	// Storage Storage per control plane node (e.g., "120GB", "500GB")
-	Storage *string `json:"storage,omitempty"`
+	Storage string `json:"storage"`
 }
 
 // ControlPlaneSpecCount Number of control plane nodes
@@ -206,7 +218,7 @@ type WorkerSpec struct {
 	Memory string `json:"memory"`
 
 	// Storage Storage per worker node (e.g., "120GB", "500GB")
-	Storage *string `json:"storage,omitempty"`
+	Storage string `json:"storage"`
 }
 
 // ClusterIdPath defines model for ClusterIdPath.
@@ -219,12 +231,6 @@ type ListClustersParams struct {
 
 	// MaxPageSize Maximum number of results to return per page
 	MaxPageSize *int32 `form:"max_page_size,omitempty" json:"max_page_size,omitempty"`
-}
-
-// CreateClusterParams defines parameters for CreateCluster.
-type CreateClusterParams struct {
-	// Id Client-assigned cluster identifier
-	Id *string `form:"id,omitempty" json:"id,omitempty"`
 }
 
 // CreateClusterJSONRequestBody defines body for CreateCluster for application/json ContentType.

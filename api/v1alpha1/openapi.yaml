@@ -42,14 +42,6 @@ paths:
         to poll for cluster readiness.
       tags:
         - clusters
-      parameters:
-        - name: id
-          in: query
-          description: Client-assigned cluster identifier
-          required: false
-          schema:
-            type: string
-            pattern: '^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$'
       requestBody:
         required: true
         content:
@@ -210,7 +202,7 @@ components:
       description: Cluster resource identifier
       schema:
         type: string
-        pattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'
+        pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
         minLength: 1
         maxLength: 63
 
@@ -225,10 +217,16 @@ components:
         patterns:
           - clusters/{cluster}
       required:
+        - service_type
         - version
         - nodes
         - metadata
       properties:
+        service_type:
+          type: string
+          description: Service type identifier. Must be "cluster" for this SP.
+          enum:
+            - cluster
         path:
           type: string
           description: Resource path for this cluster
@@ -236,7 +234,12 @@ components:
           example: clusters/my-cluster
         version:
           type: string
-          description: OpenShift version for the cluster (e.g., "4.14.0", "4.15.2")
+          description: >-
+            OpenShift version for the cluster (e.g., "4.17", "4.17.6").
+            For v1, the SP accepts OpenShift versions directly, matching
+            ClusterImageSet resources on the ACM Hub. The DCM upstream
+            cluster spec uses Kubernetes versions; the mapping is
+            OCP 4.x = K8s 1.(x+13).
         nodes:
           $ref: '#/components/schemas/ClusterNodes'
         metadata:
@@ -251,6 +254,7 @@ components:
             - PROVISIONING
             - READY
             - FAILED
+            - DELETING
             - DELETED
           readOnly: true
         status_message:
@@ -302,6 +306,7 @@ components:
         - count
         - cpu
         - memory
+        - storage
       properties:
         count:
           type: integer
@@ -330,6 +335,7 @@ components:
         - count
         - cpu
         - memory
+        - storage
       properties:
         count:
           type: integer
@@ -338,7 +344,7 @@ components:
         cpu:
           type: integer
           description: Number of CPU cores per worker node
-          minimum: 2
+          minimum: 1
         memory:
           type: string
           description: Memory per worker node (e.g., "16GB", "32GB")
@@ -358,7 +364,10 @@ components:
       properties:
         name:
           type: string
-          description: Human-readable name for the cluster
+          description: Cluster resource name. Used as the canonical cluster identifier.
+          pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+          minLength: 1
+          maxLength: 63
         labels:
           type: object
           description: Key-value labels for the cluster
