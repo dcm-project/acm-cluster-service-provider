@@ -22,8 +22,8 @@ info:
     url: https://github.com/dcm-project
 
 servers:
-  - url: /api/v1alpha1
-    description: API v1alpha1
+  - url: /
+    description: Root
 
 tags:
   - name: clusters
@@ -32,7 +32,7 @@ tags:
     description: Health check operations
 
 paths:
-  /clusters:
+  /api/v1alpha1/clusters:
     post:
       operationId: createCluster
       summary: Create a new cluster
@@ -42,6 +42,19 @@ paths:
         to poll for cluster readiness.
       tags:
         - clusters
+      parameters:
+        - name: id
+          in: query
+          description: >-
+            Client-assigned resource identifier (AEP-133). If omitted,
+            the server generates a UUID. Must be unique among all
+            resources managed by this SP.
+          required: false
+          schema:
+            type: string
+            pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+            minLength: 1
+            maxLength: 63
       requestBody:
         required: true
         content:
@@ -123,7 +136,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /clusters/{clusterId}:
+  /api/v1alpha1/clusters/{clusterId}:
     get:
       operationId: getCluster
       summary: Get cluster details
@@ -199,7 +212,7 @@ components:
       name: clusterId
       in: path
       required: true
-      description: Cluster resource identifier
+      description: DCM-level cluster resource identifier (id field)
       schema:
         type: string
         pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
@@ -222,6 +235,14 @@ components:
         - nodes
         - metadata
       properties:
+        id:
+          type: string
+          description: >-
+            DCM-level resource identifier. Server-generated UUID if not
+            client-specified via the ?id= query parameter on creation.
+            Used in URL paths and the path field.
+          readOnly: true
+          example: 123e4567-e89b-12d3-a456-426614174000
         service_type:
           type: string
           description: Service type identifier. Must be "cluster" for this SP.
@@ -231,7 +252,7 @@ components:
           type: string
           description: Resource path for this cluster
           readOnly: true
-          example: clusters/my-cluster
+          example: clusters/123e4567-e89b-12d3-a456-426614174000
         version:
           type: string
           description: >-
@@ -320,12 +341,12 @@ components:
         memory:
           type: string
           description: Memory per control plane node (e.g., "16GB", "32GB")
-          pattern: '^[0-9]+(MB|GB|TB)$'
+          pattern: '^[1-9][0-9]*(MB|GB|TB)$'
           example: "16GB"
         storage:
           type: string
           description: Storage per control plane node (e.g., "120GB", "500GB")
-          pattern: '^[0-9]+(MB|GB|TB)$'
+          pattern: '^[1-9][0-9]*(MB|GB|TB)$'
           example: "120GB"
 
     WorkerSpec:
@@ -348,12 +369,12 @@ components:
         memory:
           type: string
           description: Memory per worker node (e.g., "16GB", "32GB")
-          pattern: '^[0-9]+(MB|GB|TB)$'
+          pattern: '^[1-9][0-9]*(MB|GB|TB)$'
           example: "16GB"
         storage:
           type: string
           description: Storage per worker node (e.g., "120GB", "500GB")
-          pattern: '^[0-9]+(MB|GB|TB)$'
+          pattern: '^[1-9][0-9]*(MB|GB|TB)$'
           example: "120GB"
 
     ClusterMetadata:
@@ -364,7 +385,9 @@ components:
       properties:
         name:
           type: string
-          description: Cluster resource name. Used as the canonical cluster identifier.
+          description: >-
+            Human-readable cluster name. Used as the K8s HostedCluster
+            metadata.name. Must be unique within the target namespace.
           pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
           minLength: 1
           maxLength: 63

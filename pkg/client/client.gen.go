@@ -94,9 +94,9 @@ type ClientInterface interface {
 	ListClusters(ctx context.Context, params *ListClustersParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateClusterWithBody request with any body
-	CreateClusterWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateClusterWithBody(ctx context.Context, params *CreateClusterParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	CreateCluster(ctx context.Context, body CreateClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+	CreateCluster(ctx context.Context, params *CreateClusterParams, body CreateClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// DeleteCluster request
 	DeleteCluster(ctx context.Context, clusterId ClusterIdPath, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -120,8 +120,8 @@ func (c *Client) ListClusters(ctx context.Context, params *ListClustersParams, r
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateClusterWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateClusterRequestWithBody(c.Server, contentType, body)
+func (c *Client) CreateClusterWithBody(ctx context.Context, params *CreateClusterParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateClusterRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +132,8 @@ func (c *Client) CreateClusterWithBody(ctx context.Context, contentType string, 
 	return c.Client.Do(req)
 }
 
-func (c *Client) CreateCluster(ctx context.Context, body CreateClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewCreateClusterRequest(c.Server, body)
+func (c *Client) CreateCluster(ctx context.Context, params *CreateClusterParams, body CreateClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateClusterRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func NewListClustersRequest(server string, params *ListClustersParams) (*http.Re
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/clusters")
+	operationPath := fmt.Sprintf("/api/v1alpha1/clusters")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -246,18 +246,18 @@ func NewListClustersRequest(server string, params *ListClustersParams) (*http.Re
 }
 
 // NewCreateClusterRequest calls the generic CreateCluster builder with application/json body
-func NewCreateClusterRequest(server string, body CreateClusterJSONRequestBody) (*http.Request, error) {
+func NewCreateClusterRequest(server string, params *CreateClusterParams, body CreateClusterJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
 	buf, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
 	}
 	bodyReader = bytes.NewReader(buf)
-	return NewCreateClusterRequestWithBody(server, "application/json", bodyReader)
+	return NewCreateClusterRequestWithBody(server, params, "application/json", bodyReader)
 }
 
 // NewCreateClusterRequestWithBody generates requests for CreateCluster with any type of body
-func NewCreateClusterRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+func NewCreateClusterRequestWithBody(server string, params *CreateClusterParams, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
 
 	serverURL, err := url.Parse(server)
@@ -265,7 +265,7 @@ func NewCreateClusterRequestWithBody(server string, contentType string, body io.
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/clusters")
+	operationPath := fmt.Sprintf("/api/v1alpha1/clusters")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -273,6 +273,28 @@ func NewCreateClusterRequestWithBody(server string, contentType string, body io.
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.Id != nil {
+
+			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "id", runtime.ParamLocationQuery, *params.Id); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
 	}
 
 	req, err := http.NewRequest("POST", queryURL.String(), body)
@@ -301,7 +323,7 @@ func NewDeleteClusterRequest(server string, clusterId ClusterIdPath) (*http.Requ
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/clusters/%s", pathParam0)
+	operationPath := fmt.Sprintf("/api/v1alpha1/clusters/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -335,7 +357,7 @@ func NewGetClusterRequest(server string, clusterId ClusterIdPath) (*http.Request
 		return nil, err
 	}
 
-	operationPath := fmt.Sprintf("/clusters/%s", pathParam0)
+	operationPath := fmt.Sprintf("/api/v1alpha1/clusters/%s", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -427,9 +449,9 @@ type ClientWithResponsesInterface interface {
 	ListClustersWithResponse(ctx context.Context, params *ListClustersParams, reqEditors ...RequestEditorFn) (*ListClustersResponse, error)
 
 	// CreateClusterWithBodyWithResponse request with any body
-	CreateClusterWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateClusterResponse, error)
+	CreateClusterWithBodyWithResponse(ctx context.Context, params *CreateClusterParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateClusterResponse, error)
 
-	CreateClusterWithResponse(ctx context.Context, body CreateClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateClusterResponse, error)
+	CreateClusterWithResponse(ctx context.Context, params *CreateClusterParams, body CreateClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateClusterResponse, error)
 
 	// DeleteClusterWithResponse request
 	DeleteClusterWithResponse(ctx context.Context, clusterId ClusterIdPath, reqEditors ...RequestEditorFn) (*DeleteClusterResponse, error)
@@ -570,16 +592,16 @@ func (c *ClientWithResponses) ListClustersWithResponse(ctx context.Context, para
 }
 
 // CreateClusterWithBodyWithResponse request with arbitrary body returning *CreateClusterResponse
-func (c *ClientWithResponses) CreateClusterWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateClusterResponse, error) {
-	rsp, err := c.CreateClusterWithBody(ctx, contentType, body, reqEditors...)
+func (c *ClientWithResponses) CreateClusterWithBodyWithResponse(ctx context.Context, params *CreateClusterParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateClusterResponse, error) {
+	rsp, err := c.CreateClusterWithBody(ctx, params, contentType, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
 	return ParseCreateClusterResponse(rsp)
 }
 
-func (c *ClientWithResponses) CreateClusterWithResponse(ctx context.Context, body CreateClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateClusterResponse, error) {
-	rsp, err := c.CreateCluster(ctx, body, reqEditors...)
+func (c *ClientWithResponses) CreateClusterWithResponse(ctx context.Context, params *CreateClusterParams, body CreateClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateClusterResponse, error) {
+	rsp, err := c.CreateCluster(ctx, params, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}

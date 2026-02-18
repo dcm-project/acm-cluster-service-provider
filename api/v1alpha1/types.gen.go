@@ -79,6 +79,9 @@ type Cluster struct {
 	// CreateTime Timestamp when the cluster was created
 	CreateTime *time.Time `json:"create_time,omitempty"`
 
+	// Id DCM-level resource identifier. Server-generated UUID if not client-specified via the ?id= query parameter on creation. Used in URL paths and the path field.
+	Id *string `json:"id,omitempty"`
+
 	// Kubeconfig Base64-encoded kubeconfig for cluster access. Populated when cluster status is READY. Empty during PENDING, PROVISIONING, or FAILED states.
 	Kubeconfig *string `json:"kubeconfig,omitempty"`
 
@@ -133,7 +136,7 @@ type ClusterMetadata struct {
 	// Labels Key-value labels for the cluster
 	Labels *map[string]string `json:"labels,omitempty"`
 
-	// Name Cluster resource name. Used as the canonical cluster identifier.
+	// Name Human-readable cluster name. Used as the K8s HostedCluster metadata.name. Must be unique within the target namespace.
 	Name string `json:"name"`
 }
 
@@ -231,6 +234,12 @@ type ListClustersParams struct {
 
 	// MaxPageSize Maximum number of results to return per page
 	MaxPageSize *int32 `form:"max_page_size,omitempty" json:"max_page_size,omitempty"`
+}
+
+// CreateClusterParams defines parameters for CreateCluster.
+type CreateClusterParams struct {
+	// Id Client-assigned resource identifier (AEP-133). If omitted, the server generates a UUID. Must be unique among all resources managed by this SP.
+	Id *string `form:"id,omitempty" json:"id,omitempty"`
 }
 
 // CreateClusterJSONRequestBody defines body for CreateCluster for application/json ContentType.

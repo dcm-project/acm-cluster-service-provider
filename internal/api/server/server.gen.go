@@ -87,6 +87,9 @@ type Cluster struct {
 	// CreateTime Timestamp when the cluster was created
 	CreateTime *time.Time `json:"create_time,omitempty"`
 
+	// Id DCM-level resource identifier. Server-generated UUID if not client-specified via the ?id= query parameter on creation. Used in URL paths and the path field.
+	Id *string `json:"id,omitempty"`
+
 	// Kubeconfig Base64-encoded kubeconfig for cluster access. Populated when cluster status is READY. Empty during PENDING, PROVISIONING, or FAILED states.
 	Kubeconfig *string `json:"kubeconfig,omitempty"`
 
@@ -141,7 +144,7 @@ type ClusterMetadata struct {
 	// Labels Key-value labels for the cluster
 	Labels *map[string]string `json:"labels,omitempty"`
 
-	// Name Cluster resource name. Used as the canonical cluster identifier.
+	// Name Human-readable cluster name. Used as the K8s HostedCluster metadata.name. Must be unique within the target namespace.
 	Name string `json:"name"`
 }
 
@@ -241,22 +244,28 @@ type ListClustersParams struct {
 	MaxPageSize *int32 `form:"max_page_size,omitempty" json:"max_page_size,omitempty"`
 }
 
+// CreateClusterParams defines parameters for CreateCluster.
+type CreateClusterParams struct {
+	// Id Client-assigned resource identifier (AEP-133). If omitted, the server generates a UUID. Must be unique among all resources managed by this SP.
+	Id *string `form:"id,omitempty" json:"id,omitempty"`
+}
+
 // CreateClusterJSONRequestBody defines body for CreateCluster for application/json ContentType.
 type CreateClusterJSONRequestBody = Cluster
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// List all clusters
-	// (GET /clusters)
+	// (GET /api/v1alpha1/clusters)
 	ListClusters(w http.ResponseWriter, r *http.Request, params ListClustersParams)
 	// Create a new cluster
-	// (POST /clusters)
-	CreateCluster(w http.ResponseWriter, r *http.Request)
+	// (POST /api/v1alpha1/clusters)
+	CreateCluster(w http.ResponseWriter, r *http.Request, params CreateClusterParams)
 	// Delete a cluster
-	// (DELETE /clusters/{clusterId})
+	// (DELETE /api/v1alpha1/clusters/{clusterId})
 	DeleteCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath)
 	// Get cluster details
-	// (GET /clusters/{clusterId})
+	// (GET /api/v1alpha1/clusters/{clusterId})
 	GetCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath)
 	// Health check
 	// (GET /health)
@@ -268,25 +277,25 @@ type ServerInterface interface {
 type Unimplemented struct{}
 
 // List all clusters
-// (GET /clusters)
+// (GET /api/v1alpha1/clusters)
 func (_ Unimplemented) ListClusters(w http.ResponseWriter, r *http.Request, params ListClustersParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Create a new cluster
-// (POST /clusters)
-func (_ Unimplemented) CreateCluster(w http.ResponseWriter, r *http.Request) {
+// (POST /api/v1alpha1/clusters)
+func (_ Unimplemented) CreateCluster(w http.ResponseWriter, r *http.Request, params CreateClusterParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Delete a cluster
-// (DELETE /clusters/{clusterId})
+// (DELETE /api/v1alpha1/clusters/{clusterId})
 func (_ Unimplemented) DeleteCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Get cluster details
-// (GET /clusters/{clusterId})
+// (GET /api/v1alpha1/clusters/{clusterId})
 func (_ Unimplemented) GetCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
@@ -344,8 +353,21 @@ func (siw *ServerInterfaceWrapper) ListClusters(w http.ResponseWriter, r *http.R
 // CreateCluster operation middleware
 func (siw *ServerInterfaceWrapper) CreateCluster(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateClusterParams
+
+	// ------------- Optional query parameter "id" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "id", r.URL.Query(), &params.Id)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.CreateCluster(w, r)
+		siw.Handler.CreateCluster(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -533,16 +555,16 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	}
 
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/clusters", wrapper.ListClusters)
+		r.Get(options.BaseURL+"/api/v1alpha1/clusters", wrapper.ListClusters)
 	})
 	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/clusters", wrapper.CreateCluster)
+		r.Post(options.BaseURL+"/api/v1alpha1/clusters", wrapper.CreateCluster)
 	})
 	r.Group(func(r chi.Router) {
-		r.Delete(options.BaseURL+"/clusters/{clusterId}", wrapper.DeleteCluster)
+		r.Delete(options.BaseURL+"/api/v1alpha1/clusters/{clusterId}", wrapper.DeleteCluster)
 	})
 	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/clusters/{clusterId}", wrapper.GetCluster)
+		r.Get(options.BaseURL+"/api/v1alpha1/clusters/{clusterId}", wrapper.GetCluster)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/health", wrapper.GetHealth)
@@ -587,7 +609,8 @@ func (response ListClusters500ApplicationProblemPlusJSONResponse) VisitListClust
 }
 
 type CreateClusterRequestObject struct {
-	Body *CreateClusterJSONRequestBody
+	Params CreateClusterParams
+	Body   *CreateClusterJSONRequestBody
 }
 
 type CreateClusterResponseObject interface {
@@ -727,16 +750,16 @@ func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseW
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// List all clusters
-	// (GET /clusters)
+	// (GET /api/v1alpha1/clusters)
 	ListClusters(ctx context.Context, request ListClustersRequestObject) (ListClustersResponseObject, error)
 	// Create a new cluster
-	// (POST /clusters)
+	// (POST /api/v1alpha1/clusters)
 	CreateCluster(ctx context.Context, request CreateClusterRequestObject) (CreateClusterResponseObject, error)
 	// Delete a cluster
-	// (DELETE /clusters/{clusterId})
+	// (DELETE /api/v1alpha1/clusters/{clusterId})
 	DeleteCluster(ctx context.Context, request DeleteClusterRequestObject) (DeleteClusterResponseObject, error)
 	// Get cluster details
-	// (GET /clusters/{clusterId})
+	// (GET /api/v1alpha1/clusters/{clusterId})
 	GetCluster(ctx context.Context, request GetClusterRequestObject) (GetClusterResponseObject, error)
 	// Health check
 	// (GET /health)
@@ -799,8 +822,10 @@ func (sh *strictHandler) ListClusters(w http.ResponseWriter, r *http.Request, pa
 }
 
 // CreateCluster operation middleware
-func (sh *strictHandler) CreateCluster(w http.ResponseWriter, r *http.Request) {
+func (sh *strictHandler) CreateCluster(w http.ResponseWriter, r *http.Request, params CreateClusterParams) {
 	var request CreateClusterRequestObject
+
+	request.Params = params
 
 	var body CreateClusterJSONRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
