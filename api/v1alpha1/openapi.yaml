@@ -52,7 +52,7 @@ paths:
           required: false
           schema:
             type: string
-            pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$'
+            pattern: '^[a-z]([-a-z0-9]*[a-z0-9])?$'
             minLength: 1
             maxLength: 63
       requestBody:
@@ -237,6 +237,7 @@ components:
       properties:
         id:
           type: string
+          pattern: '^[a-z09]([-a-z0-9]*[a-z0-9])?$'
           description: >-
             DCM-level resource identifier. Server-generated UUID if not
             client-specified via the ?id= query parameter on creation.
