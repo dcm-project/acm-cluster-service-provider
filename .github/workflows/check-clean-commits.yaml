@@ -1,0 +1,12 @@
+name: Check Clean Commits
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-clean-commits:
+    uses: dcm-project/shared-workflows/.github/workflows/check-clean-commits.yaml@main

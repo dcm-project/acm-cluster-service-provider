@@ -1,0 +1,14 @@
+name: Check Generated Code
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-generate:
+    uses: dcm-project/shared-workflows/.github/workflows/check-generate.yaml@main

@@ -1,0 +1,14 @@
+name: Check AEP Compliance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-aep:
+    uses: dcm-project/shared-workflows/.github/workflows/check-aep.yaml@main
