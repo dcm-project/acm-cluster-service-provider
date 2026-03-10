@@ -15,8 +15,16 @@ fmt:
 vet:
 	go vet ./...
 
+lint:
+	golangci-lint run ./...
+
 test:
 	go test ./...
+
+test-race:
+	go test -race ./...
+
+check: fmt vet lint test-race
 
 tidy:
 	go mod tidy
@@ -55,4 +63,4 @@ check-generate-api: generate-api
 check-aep:
 	spectral lint --fail-severity=warn ./api/v1alpha1/openapi.yaml
 
-.PHONY: build run clean fmt vet test tidy generate-types generate-spec generate-server generate-client generate-api check-generate-api check-aep
+.PHONY: build run clean fmt vet lint test test-race check tidy generate-types generate-spec generate-server generate-client generate-api check-generate-api check-aep
