@@ -28,7 +28,7 @@ go.work
 Thumbs.db
 
 # Build artifacts
-acm-cluster-service-provider
+/acm-cluster-service-provider
 .ai/*
 !.ai/specs/
 !.ai/test-plans/
