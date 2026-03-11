@@ -1420,7 +1420,7 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 - **Given** all required env vars are set: `DCM_REGISTRATION_URL`, `SP_ENDPOINT`, `SP_NATS_URL`
 - **And** optional vars are NOT set
 - **When** the configuration loader runs
-- **Then** defaults are applied: `SP_SERVER_ADDRESS=":8080"`, `SP_SERVER_SHUTDOWN_TIMEOUT=15s`, `SP_REQUEST_TIMEOUT=30s`, `SP_NAME="acm-cluster-sp"`, `SP_REGISTRATION_RETRY_MAX=5`, etc.
+- **Then** defaults are applied: `SP_SERVER_ADDRESS=":8080"`, `SP_SERVER_SHUTDOWN_TIMEOUT=15s`, `SP_SERVER_REQUEST_TIMEOUT=30s`, `SP_NAME="acm-cluster-sp"`, `SP_REGISTRATION_RETRY_MAX=5`, etc.
 
 #### TC-CFG-UT-003: K8s client config resolution
 - **Requirements:** REQ-XC-K8S-020

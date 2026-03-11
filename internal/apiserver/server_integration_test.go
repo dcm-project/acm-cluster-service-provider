@@ -181,12 +181,12 @@ var _ = Describe("HTTP Server", func() {
 		Expect(resp.StatusCode).NotTo(Equal(http.StatusMethodNotAllowed),
 			"/api/v1alpha1/clusters GET should not be 405")
 
-		// GET /health should NOT return 404.
-		resp, err = http.Get(baseURL + "/health")
+		// GET /api/v1alpha1/health should NOT return 404.
+		resp, err = http.Get(baseURL + "/api/v1alpha1/health")
 		Expect(err).NotTo(HaveOccurred())
 		resp.Body.Close()
 		Expect(resp.StatusCode).NotTo(Equal(http.StatusNotFound),
-			"/health should be a valid route")
+			"/api/v1alpha1/health should be a valid route")
 	})
 
 	// TC-HTTP-IT-002: Graceful shutdown drains in-flight requests
@@ -450,7 +450,7 @@ var _ = Describe("HTTP Server", func() {
 		// Poll the log buffer until the logging middleware has written.
 		Eventually(func() string {
 			return logBuf.String()
-		}).WithTimeout(5 * time.Second).WithPolling(50 * time.Millisecond).Should(
+		}).WithTimeout(5*time.Second).WithPolling(50*time.Millisecond).Should(
 			ContainSubstring("request completed"),
 			"log should contain the request completed entry",
 		)

@@ -213,7 +213,7 @@ On startup, the SP registers itself with the DCM SP Registry by calling `POST /a
 |----------|------|---------|-------------|
 | `DCM_REGISTRATION_URL` | string | _(required)_ | Base URL of the DCM SP Registry |
 | `SP_NAME` | string | `acm-cluster-sp` | Provider name for registration |
-| `SP_ENDPOINT` | string | _(required)_ | This SP's externally reachable base URL |
+| `SP_ENDPOINT` | string | _(required)_ | This SP's externally reachable resource endpoint URL (must include the resource path, e.g. https://host/api/v1alpha1/clusters) |
 | `SP_REGISTRATION_INITIAL_BACKOFF` | duration | `1s` | Initial retry backoff interval for registration |
 | `SP_REGISTRATION_MAX_BACKOFF` | duration | `5m` | Maximum backoff interval cap for registration retries |
 | `SP_VERSION_CHECK_INTERVAL` | duration | `5m` | Interval for checking ClusterImageSet changes |
@@ -327,7 +327,7 @@ Foundational HTTP server infrastructure. Sets up the router, mounts generated ha
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | REQ-HTTP-010 | The server MUST start and listen on a configurable bind address | MUST |
-| REQ-HTTP-020 | The server MUST mount cluster routes under `/api/v1alpha1` and the health route at `/health` as defined in the OpenAPI spec | MUST |
+| REQ-HTTP-020 | The server MUST mount cluster routes under `/api/v1alpha1` and the health route at `/api/v1alpha1/health` as defined in the OpenAPI spec | MUST |
 | REQ-HTTP-030 | The server MUST initiate graceful shutdown on SIGTERM, draining in-flight requests within a configurable timeout | MUST |
 | REQ-HTTP-040 | The server MUST initiate graceful shutdown on SIGINT, draining in-flight requests within a configurable timeout | MUST |
 | REQ-HTTP-050 | Server configuration (bind address, timeouts) MUST be provided via environment variables | MUST |
@@ -344,7 +344,7 @@ Foundational HTTP server infrastructure. Sets up the router, mounts generated ha
 |----------|------|---------|-------------|
 | `SP_SERVER_ADDRESS` | string | `:8080` | HTTP server listen address |
 | `SP_SERVER_SHUTDOWN_TIMEOUT` | duration | `15s` | Graceful shutdown drain timeout |
-| `SP_REQUEST_TIMEOUT` | duration | `30s` | Per-request timeout |
+| `SP_SERVER_REQUEST_TIMEOUT` | duration | `30s` | Per-request timeout |
 | `SP_SERVER_READ_TIMEOUT` | duration | `15s` | HTTP server read timeout (Slowloris protection) |
 | `SP_SERVER_WRITE_TIMEOUT` | duration | `15s` | HTTP server write timeout |
 | `SP_SERVER_IDLE_TIMEOUT` | duration | `60s` | HTTP server idle connection timeout |
@@ -363,7 +363,7 @@ Foundational HTTP server infrastructure. Sets up the router, mounts generated ha
 - **Then** the server responds with 404
 - **When** a client sends `GET /api/v1alpha1/clusters`
 - **Then** the server responds with a valid response (not 404)
-- **When** a client sends `GET /health`
+- **When** a client sends `GET /api/v1alpha1/health`
 - **Then** the server responds with a valid response (not 404)
 
 ##### AC-HTTP-030: Graceful shutdown drains in-flight requests
@@ -411,7 +411,7 @@ None - independently deliverable.
 
 #### Overview
 
-The health endpoint (`GET /health`) reports whether the SP is operational. DCM polls this endpoint every 10 seconds. Per [`service-provider-health-check.md`](https://github.com/dcm-project/enhancements/blob/main/enhancements/service-provider-health-check/service-provider-health-check.md), the endpoint always returns HTTP 200 when the SP process is alive; the `status` field communicates the actual dependency health. DCM only detects SP failure when the process itself is down (no response).
+The health endpoint (`GET /api/v1alpha1/health`) reports whether the SP is operational. DCM polls this endpoint every 10 seconds. Per [`service-provider-health-check.md`](https://github.com/dcm-project/enhancements/blob/main/enhancements/service-provider-health-check/service-provider-health-check.md), the endpoint always returns HTTP 200 when the SP process is alive; the `status` field communicates the actual dependency health. DCM only detects SP failure when the process itself is down (no response).
 
 > **Note:** DCM only checks HTTP status code (200 = alive) per the enhancement. The SP's Health response (`type`, `status`, `path`, `version`, `uptime`) provides richer information for debugging and AEP compliance. `path` is required per AEP singleton resource rules.
 
@@ -421,7 +421,7 @@ The health endpoint (`GET /health`) reports whether the SP is operational. DCM p
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| REQ-HLT-010 | `GET /health` MUST return HTTP 200 with `application/json` content-type when the SP process is running | MUST |
+| REQ-HLT-010 | `GET /api/v1alpha1/health` MUST return HTTP 200 with `application/json` content-type when the SP process is running | MUST |
 | REQ-HLT-020 | The response MUST include: `status`, `type`, `path`, `version` (SP build version string), and `uptime` (seconds since SP started, integer) | MUST |
 | REQ-HLT-030 | `path` MUST be `"health"` | MUST |
 | REQ-HLT-040 | `type` MUST be `"acm-cluster-service-provider.dcm.io/health"` | MUST |
@@ -446,7 +446,7 @@ The health endpoint (`GET /health`) reports whether the SP is operational. DCM p
 ##### AC-HLT-010: Healthy SP returns 200 with status=healthy
 - **Requirements:** REQ-HLT-010, REQ-HLT-020, REQ-HLT-040, REQ-HLT-050
 - **Given** the ACM Hub K8s API is reachable and HyperShift operator is installed
-- **When** `GET /health` is called
+- **When** `GET /api/v1alpha1/health` is called
 - **Then** the response status is 200
 - **And** the body contains `status="healthy"`, `type="acm-cluster-service-provider.dcm.io/health"`, `path="health"`
 - **And** the body contains a non-empty `version` field
@@ -455,14 +455,14 @@ The health endpoint (`GET /health`) reports whether the SP is operational. DCM p
 ##### AC-HLT-020: Unhealthy SP returns 200 with status=unhealthy
 - **Requirements:** REQ-HLT-060, REQ-HLT-070
 - **Given** the ACM Hub K8s API is unreachable
-- **When** `GET /health` is called
+- **When** `GET /api/v1alpha1/health` is called
 - **Then** the response status is 200
 - **And** the body contains `status="unhealthy"`
 
 ##### AC-HLT-030: Health endpoint responds within timeout
 - **Requirements:** REQ-HLT-110
 - **Given** dependency checks are slow (simulated >5s latency)
-- **When** `GET /health` is called
+- **When** `GET /api/v1alpha1/health` is called
 - **Then** the response is returned within `SP_HEALTH_CHECK_TIMEOUT`
 - **And** the body contains `status="unhealthy"` (timeout = failure)
 
@@ -470,7 +470,7 @@ The health endpoint (`GET /health`) reports whether the SP is operational. DCM p
 
 ##### AC-HLT-040: Response conforms to Health schema
 - **Requirements:** REQ-HLT-020, REQ-HLT-030
-- **When** `GET /health` is called
+- **When** `GET /api/v1alpha1/health` is called
 - **Then** Content-Type is `application/json`
 - **And** all required fields (`type`, `status`, `path`, `version`, `uptime`) are present
 
@@ -478,7 +478,7 @@ The health endpoint (`GET /health`) reports whether the SP is operational. DCM p
 - **Requirements:** REQ-HLT-080
 - **Given** the ACM Hub K8s API is reachable
 - **And** the HostedCluster CRD does not exist (HyperShift not installed)
-- **When** `GET /health` is called
+- **When** `GET /api/v1alpha1/health` is called
 - **Then** the response status is 200
 - **And** the body contains `status="unhealthy"`
 
@@ -1289,7 +1289,7 @@ Error type to HTTP status mapping:
 |----------|-------|------|---------|----------|
 | `SP_SERVER_ADDRESS` | 2 | string | `:8080` | No |
 | `SP_SERVER_SHUTDOWN_TIMEOUT` | 2 | duration | `15s` | No |
-| `SP_REQUEST_TIMEOUT` | 2 | duration | `30s` | No |
+| `SP_SERVER_REQUEST_TIMEOUT` | 2 | duration | `30s` | No |
 | `SP_SERVER_READ_TIMEOUT` | 2 | duration | `15s` | No |
 | `SP_SERVER_WRITE_TIMEOUT` | 2 | duration | `15s` | No |
 | `SP_SERVER_IDLE_TIMEOUT` | 2 | duration | `60s` | No |
