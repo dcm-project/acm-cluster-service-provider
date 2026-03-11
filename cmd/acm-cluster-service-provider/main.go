@@ -14,7 +14,11 @@ import (
 	oapigen "github.com/dcm-project/acm-cluster-service-provider/internal/api/server"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/apiserver"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/registration"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
+	spmclient "github.com/dcm-project/service-provider-manager/pkg/client"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // version is the application version, set at build time via
@@ -61,8 +65,24 @@ func run(logger *slog.Logger) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
+	dcmClient, err := spmclient.NewClientWithResponses(cfg.Registration.DCMRegistrationURL)
+	if err != nil {
+		return fmt.Errorf("creating DCM client: %w", err)
+	}
 
-	srv := apiserver.New(cfg, logger, &bootstrapHandler{})
+	restCfg, err := ctrl.GetConfig()
+	if err != nil {
+		return fmt.Errorf("loading kubeconfig: %w", err)
+	}
+
+	k8sClient, err := client.New(restCfg, client.Options{})
+	if err != nil {
+		return fmt.Errorf("creating kubernetes client: %w", err)
+	}
+
+	registrar := registration.New(cfg.Registration, dcmClient, k8sClient, logger)
+
+	srv := apiserver.New(cfg, logger, &bootstrapHandler{}).WithOnReady(registrar.Start)
 
 	return srv.Run(ctx, ln)
 }
