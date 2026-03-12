@@ -1,3 +1,4 @@
+// Package config provides environment-based configuration for the service provider.
 package config
 
 import (
@@ -17,6 +18,12 @@ type ServerConfig struct {
 	IdleTimeout     time.Duration `env:"SP_SERVER_IDLE_TIMEOUT"     envDefault:"60s"`
 }
 
+// HealthConfig holds health endpoint settings.
+type HealthConfig struct {
+	CheckTimeout     time.Duration `env:"SP_HEALTH_CHECK_TIMEOUT"   envDefault:"5s"`
+	EnabledPlatforms []string      `env:"SP_ENABLED_PLATFORMS"      envDefault:"kubevirt,baremetal" envSeparator:","`
+}
+
 // RegistrationConfig holds DCM registration settings.
 type RegistrationConfig struct {
 	DCMRegistrationURL         string        `env:"DCM_REGISTRATION_URL,required"`
@@ -34,6 +41,7 @@ type RegistrationConfig struct {
 type Config struct {
 	Server       ServerConfig
 	Registration RegistrationConfig
+	Health       HealthConfig
 }
 
 // Load reads configuration from environment variables.

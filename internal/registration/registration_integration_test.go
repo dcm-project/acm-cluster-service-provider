@@ -26,7 +26,6 @@ import (
 )
 
 var _ = Describe("Registration Integration", func() {
-
 	var (
 		mockDCMServer *httptest.Server
 		logBuf        *syncBuffer
@@ -94,11 +93,11 @@ var _ = Describe("Registration Integration", func() {
 
 		// Wait for the HTTP server to be ready.
 		Eventually(func() error {
-			resp, reqErr := http.Get(fmt.Sprintf("http://%s/health", addr))
+			resp, reqErr := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
 			if reqErr != nil {
 				return reqErr
 			}
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return nil
 		}).WithTimeout(5*time.Second).WithPolling(50*time.Millisecond).Should(Succeed(),
 			"HTTP server should be ready before registration completes")
@@ -110,16 +109,14 @@ var _ = Describe("Registration Integration", func() {
 		reg.Start(ctx)
 
 		// Verify HTTP server is serving while registration is in progress.
-		resp, err := http.Get(fmt.Sprintf("http://%s/health", addr))
+		resp, err := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
 		Expect(err).NotTo(HaveOccurred())
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		Expect(resp.StatusCode).NotTo(Equal(http.StatusServiceUnavailable),
 			"server should NOT return 503 while registration is in progress")
 
 		// Registration should eventually complete in the background.
-		Eventually(func() bool {
-			return registrationReceived.Load()
-		}).WithTimeout(10*time.Second).WithPolling(200*time.Millisecond).Should(BeTrue(),
+		Eventually(registrationReceived.Load).WithTimeout(10*time.Second).WithPolling(200*time.Millisecond).Should(BeTrue(),
 			"registration should complete asynchronously in the background")
 
 		cancel()
@@ -131,7 +128,7 @@ var _ = Describe("Registration Integration", func() {
 	// -------------------------------------------------------------------
 	It("SP continues serving after registration failure (TC-REG-IT-005)", func() {
 		// Mock DCM registry that always fails.
-		mockDCMServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mockDCMServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = json.NewEncoder(w).Encode(spmv1alpha1.Error{
@@ -176,11 +173,11 @@ var _ = Describe("Registration Integration", func() {
 
 		// Wait for server readiness.
 		Eventually(func() error {
-			resp, reqErr := http.Get(fmt.Sprintf("http://%s/health", addr))
+			resp, reqErr := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
 			if reqErr != nil {
 				return reqErr
 			}
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return nil
 		}).WithTimeout(5 * time.Second).WithPolling(50 * time.Millisecond).Should(Succeed())
 
@@ -189,18 +186,16 @@ var _ = Describe("Registration Integration", func() {
 		reg.Start(ctx)
 
 		// Wait for at least one retry to be logged.
-		Eventually(func() string {
-			return logBuf.String()
-		}).WithTimeout(2*time.Second).WithPolling(50*time.Millisecond).Should(
+		Eventually(logBuf.String).WithTimeout(2*time.Second).WithPolling(50*time.Millisecond).Should(
 			ContainSubstring("retry"),
 			"registration retries should be logged",
 		)
 
 		// Verify the SP process is still alive and serving.
-		resp, err := http.Get(fmt.Sprintf("http://%s/health", addr))
+		resp, err := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
 		Expect(err).NotTo(HaveOccurred(),
 			"HTTP server should still be reachable during registration retries")
-		resp.Body.Close()
+		_ = resp.Body.Close()
 
 		cancel()
 		Eventually(errCh).WithTimeout(10 * time.Second).Should(Receive())
@@ -242,9 +237,7 @@ var _ = Describe("Registration Integration", func() {
 		reg.Start(ctx)
 
 		// Wait for at least 4 retry attempts.
-		Eventually(func() int32 {
-			return requestCount.Load()
-		}).WithTimeout(5*time.Second).WithPolling(50*time.Millisecond).Should(
+		Eventually(requestCount.Load).WithTimeout(5*time.Second).WithPolling(50*time.Millisecond).Should(
 			BeNumerically(">=", 4),
 			"Start() should retry registration at least 4 times",
 		)
@@ -294,7 +287,7 @@ var _ = Describe("Registration Integration", func() {
 
 		mockDCMServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Method == http.MethodPost && r.URL.Path == "/providers" {
-				defer r.Body.Close()
+				defer func() { _ = r.Body.Close() }()
 				receivedBody, _ = io.ReadAll(r.Body)
 				requestReceived.Store(true)
 			}
@@ -323,9 +316,7 @@ var _ = Describe("Registration Integration", func() {
 		reg.Start(ctx)
 
 		// Verify the DCM client library sent a well-formed request.
-		Eventually(func() bool {
-			return requestReceived.Load()
-		}).WithTimeout(3*time.Second).WithPolling(100*time.Millisecond).Should(BeTrue(),
+		Eventually(requestReceived.Load).WithTimeout(3*time.Second).WithPolling(100*time.Millisecond).Should(BeTrue(),
 			"registration request should arrive at mock DCM server via DCM client library")
 
 		// Verify the body is valid JSON with expected DCM client library structure.

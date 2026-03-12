@@ -98,14 +98,14 @@ type ClientInterface interface {
 
 	CreateCluster(ctx context.Context, params *CreateClusterParams, body CreateClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetHealth request
+	GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// DeleteCluster request
 	DeleteCluster(ctx context.Context, clusterId ClusterIdPath, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GetCluster request
 	GetCluster(ctx context.Context, clusterId ClusterIdPath, reqEditors ...RequestEditorFn) (*http.Response, error)
-
-	// GetHealth request
-	GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) ListClusters(ctx context.Context, params *ListClustersParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -144,6 +144,18 @@ func (c *Client) CreateCluster(ctx context.Context, params *CreateClusterParams,
 	return c.Client.Do(req)
 }
 
+func (c *Client) GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetHealthRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 func (c *Client) DeleteCluster(ctx context.Context, clusterId ClusterIdPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeleteClusterRequest(c.Server, clusterId)
 	if err != nil {
@@ -158,18 +170,6 @@ func (c *Client) DeleteCluster(ctx context.Context, clusterId ClusterIdPath, req
 
 func (c *Client) GetCluster(ctx context.Context, clusterId ClusterIdPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetClusterRequest(c.Server, clusterId)
-	if err != nil {
-		return nil, err
-	}
-	req = req.WithContext(ctx)
-	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
-		return nil, err
-	}
-	return c.Client.Do(req)
-}
-
-func (c *Client) GetHealth(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewGetHealthRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -307,6 +307,33 @@ func NewCreateClusterRequestWithBody(server string, params *CreateClusterParams,
 	return req, nil
 }
 
+// NewGetHealthRequest generates requests for GetHealth
+func NewGetHealthRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1alpha1/clusters/health")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewDeleteClusterRequest generates requests for DeleteCluster
 func NewDeleteClusterRequest(server string, clusterId ClusterIdPath) (*http.Request, error) {
 	var err error
@@ -375,33 +402,6 @@ func NewGetClusterRequest(server string, clusterId ClusterIdPath) (*http.Request
 	return req, nil
 }
 
-// NewGetHealthRequest generates requests for GetHealth
-func NewGetHealthRequest(server string) (*http.Request, error) {
-	var err error
-
-	serverURL, err := url.Parse(server)
-	if err != nil {
-		return nil, err
-	}
-
-	operationPath := fmt.Sprintf("/api/v1alpha1/health")
-	if operationPath[0] == '/' {
-		operationPath = "." + operationPath
-	}
-
-	queryURL, err := serverURL.Parse(operationPath)
-	if err != nil {
-		return nil, err
-	}
-
-	req, err := http.NewRequest("GET", queryURL.String(), nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return req, nil
-}
-
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -453,14 +453,14 @@ type ClientWithResponsesInterface interface {
 
 	CreateClusterWithResponse(ctx context.Context, params *CreateClusterParams, body CreateClusterJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateClusterResponse, error)
 
+	// GetHealthWithResponse request
+	GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error)
+
 	// DeleteClusterWithResponse request
 	DeleteClusterWithResponse(ctx context.Context, clusterId ClusterIdPath, reqEditors ...RequestEditorFn) (*DeleteClusterResponse, error)
 
 	// GetClusterWithResponse request
 	GetClusterWithResponse(ctx context.Context, clusterId ClusterIdPath, reqEditors ...RequestEditorFn) (*GetClusterResponse, error)
-
-	// GetHealthWithResponse request
-	GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error)
 }
 
 type ListClustersResponse struct {
@@ -511,6 +511,28 @@ func (r CreateClusterResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r CreateClusterResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetHealthResponse struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	JSON200      *Health
+}
+
+// Status returns HTTPResponse.Status
+func (r GetHealthResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetHealthResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -568,28 +590,6 @@ func (r GetClusterResponse) StatusCode() int {
 	return 0
 }
 
-type GetHealthResponse struct {
-	Body         []byte
-	HTTPResponse *http.Response
-	JSON200      *Health
-}
-
-// Status returns HTTPResponse.Status
-func (r GetHealthResponse) Status() string {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.Status
-	}
-	return http.StatusText(0)
-}
-
-// StatusCode returns HTTPResponse.StatusCode
-func (r GetHealthResponse) StatusCode() int {
-	if r.HTTPResponse != nil {
-		return r.HTTPResponse.StatusCode
-	}
-	return 0
-}
-
 // ListClustersWithResponse request returning *ListClustersResponse
 func (c *ClientWithResponses) ListClustersWithResponse(ctx context.Context, params *ListClustersParams, reqEditors ...RequestEditorFn) (*ListClustersResponse, error) {
 	rsp, err := c.ListClusters(ctx, params, reqEditors...)
@@ -616,6 +616,15 @@ func (c *ClientWithResponses) CreateClusterWithResponse(ctx context.Context, par
 	return ParseCreateClusterResponse(rsp)
 }
 
+// GetHealthWithResponse request returning *GetHealthResponse
+func (c *ClientWithResponses) GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error) {
+	rsp, err := c.GetHealth(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetHealthResponse(rsp)
+}
+
 // DeleteClusterWithResponse request returning *DeleteClusterResponse
 func (c *ClientWithResponses) DeleteClusterWithResponse(ctx context.Context, clusterId ClusterIdPath, reqEditors ...RequestEditorFn) (*DeleteClusterResponse, error) {
 	rsp, err := c.DeleteCluster(ctx, clusterId, reqEditors...)
@@ -632,15 +641,6 @@ func (c *ClientWithResponses) GetClusterWithResponse(ctx context.Context, cluste
 		return nil, err
 	}
 	return ParseGetClusterResponse(rsp)
-}
-
-// GetHealthWithResponse request returning *GetHealthResponse
-func (c *ClientWithResponses) GetHealthWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetHealthResponse, error) {
-	rsp, err := c.GetHealth(ctx, reqEditors...)
-	if err != nil {
-		return nil, err
-	}
-	return ParseGetHealthResponse(rsp)
 }
 
 // ParseListClustersResponse parses an HTTP response from a ListClustersWithResponse call
@@ -765,6 +765,32 @@ func ParseCreateClusterResponse(rsp *http.Response) (*CreateClusterResponse, err
 	return response, nil
 }
 
+// ParseGetHealthResponse parses an HTTP response from a GetHealthWithResponse call
+func ParseGetHealthResponse(rsp *http.Response) (*GetHealthResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetHealthResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Health
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseDeleteClusterResponse parses an HTTP response from a DeleteClusterWithResponse call
 func ParseDeleteClusterResponse(rsp *http.Response) (*DeleteClusterResponse, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -860,32 +886,6 @@ func ParseGetClusterResponse(rsp *http.Response) (*GetClusterResponse, error) {
 			return nil, err
 		}
 		response.ApplicationproblemJSON500 = &dest
-
-	}
-
-	return response, nil
-}
-
-// ParseGetHealthResponse parses an HTTP response from a GetHealthWithResponse call
-func ParseGetHealthResponse(rsp *http.Response) (*GetHealthResponse, error) {
-	bodyBytes, err := io.ReadAll(rsp.Body)
-	defer func() { _ = rsp.Body.Close() }()
-	if err != nil {
-		return nil, err
-	}
-
-	response := &GetHealthResponse{
-		Body:         bodyBytes,
-		HTTPResponse: rsp,
-	}
-
-	switch {
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
-		var dest Health
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.JSON200 = &dest
 
 	}
 

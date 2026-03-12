@@ -18,7 +18,6 @@ import (
 )
 
 var _ = Describe("Server Configuration", func() {
-
 	// TC-HTTP-UT-012: Server sets http.Server timeouts from config
 	// REQ-HTTP-050
 	It("sets ReadTimeout, WriteTimeout, IdleTimeout on http.Server (TC-HTTP-UT-012)", func() {
@@ -85,7 +84,7 @@ var _ = Describe("Server Configuration", func() {
 			if reqErr != nil {
 				return reqErr
 			}
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return nil
 		}).WithTimeout(5 * time.Second).WithPolling(50 * time.Millisecond).Should(Succeed())
 

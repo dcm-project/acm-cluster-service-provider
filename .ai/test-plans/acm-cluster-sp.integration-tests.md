@@ -201,7 +201,7 @@ These requirements are validated by compilation, code review, or static analysis
 - **Then** the response is 404
 - **When** `GET /api/v1alpha1/clusters` is sent
 - **Then** the response is NOT 404
-- **When** `GET /api/v1alpha1/health` is sent
+- **When** `GET /api/v1alpha1/clusters/health` is sent
 - **Then** the response is NOT 404
 
 #### TC-HTTP-IT-002: Graceful shutdown drains in-flight requests
@@ -289,7 +289,7 @@ These requirements are validated by compilation, code review, or static analysis
 - **Type:** Integration
 - **Priority:** High
 - **Given** the server is running with a mock `HealthChecker` returning `status="healthy"`
-- **When** `GET /api/v1alpha1/health` is sent
+- **When** `GET /api/v1alpha1/clusters/health` is sent
 - **Then** response status is 200
 - **And** Content-Type is `application/json`
 - **And** body contains `type`, `status`, `path`, `version`, `uptime` (all required fields present)
@@ -399,7 +399,7 @@ Build constraint: `//go:build integration`
 - **Type:** Integration
 - **Priority:** High
 - **Given** envtest is running (provides a real K8s API server)
-- **When** `GET /api/v1alpha1/health` is called
+- **When** `GET /api/v1alpha1/clusters/health` is called
 - **Then** response is 200 with `status="healthy"`
 
 #### TC-INT-005: RFC 7807 error on actual HTTP request
