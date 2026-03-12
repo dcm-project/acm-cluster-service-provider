@@ -108,7 +108,6 @@ func defaultRegistrationConfig(serverURL string) config.RegistrationConfig {
 }
 
 var _ = Describe("Registration", func() {
-
 	var (
 		mockServer *httptest.Server
 		logBuf     *syncBuffer
@@ -201,7 +200,7 @@ var _ = Describe("Registration", func() {
 		// TC-REG-UT-002: Idempotent re-registration
 		// ---------------------------------------------------------------
 		It("proceeds normally when DCM returns 200 for existing provider (TC-REG-UT-002)", func() {
-			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
 				resp := spmv1alpha1.Provider{
@@ -278,7 +277,7 @@ var _ = Describe("Registration", func() {
 		It("uses the DCM client library, not raw HTTP (TC-REG-UT-011)", func() {
 			var requestReceived atomic.Bool
 
-			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				requestReceived.Store(true)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusCreated)
@@ -313,7 +312,7 @@ var _ = Describe("Registration", func() {
 			var requestCount atomic.Int32
 
 			// Create and immediately close the server so connections fail.
-			closedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			closedServer := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 				requestCount.Add(1)
 			}))
 			closedServerURL := closedServer.URL
@@ -337,9 +336,7 @@ var _ = Describe("Registration", func() {
 			reg.Start(ctx)
 
 			// Wait for several retries to prove it retries indefinitely.
-			Eventually(func() string {
-				return logBuf.String()
-			}).WithTimeout(2*time.Second).WithPolling(50*time.Millisecond).Should(
+			Eventually(logBuf.String).WithTimeout(2*time.Second).WithPolling(50*time.Millisecond).Should(
 				ContainSubstring("retry"),
 				"Start() should log retry attempts when registry is unreachable",
 			)
@@ -357,7 +354,7 @@ var _ = Describe("Registration", func() {
 			It("retries with backoff on 5xx responses (TC-REG-UT-009a)", func() {
 				var requestCount atomic.Int32
 
-				mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					requestCount.Add(1)
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusInternalServerError)
@@ -383,9 +380,7 @@ var _ = Describe("Registration", func() {
 
 				reg.Start(ctx)
 
-				Eventually(func() int32 {
-					return requestCount.Load()
-				}).WithTimeout(2*time.Second).WithPolling(50*time.Millisecond).Should(
+				Eventually(requestCount.Load).WithTimeout(2*time.Second).WithPolling(50*time.Millisecond).Should(
 					BeNumerically(">=", 2),
 					"Start() should retry on 500 errors",
 				)
@@ -396,7 +391,7 @@ var _ = Describe("Registration", func() {
 			It("does NOT retry on 4xx responses (TC-REG-UT-009b)", func() {
 				var requestCount atomic.Int32
 
-				mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 					requestCount.Add(1)
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusBadRequest)
@@ -438,7 +433,7 @@ var _ = Describe("Registration", func() {
 		It("does not launch duplicate goroutines on repeated Start() calls (TC-REG-UT-010b)", func() {
 			var requestCount atomic.Int32
 
-			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				requestCount.Add(1)
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusCreated)
@@ -465,18 +460,14 @@ var _ = Describe("Registration", func() {
 			reg.Start(ctx)
 
 			// Wait for initial registration to complete.
-			Eventually(func() int32 {
-				return requestCount.Load()
-			}).WithTimeout(2*time.Second).WithPolling(50*time.Millisecond).Should(
+			Eventually(requestCount.Load).WithTimeout(2*time.Second).WithPolling(50*time.Millisecond).Should(
 				BeNumerically(">=", 1),
 				"at least one registration request should be sent",
 			)
 
 			// Only one goroutine should have been launched, so only 1 registration
 			// request should have been sent initially (not 2).
-			Consistently(func() int32 {
-				return requestCount.Load()
-			}, 200*time.Millisecond, 50*time.Millisecond).Should(
+			Consistently(requestCount.Load, 200*time.Millisecond, 50*time.Millisecond).Should(
 				BeNumerically("==", 1),
 				"second Start() should not launch a duplicate goroutine",
 			)
@@ -486,7 +477,7 @@ var _ = Describe("Registration", func() {
 		// Done() channel
 		// ---------------------------------------------------------------
 		It("closes Done() when the registration goroutine exits (TC-REG-UT-Done)", func() {
-			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusBadRequest)
 				_, _ = w.Write([]byte(`{"type":"VALIDATION","title":"Bad Request"}`))
@@ -515,7 +506,6 @@ var _ = Describe("Registration", func() {
 	// TC-REG-UT-005 / TC-REG-UT-008 / TC-REG-UT-010: Version watching
 	// ---------------------------------------------------------------
 	Describe("Start() version watching", func() {
-
 		// ---------------------------------------------------------------
 		// TC-REG-UT-005: Version refresh triggers re-registration
 		// ---------------------------------------------------------------
@@ -705,7 +695,7 @@ var _ = Describe("Registration", func() {
 			firstRegistration := true
 			var firstRegMu sync.Mutex
 
-			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				requestCount.Add(1)
 				w.Header().Set("Content-Type", "application/json")
 
@@ -752,9 +742,7 @@ var _ = Describe("Registration", func() {
 			reg.Start(ctx)
 
 			// Wait for initial registration.
-			Eventually(func() int32 {
-				return requestCount.Load()
-			}).WithTimeout(2*time.Second).WithPolling(50*time.Millisecond).Should(
+			Eventually(requestCount.Load).WithTimeout(2*time.Second).WithPolling(50*time.Millisecond).Should(
 				BeNumerically(">=", 1),
 				"Start() should perform initial registration",
 			)
@@ -765,16 +753,12 @@ var _ = Describe("Registration", func() {
 
 			// The version watcher should detect the change and attempt re-registration,
 			// which will fail with 500. It should retry and log errors.
-			Eventually(func() int32 {
-				return requestCount.Load()
-			}).WithTimeout(3*time.Second).WithPolling(50*time.Millisecond).Should(
+			Eventually(requestCount.Load).WithTimeout(3*time.Second).WithPolling(50*time.Millisecond).Should(
 				BeNumerically(">=", 2),
 				"Start() should attempt re-registration when versions change",
 			)
 
-			Eventually(func() string {
-				return logBuf.String()
-			}).WithTimeout(3*time.Second).WithPolling(50*time.Millisecond).Should(
+			Eventually(logBuf.String).WithTimeout(3*time.Second).WithPolling(50*time.Millisecond).Should(
 				SatisfyAny(
 					ContainSubstring("error"),
 					ContainSubstring("failed"),
@@ -789,7 +773,6 @@ var _ = Describe("Registration", func() {
 	// TC-REG-UT-012 / TC-REG-UT-013: VersionDiscoverer
 	// ---------------------------------------------------------------
 	Describe("VersionDiscoverer.DiscoverVersions()", func() {
-
 		// ---------------------------------------------------------------
 		// TC-REG-UT-012: ClusterImageSet without matrix mapping is not advertised
 		// ---------------------------------------------------------------

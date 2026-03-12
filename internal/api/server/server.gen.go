@@ -347,15 +347,15 @@ type ServerInterface interface {
 	// Create a new cluster
 	// (POST /api/v1alpha1/clusters)
 	CreateCluster(w http.ResponseWriter, r *http.Request, params CreateClusterParams)
+	// Health check
+	// (GET /api/v1alpha1/clusters/health)
+	GetHealth(w http.ResponseWriter, r *http.Request)
 	// Delete a cluster
 	// (DELETE /api/v1alpha1/clusters/{clusterId})
 	DeleteCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath)
 	// Get cluster details
 	// (GET /api/v1alpha1/clusters/{clusterId})
 	GetCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath)
-	// Health check
-	// (GET /api/v1alpha1/health)
-	GetHealth(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -374,6 +374,12 @@ func (_ Unimplemented) CreateCluster(w http.ResponseWriter, r *http.Request, par
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// Health check
+// (GET /api/v1alpha1/clusters/health)
+func (_ Unimplemented) GetHealth(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // Delete a cluster
 // (DELETE /api/v1alpha1/clusters/{clusterId})
 func (_ Unimplemented) DeleteCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath) {
@@ -383,12 +389,6 @@ func (_ Unimplemented) DeleteCluster(w http.ResponseWriter, r *http.Request, clu
 // Get cluster details
 // (GET /api/v1alpha1/clusters/{clusterId})
 func (_ Unimplemented) GetCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath) {
-	w.WriteHeader(http.StatusNotImplemented)
-}
-
-// Health check
-// (GET /api/v1alpha1/health)
-func (_ Unimplemented) GetHealth(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -463,6 +463,20 @@ func (siw *ServerInterfaceWrapper) CreateCluster(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// GetHealth operation middleware
+func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetHealth(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeleteCluster operation middleware
 func (siw *ServerInterfaceWrapper) DeleteCluster(w http.ResponseWriter, r *http.Request) {
 
@@ -504,20 +518,6 @@ func (siw *ServerInterfaceWrapper) GetCluster(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetCluster(w, r, clusterId)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetHealth operation middleware
-func (siw *ServerInterfaceWrapper) GetHealth(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetHealth(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -647,13 +647,13 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/api/v1alpha1/clusters", wrapper.CreateCluster)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/v1alpha1/clusters/health", wrapper.GetHealth)
+	})
+	r.Group(func(r chi.Router) {
 		r.Delete(options.BaseURL+"/api/v1alpha1/clusters/{clusterId}", wrapper.DeleteCluster)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1alpha1/clusters/{clusterId}", wrapper.GetCluster)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/api/v1alpha1/health", wrapper.GetHealth)
 	})
 
 	return r
@@ -784,6 +784,22 @@ func (response CreateCluster500ApplicationProblemPlusJSONResponse) VisitCreateCl
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetHealthRequestObject struct {
+}
+
+type GetHealthResponseObject interface {
+	VisitGetHealthResponse(w http.ResponseWriter) error
+}
+
+type GetHealth200JSONResponse Health
+
+func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DeleteClusterRequestObject struct {
 	ClusterId ClusterIdPath `json:"clusterId"`
 }
@@ -889,22 +905,6 @@ func (response GetCluster500ApplicationProblemPlusJSONResponse) VisitGetClusterR
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GetHealthRequestObject struct {
-}
-
-type GetHealthResponseObject interface {
-	VisitGetHealthResponse(w http.ResponseWriter) error
-}
-
-type GetHealth200JSONResponse Health
-
-func (response GetHealth200JSONResponse) VisitGetHealthResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// List all clusters
@@ -913,15 +913,15 @@ type StrictServerInterface interface {
 	// Create a new cluster
 	// (POST /api/v1alpha1/clusters)
 	CreateCluster(ctx context.Context, request CreateClusterRequestObject) (CreateClusterResponseObject, error)
+	// Health check
+	// (GET /api/v1alpha1/clusters/health)
+	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
 	// Delete a cluster
 	// (DELETE /api/v1alpha1/clusters/{clusterId})
 	DeleteCluster(ctx context.Context, request DeleteClusterRequestObject) (DeleteClusterResponseObject, error)
 	// Get cluster details
 	// (GET /api/v1alpha1/clusters/{clusterId})
 	GetCluster(ctx context.Context, request GetClusterRequestObject) (GetClusterResponseObject, error)
-	// Health check
-	// (GET /api/v1alpha1/health)
-	GetHealth(ctx context.Context, request GetHealthRequestObject) (GetHealthResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -1012,6 +1012,30 @@ func (sh *strictHandler) CreateCluster(w http.ResponseWriter, r *http.Request, p
 	}
 }
 
+// GetHealth operation middleware
+func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
+	var request GetHealthRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetHealth(ctx, request.(GetHealthRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetHealth")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetHealthResponseObject); ok {
+		if err := validResponse.VisitGetHealthResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // DeleteCluster operation middleware
 func (sh *strictHandler) DeleteCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath) {
 	var request DeleteClusterRequestObject
@@ -1057,30 +1081,6 @@ func (sh *strictHandler) GetCluster(w http.ResponseWriter, r *http.Request, clus
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetClusterResponseObject); ok {
 		if err := validResponse.VisitGetClusterResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// GetHealth operation middleware
-func (sh *strictHandler) GetHealth(w http.ResponseWriter, r *http.Request) {
-	var request GetHealthRequestObject
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GetHealth(ctx, request.(GetHealthRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GetHealth")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GetHealthResponseObject); ok {
-		if err := validResponse.VisitGetHealthResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
