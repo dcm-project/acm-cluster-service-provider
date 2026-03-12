@@ -84,7 +84,7 @@ func (s *Server) WithOnReady(fn func(context.Context)) *Server {
 // waitForReady polls the server until it accepts HTTP connections or the
 // context/timeout expires.
 func (s *Server) waitForReady(ctx context.Context, addr string) error {
-	url := fmt.Sprintf("http://%s/api/v1alpha1/health", addr)
+	url := fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr)
 	client := &http.Client{Timeout: 1 * time.Second}
 
 	deadline := time.NewTimer(readinessProbeTimeout)

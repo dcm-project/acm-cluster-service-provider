@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	oapigen "github.com/dcm-project/acm-cluster-service-provider/internal/api/server"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/apiserver"
@@ -25,20 +26,28 @@ import (
 // -ldflags "-X main.version=X.Y.Z".
 var version = "0.0.1-dev"
 
+// TODO(topic-5): remove bootstrapHandler once K8s client is wired; the real
+// health implementation lives in handler.Handler + health.Checker.
+//
 // bootstrapHandler provides a minimal ServerInterface implementation for
 // startup. It embeds Unimplemented (returning 501 for all CRUD endpoints)
 // and overrides only GetHealth to return 200, which is required for the
 // server's readiness probe to succeed and trigger registration.
 type bootstrapHandler struct {
 	oapigen.Unimplemented
+	startTime time.Time
 }
 
 func (h *bootstrapHandler) GetHealth(w http.ResponseWriter, _ *http.Request) {
+	uptime := max(0, int(time.Since(h.startTime).Seconds()))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(oapigen.Health{
 		Status:  util.Ptr("healthy"),
+		Type:    util.Ptr("acm-cluster-service-provider.dcm.io/health"),
+		Path:    util.Ptr("health"),
 		Version: &version,
+		Uptime:  &uptime,
 	})
 }
 

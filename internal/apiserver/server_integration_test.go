@@ -181,12 +181,12 @@ var _ = Describe("HTTP Server", func() {
 		Expect(resp.StatusCode).NotTo(Equal(http.StatusMethodNotAllowed),
 			"/api/v1alpha1/clusters GET should not be 405")
 
-		// GET /api/v1alpha1/health should NOT return 404.
-		resp, err = http.Get(baseURL + "/api/v1alpha1/health")
+		// GET /api/v1alpha1/clusters/health should NOT return 404.
+		resp, err = http.Get(baseURL + "/api/v1alpha1/clusters/health")
 		Expect(err).NotTo(HaveOccurred())
 		resp.Body.Close()
 		Expect(resp.StatusCode).NotTo(Equal(http.StatusNotFound),
-			"/api/v1alpha1/health should be a valid route")
+			"/api/v1alpha1/clusters/health should be a valid route")
 	})
 
 	// TC-HTTP-IT-002: Graceful shutdown drains in-flight requests
@@ -236,7 +236,7 @@ var _ = Describe("HTTP Server", func() {
 
 		Eventually(errCh).WithTimeout(10 * time.Second).Should(Receive(BeNil()))
 
-		_, err = http.Get(fmt.Sprintf("http://%s/health", addr))
+		_, err = http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
 		Expect(err).To(HaveOccurred())
 	})
 
@@ -267,7 +267,7 @@ var _ = Describe("HTTP Server", func() {
 		Expect(problemJSON["status"]).To(BeNumerically("==", 500))
 
 		// Server should still be alive after the panic.
-		resp2, err := http.Get(fmt.Sprintf("http://%s/health", addr))
+		resp2, err := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
 		Expect(err).NotTo(HaveOccurred())
 		resp2.Body.Close()
 	})
