@@ -93,7 +93,7 @@ var _ = Describe("Registration Integration", func() {
 
 		// Wait for the HTTP server to be ready.
 		Eventually(func() error {
-			resp, reqErr := http.Get(fmt.Sprintf("http://%s/health", addr))
+			resp, reqErr := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
 			if reqErr != nil {
 				return reqErr
 			}
@@ -109,7 +109,7 @@ var _ = Describe("Registration Integration", func() {
 		reg.Start(ctx)
 
 		// Verify HTTP server is serving while registration is in progress.
-		resp, err := http.Get(fmt.Sprintf("http://%s/health", addr))
+		resp, err := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
 		Expect(err).NotTo(HaveOccurred())
 		_ = resp.Body.Close()
 		Expect(resp.StatusCode).NotTo(Equal(http.StatusServiceUnavailable),
@@ -173,7 +173,7 @@ var _ = Describe("Registration Integration", func() {
 
 		// Wait for server readiness.
 		Eventually(func() error {
-			resp, reqErr := http.Get(fmt.Sprintf("http://%s/health", addr))
+			resp, reqErr := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
 			if reqErr != nil {
 				return reqErr
 			}
@@ -192,7 +192,7 @@ var _ = Describe("Registration Integration", func() {
 		)
 
 		// Verify the SP process is still alive and serving.
-		resp, err := http.Get(fmt.Sprintf("http://%s/health", addr))
+		resp, err := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
 		Expect(err).NotTo(HaveOccurred(),
 			"HTTP server should still be reachable during registration retries")
 		_ = resp.Body.Close()
