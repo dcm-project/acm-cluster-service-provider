@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,8 +13,9 @@ import (
 	oapigen "github.com/dcm-project/acm-cluster-service-provider/internal/api/server"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/apiserver"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/handler"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/health"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/registration"
-	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
 	spmclient "github.com/dcm-project/service-provider-manager/pkg/client"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -25,33 +24,6 @@ import (
 // version is the application version, set at build time via
 // -ldflags "-X main.version=X.Y.Z".
 var version = "0.0.1-dev"
-
-// TODO(topic-5): remove bootstrapHandler once K8s client is wired; the real
-// health implementation lives in handler.Handler + health.Checker.
-//
-// bootstrapHandler provides a minimal ServerInterface implementation for
-// startup. It embeds Unimplemented (returning 501 for all CRUD endpoints)
-// and overrides only GetHealth to return 200, which is required for the
-// server's readiness probe to succeed and trigger registration.
-type bootstrapHandler struct {
-	oapigen.Unimplemented
-	startTime time.Time
-}
-
-func (h *bootstrapHandler) GetHealth(w http.ResponseWriter, _ *http.Request) {
-	uptime := max(0, int(time.Since(h.startTime).Seconds()))
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(oapigen.Health{
-		Status:  util.Ptr("healthy"),
-		Type:    util.Ptr("acm-cluster-service-provider.dcm.io/health"),
-		Path:    util.Ptr("health"),
-		Version: &version,
-		Uptime:  &uptime,
-	}); err != nil {
-		http.Error(w, "failed to encode health response", http.StatusInternalServerError)
-	}
-}
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -93,7 +65,11 @@ func run(logger *slog.Logger) error {
 
 	registrar := registration.New(cfg.Registration, dcmClient, k8sClient, logger)
 
-	srv := apiserver.New(cfg, logger, &bootstrapHandler{}).WithOnReady(registrar.Start)
+	startTime := time.Now()
+	checker := health.NewChecker(k8sClient, cfg.Health, version, startTime)
+	strictHandler := handler.New(checker)
+	h := oapigen.NewStrictHandler(strictHandler, nil)
+	srv := apiserver.New(cfg, logger, h).WithOnReady(registrar.Start)
 
 	return srv.Run(ctx, ln)
 }
