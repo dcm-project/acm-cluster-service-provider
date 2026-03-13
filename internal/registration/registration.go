@@ -1,3 +1,4 @@
+// Package registration handles DCM service provider registration and version watching.
 package registration
 
 import (

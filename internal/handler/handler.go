@@ -1,3 +1,4 @@
+// Package handler implements the strict server interface by delegating to domain services.
 package handler
 
 import (

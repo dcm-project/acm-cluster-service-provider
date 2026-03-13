@@ -64,7 +64,6 @@ func newHyperShiftOnlyScheme() *runtime.Scheme {
 }
 
 var _ = Describe("HealthChecker", func() {
-
 	// ---------------------------------------------------------------
 	// TC-HLT-UT-001: Healthy response with all checks passing
 	// REQ-HLT-010, REQ-HLT-020, REQ-HLT-030, REQ-HLT-040, REQ-HLT-050, REQ-HLT-120
@@ -108,10 +107,10 @@ var _ = Describe("HealthChecker", func() {
 	It("returns unhealthy when K8s API is unreachable (TC-HLT-UT-002)", func() {
 		funcs := interceptor.Funcs{
 			List: func(
-				ctx context.Context,
-				c client.WithWatch,
-				list client.ObjectList,
-				opts ...client.ListOption,
+				_ context.Context,
+				_ client.WithWatch,
+				_ client.ObjectList,
+				_ ...client.ListOption,
 			) error {
 				return fmt.Errorf("connection refused")
 			},
@@ -169,9 +168,9 @@ var _ = Describe("HealthChecker", func() {
 		funcs := interceptor.Funcs{
 			List: func(
 				ctx context.Context,
-				c client.WithWatch,
-				list client.ObjectList,
-				opts ...client.ListOption,
+				_ client.WithWatch,
+				_ client.ObjectList,
+				_ ...client.ListOption,
 			) error {
 				<-ctx.Done()
 				return ctx.Err()

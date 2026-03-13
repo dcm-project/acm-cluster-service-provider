@@ -1,3 +1,4 @@
+// Package service defines domain service interfaces for the service provider.
 package service
 
 import (

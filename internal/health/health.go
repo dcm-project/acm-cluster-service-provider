@@ -1,3 +1,4 @@
+// Package health implements dependency health checks for the service provider.
 package health
 
 import (

@@ -1,3 +1,4 @@
+// Package apiserver provides the HTTP server for the cluster service provider API.
 package apiserver
 
 import (
@@ -100,7 +101,7 @@ func (s *Server) waitForReady(ctx context.Context, addr string) error {
 		}
 		resp, err := client.Do(req)
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
 				return nil
 			}

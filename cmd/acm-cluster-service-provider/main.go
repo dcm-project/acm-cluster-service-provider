@@ -42,13 +42,15 @@ func (h *bootstrapHandler) GetHealth(w http.ResponseWriter, _ *http.Request) {
 	uptime := max(0, int(time.Since(h.startTime).Seconds()))
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(oapigen.Health{
+	if err := json.NewEncoder(w).Encode(oapigen.Health{
 		Status:  util.Ptr("healthy"),
 		Type:    util.Ptr("acm-cluster-service-provider.dcm.io/health"),
 		Path:    util.Ptr("health"),
 		Version: &version,
 		Uptime:  &uptime,
-	})
+	}); err != nil {
+		http.Error(w, "failed to encode health response", http.StatusInternalServerError)
+	}
 }
 
 func main() {

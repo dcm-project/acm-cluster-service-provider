@@ -37,7 +37,6 @@ func (m *mockHealthChecker) Check(_ context.Context) v1alpha1.Health {
 }
 
 var _ = Describe("Health HTTP Endpoint", func() {
-
 	// startHealthServer creates a minimal server with a strict handler,
 	// starts it in a goroutine, and returns the address + cleanup.
 	startHealthServer := func(handler oapigen.StrictServerInterface) (
@@ -75,7 +74,7 @@ var _ = Describe("Health HTTP Endpoint", func() {
 			if reqErr != nil {
 				return reqErr
 			}
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return nil
 		}).WithTimeout(5 * time.Second).WithPolling(50 * time.Millisecond).Should(Succeed())
 
@@ -95,7 +94,7 @@ var _ = Describe("Health HTTP Endpoint", func() {
 
 		resp, err := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
 		Expect(err).NotTo(HaveOccurred())
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		// REQ-HLT-010: HTTP 200
 		Expect(resp.StatusCode).To(Equal(http.StatusOK))

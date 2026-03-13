@@ -1,3 +1,4 @@
+// Package config provides environment-based configuration for the service provider.
 package config
 
 import (
@@ -40,7 +41,7 @@ type RegistrationConfig struct {
 type Config struct {
 	Server       ServerConfig
 	Registration RegistrationConfig
-	Health HealthConfig
+	Health       HealthConfig
 }
 
 // Load reads configuration from environment variables.
