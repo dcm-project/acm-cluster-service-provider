@@ -1,3 +1,4 @@
+// Package apiserver provides the HTTP server for the cluster service provider API.
 package apiserver
 
 import (
@@ -84,7 +85,7 @@ func (s *Server) WithOnReady(fn func(context.Context)) *Server {
 // waitForReady polls the server until it accepts HTTP connections or the
 // context/timeout expires.
 func (s *Server) waitForReady(ctx context.Context, addr string) error {
-	url := fmt.Sprintf("http://%s/api/v1alpha1/health", addr)
+	url := fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr)
 	client := &http.Client{Timeout: 1 * time.Second}
 
 	deadline := time.NewTimer(readinessProbeTimeout)
@@ -100,7 +101,7 @@ func (s *Server) waitForReady(ctx context.Context, addr string) error {
 		}
 		resp, err := client.Do(req)
 		if err == nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
 				return nil
 			}

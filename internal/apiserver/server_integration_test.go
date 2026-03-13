@@ -49,7 +49,7 @@ type panicOnListHandler struct {
 	oapigen.Unimplemented
 }
 
-func (p *panicOnListHandler) ListClusters(w http.ResponseWriter, _ *http.Request, _ oapigen.ListClustersParams) {
+func (p *panicOnListHandler) ListClusters(_ http.ResponseWriter, _ *http.Request, _ oapigen.ListClustersParams) {
 	panic("unexpected failure")
 }
 
@@ -78,7 +78,6 @@ func (f *failingStrictHandler) GetHealth(_ context.Context, _ oapigen.GetHealthR
 }
 
 var _ = Describe("HTTP Server", func() {
-
 	// startServer creates a server with the given config, starts it in a
 	// goroutine, and returns the address, cancel/cleanup functions.
 	//
@@ -137,7 +136,7 @@ var _ = Describe("HTTP Server", func() {
 			if reqErr != nil {
 				return reqErr
 			}
-			resp.Body.Close()
+			_ = resp.Body.Close()
 			return nil
 		}).WithTimeout(5 * time.Second).WithPolling(50 * time.Millisecond).Should(Succeed())
 
@@ -168,25 +167,25 @@ var _ = Describe("HTTP Server", func() {
 		// GET /clusters (no prefix) should return 404.
 		resp, err := http.Get(baseURL + "/clusters")
 		Expect(err).NotTo(HaveOccurred())
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		Expect(resp.StatusCode).To(Equal(http.StatusNotFound),
 			"/clusters without prefix should be 404")
 
 		// GET /api/v1alpha1/clusters should NOT return 404.
 		resp, err = http.Get(baseURL + "/api/v1alpha1/clusters")
 		Expect(err).NotTo(HaveOccurred())
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		Expect(resp.StatusCode).NotTo(Equal(http.StatusNotFound),
 			"/api/v1alpha1/clusters should be a valid route")
 		Expect(resp.StatusCode).NotTo(Equal(http.StatusMethodNotAllowed),
 			"/api/v1alpha1/clusters GET should not be 405")
 
-		// GET /api/v1alpha1/health should NOT return 404.
-		resp, err = http.Get(baseURL + "/api/v1alpha1/health")
+		// GET /api/v1alpha1/clusters/health should NOT return 404.
+		resp, err = http.Get(baseURL + "/api/v1alpha1/clusters/health")
 		Expect(err).NotTo(HaveOccurred())
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		Expect(resp.StatusCode).NotTo(Equal(http.StatusNotFound),
-			"/api/v1alpha1/health should be a valid route")
+			"/api/v1alpha1/clusters/health should be a valid route")
 	})
 
 	// TC-HTTP-IT-002: Graceful shutdown drains in-flight requests
@@ -231,12 +230,12 @@ var _ = Describe("HTTP Server", func() {
 		var res result
 		Eventually(respCh).WithTimeout(5 * time.Second).Should(Receive(&res))
 		Expect(res.err).NotTo(HaveOccurred())
-		defer res.resp.Body.Close()
+		defer func() { _ = res.resp.Body.Close() }()
 		Expect(res.resp.StatusCode).To(Equal(http.StatusOK))
 
 		Eventually(errCh).WithTimeout(10 * time.Second).Should(Receive(BeNil()))
 
-		_, err = http.Get(fmt.Sprintf("http://%s/health", addr))
+		_, err = http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
 		Expect(err).To(HaveOccurred())
 	})
 
@@ -253,7 +252,7 @@ var _ = Describe("HTTP Server", func() {
 		// Hit the panicking route.
 		resp, err := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters", addr))
 		Expect(err).NotTo(HaveOccurred())
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		Expect(resp.StatusCode).To(Equal(http.StatusInternalServerError))
 		Expect(resp.Header.Get("Content-Type")).To(Equal("application/problem+json"))
@@ -267,9 +266,9 @@ var _ = Describe("HTTP Server", func() {
 		Expect(problemJSON["status"]).To(BeNumerically("==", 500))
 
 		// Server should still be alive after the panic.
-		resp2, err := http.Get(fmt.Sprintf("http://%s/health", addr))
+		resp2, err := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
 		Expect(err).NotTo(HaveOccurred())
-		resp2.Body.Close()
+		_ = resp2.Body.Close()
 	})
 
 	// TC-HTTP-IT-004: Request errors return RFC 7807
@@ -288,7 +287,7 @@ var _ = Describe("HTTP Server", func() {
 			strings.NewReader("{invalid json"),
 		)
 		Expect(err).NotTo(HaveOccurred())
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		Expect(resp.Header.Get("Content-Type")).To(Equal("application/problem+json"))
 
@@ -317,7 +316,7 @@ var _ = Describe("HTTP Server", func() {
 
 		resp, err := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters", addr))
 		Expect(err).NotTo(HaveOccurred())
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		Expect(resp.Header.Get("Content-Type")).To(Equal("application/problem+json"))
 
@@ -378,7 +377,7 @@ var _ = Describe("HTTP Server", func() {
 		client := &http.Client{Timeout: 10 * time.Second}
 		resp, err := client.Get(fmt.Sprintf("http://%s/test/slow", addr))
 		Expect(err).NotTo(HaveOccurred())
-		resp.Body.Close()
+		_ = resp.Body.Close()
 
 		// The handler should have been cancelled by the timeout middleware
 		// within ~1s (the REQUEST_TIMEOUT). Without middleware, it will
@@ -418,7 +417,7 @@ var _ = Describe("HTTP Server", func() {
 		go func() {
 			resp, err := http.Get(fmt.Sprintf("http://%s/test/block", addr))
 			if err == nil {
-				resp.Body.Close()
+				_ = resp.Body.Close()
 			}
 		}()
 
@@ -445,12 +444,10 @@ var _ = Describe("HTTP Server", func() {
 
 		resp, err := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters", addr))
 		Expect(err).NotTo(HaveOccurred())
-		resp.Body.Close()
+		_ = resp.Body.Close()
 
 		// Poll the log buffer until the logging middleware has written.
-		Eventually(func() string {
-			return logBuf.String()
-		}).WithTimeout(5*time.Second).WithPolling(50*time.Millisecond).Should(
+		Eventually(logBuf.String).WithTimeout(5*time.Second).WithPolling(50*time.Millisecond).Should(
 			ContainSubstring("request completed"),
 			"log should contain the request completed entry",
 		)

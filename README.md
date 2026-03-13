@@ -86,7 +86,7 @@ make check-aep
 | GET | `/api/v1alpha1/clusters` | List clusters |
 | GET | `/api/v1alpha1/clusters/{clusterId}` | Get cluster details |
 | DELETE | `/api/v1alpha1/clusters/{clusterId}` | Delete a cluster |
-| GET | `/api/v1alpha1/health` | Health check |
+| GET | `/api/v1alpha1/clusters/health` | Health check |
 
 ## DCM Registration
 
