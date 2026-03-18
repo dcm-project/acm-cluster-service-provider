@@ -5,8 +5,8 @@
 - **Related Spec:** .ai/specs/acm-cluster-sp.spec.md
 - **Related Requirements:** REQ-REG-xxx, REQ-HTTP-xxx, REQ-HLT-xxx, REQ-API-xxx, REQ-ACM-xxx, REQ-KV-xxx, REQ-BM-xxx, REQ-MON-xxx, REQ-XC-xxx
 - **Created:** 2026-02-17
-- **Last Updated:** 2026-03-06 (deep analysis findings applied)
-- **Scope:** This file covers **unit tests only** (135 test cases). Integration tests are in `acm-cluster-sp.integration-tests.md`.
+- **Last Updated:** 2026-03-16 (max_page_size limit corrected to 100 per REQ-API-270; 4 TCs reclassified from unit to integration/middleware scope)
+- **Scope:** This file covers **unit tests only** (131 unit test cases + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
 
 ## Design Principles
 
@@ -35,6 +35,8 @@ Decisions made during test plan creation that affect test design:
 | `console_uri` source | Construct from configurable pattern | `SP_CONSOLE_URI_PATTERN` template (default: `https://console-openshift-console.apps.{name}.{base_domain}`) when READY. Pattern is configurable since it may change across HyperShift versions |
 | Health critical deps | K8s API + HyperShift CRD | REQ-HLT-070/080 upgraded to MUST. Platform checks remain SHOULD (non-critical) |
 | Empty `page_token` | Treat as absent | Empty string returns first page, not a 400 error |
+| `max_page_size` upper limit | 100 (per REQ-API-270) | Spec says 1-100; original test plan had 1-1000 which contradicted the spec |
+| Middleware-validated TCs reclassified | TC-HDL-GET-UT-004, TC-HDL-DEL-UT-006, TC-HDL-CRT-UT-017, TC-HDL-CRT-UT-018 moved to integration scope | OpenAPI spec patterns (`ClusterIdPath`, memory/storage regex) are enforced by the validation middleware before the handler. The generated `StrictServerInterface` has no 400 response types for GetCluster/DeleteCluster, confirming these validations cannot be returned by the handler |
 | `metadata.name` validation | OpenAPI pattern | Already defined in OpenAPI spec, enforced by validation middleware. No handler code needed |
 | OpenAPI middleware validation | Middleware handles pattern/enum/min/max/required | `RequestErrorHandlerFunc` rejects invalid requests before handler code. Tests like TC-HDL-CRT-UT-004, TC-HDL-CRT-UT-006, TC-HDL-CRT-UT-017, TC-HDL-CRT-UT-018 verify middleware behavior as part of the API contract |
 | Utility function testing | Tested transitively, IDs kept for traceability | Pure utility functions (format conversion) are tested through consuming service/handler tests, not standalone. TC-STS-UT-xxx, TC-ERR-UT-xxx IDs remain for requirement coverage mapping |
@@ -522,18 +524,20 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 
 #### TC-HDL-CRT-UT-017: Zero-value memory rejected by middleware
 - **Requirements:** REQ-API-170
-- **Type:** Unit
+- **Type:** Integration (middleware)
 - **Priority:** High
+- **Reclassified:** Moved from unit to integration scope. The OpenAPI spec defines `pattern: '^[1-9][0-9]*(MB|GB|TB)$'` on memory fields, which rejects `"0GB"` at the validation middleware before the request reaches the handler. This TC must be tested through the full HTTP middleware stack.
 - **Given** no mock interaction needed (middleware rejects before handler)
-- **When** `POST /api/v1alpha1/clusters` is called with `workers.memory="0GB"`
+- **When** `POST /api/v1alpha1/clusters` is sent with `workers.memory="0GB"`
 - **Then** returns 400 with `type="INVALID_ARGUMENT"`
 
 #### TC-HDL-CRT-UT-018: Zero-value storage rejected by middleware
 - **Requirements:** REQ-API-170
-- **Type:** Unit
+- **Type:** Integration (middleware)
 - **Priority:** Medium
+- **Reclassified:** Moved from unit to integration scope. The OpenAPI spec defines `pattern: '^[1-9][0-9]*(MB|GB|TB)$'` on storage fields, which rejects `"0TB"` at the validation middleware before the request reaches the handler. This TC must be tested through the full HTTP middleware stack.
 - **Given** no mock interaction needed (middleware rejects before handler)
-- **When** `POST /api/v1alpha1/clusters` is called with `control_plane.storage="0TB"`
+- **When** `POST /api/v1alpha1/clusters` is sent with `control_plane.storage="0TB"`
 - **Then** returns 400 with `type="INVALID_ARGUMENT"`
 
 ---
@@ -574,14 +578,15 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 
 #### TC-HDL-GET-UT-004: clusterId format validation
 - **Requirements:** REQ-API-210
-- **Type:** Unit
+- **Type:** Integration (middleware)
 - **Priority:** Medium
-- **Given** no mock needed (validation at handler layer)
-- **When** `GetCluster` is called with `clusterId="INVALID_ID!"` (uppercase/special chars)
+- **Reclassified:** Moved from unit to integration scope. The OpenAPI spec defines a `pattern` on `ClusterIdPath` (`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`), enforced by the validation middleware before the request reaches the handler. The generated `StrictServerInterface` has no `GetCluster400` response type, confirming the handler cannot return 400. This TC must be tested through the full HTTP middleware stack.
+- **Given** no mock needed (validation at middleware layer)
+- **When** `GET /api/v1alpha1/clusters/INVALID_ID!` is sent (uppercase/special chars)
 - **Then** returns 400 with `type="INVALID_ARGUMENT"`
-- **When** `GetCluster` is called with a 64-character clusterId
+- **When** `GET /api/v1alpha1/clusters/<64-char-id>` is sent
 - **Then** returns 400 with `type="INVALID_ARGUMENT"`
-- **When** `GetCluster` is called with `clusterId="-starts-with-hyphen"`
+- **When** `GET /api/v1alpha1/clusters/-starts-with-hyphen` is sent
 - **Then** returns 400 with `type="INVALID_ARGUMENT"`
 
 ---
@@ -603,7 +608,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** High
 - **Given** no mock needed
 - **When** `ListClusters` is called with `max_page_size=200`
-- **Then** returns 400 with `type="INVALID_ARGUMENT"` and detail mentioning allowed range 1-1000
+- **Then** returns 400 with `type="INVALID_ARGUMENT"` and detail mentioning allowed range 1-100
 
 #### TC-HDL-LST-UT-003: max_page_size below minimum
 - **Requirements:** REQ-API-280
@@ -646,9 +651,9 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Given** a mock `ClusterService.List` returns results
 - **When** `ListClusters` is called with `max_page_size=1`
 - **Then** returns 200 (1 is valid minimum)
-- **When** `ListClusters` is called with `max_page_size=1000`
-- **Then** returns 200 (1000 is valid maximum)
-- **When** `ListClusters` is called with `max_page_size=1001`
+- **When** `ListClusters` is called with `max_page_size=100`
+- **Then** returns 200 (100 is valid maximum)
+- **When** `ListClusters` is called with `max_page_size=101`
 - **Then** returns 400 with `type="INVALID_ARGUMENT"`
 
 #### TC-HDL-LST-UT-008: Empty page_token treated as absent
@@ -706,12 +711,13 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 
 #### TC-HDL-DEL-UT-006: clusterId format validation
 - **Requirements:** REQ-API-210
-- **Type:** Unit
+- **Type:** Integration (middleware)
 - **Priority:** Medium
-- **Given** no mock needed (validation at handler/middleware layer)
-- **When** `DeleteCluster` is called with `clusterId="INVALID_ID!"` (uppercase/special chars)
+- **Reclassified:** Moved from unit to integration scope. The OpenAPI spec defines a `pattern` on `ClusterIdPath` (`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`), enforced by the validation middleware before the request reaches the handler. The generated `StrictServerInterface` has no `DeleteCluster400` response type, confirming the handler cannot return 400. This TC must be tested through the full HTTP middleware stack.
+- **Given** no mock needed (validation at middleware layer)
+- **When** `DELETE /api/v1alpha1/clusters/INVALID_ID!` is sent (uppercase/special chars)
 - **Then** returns 400 with `type="INVALID_ARGUMENT"`
-- **When** `DeleteCluster` is called with a 64-character clusterId
+- **When** `DELETE /api/v1alpha1/clusters/<64-char-id>` is sent
 - **Then** returns 400 with `type="INVALID_ARGUMENT"`
 
 ---
