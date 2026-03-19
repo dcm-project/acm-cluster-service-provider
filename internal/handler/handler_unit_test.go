@@ -77,34 +77,6 @@ var _ = Describe("CreateCluster Handler", func() {
 		Expect(*created.Path).To(Equal("/api/v1alpha1/clusters/my-custom-id"))
 	})
 
-	It("ignores read-only fields in body (TC-HDL-CRT-UT-003)", func() {
-		body := validClusterBody()
-		body.Id = util.Ptr("should-be-ignored")
-		body.Status = util.Ptr(oapigen.READY)
-		body.ApiEndpoint = util.Ptr("https://should-be-ignored")
-		body.Path = util.Ptr("/should-be-ignored")
-		body.Kubeconfig = util.Ptr("should-be-ignored")
-		body.ConsoleUri = util.Ptr("https://should-be-ignored")
-
-		req := oapigen.CreateClusterRequestObject{
-			Body: &body,
-		}
-
-		mock.CreateFunc = func(_ context.Context, id string, _ v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
-			return clusterResult(id), nil
-		}
-
-		resp, err := h.CreateCluster(ctx, req)
-		Expect(err).NotTo(HaveOccurred())
-
-		created, ok := resp.(oapigen.CreateCluster201JSONResponse)
-		Expect(ok).To(BeTrue(), "expected CreateCluster201JSONResponse")
-		Expect(created.Id).NotTo(BeNil())
-		Expect(*created.Id).NotTo(Equal("should-be-ignored"))
-		Expect(created.Status).NotTo(BeNil())
-		Expect(*created.Status).To(Equal(oapigen.PENDING))
-	})
-
 	It("returns 400 for invalid service_type (TC-HDL-CRT-UT-004)", func() {
 		body := validClusterBody()
 		body.ServiceType = "invalid"

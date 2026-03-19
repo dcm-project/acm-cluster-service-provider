@@ -49,17 +49,6 @@ func (h *Handler) CreateCluster(ctx context.Context, req oapigen.CreateClusterRe
 		return createError400(err.Error()), nil
 	}
 
-	// Strip read-only fields from body.
-	req.Body.Id = nil
-	req.Body.Status = nil
-	req.Body.ApiEndpoint = nil
-	req.Body.Kubeconfig = nil
-	req.Body.CreateTime = nil
-	req.Body.UpdateTime = nil
-	req.Body.Path = nil
-	req.Body.StatusMessage = nil
-	req.Body.ConsoleUri = nil
-
 	// Convert to service-layer type.
 	svcCluster, err := toServiceCluster(*req.Body)
 	if err != nil {
