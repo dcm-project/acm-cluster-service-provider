@@ -32,3 +32,4 @@ Thumbs.db
 .ai/*
 !.ai/specs/
 !.ai/test-plans/
+!.ai/decisions/

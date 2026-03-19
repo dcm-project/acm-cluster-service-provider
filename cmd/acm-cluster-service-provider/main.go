@@ -10,8 +10,11 @@ import (
 	"syscall"
 	"time"
 
+	env "github.com/caarlos0/env/v11"
 	oapigen "github.com/dcm-project/acm-cluster-service-provider/internal/api/server"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/apiserver"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/cluster"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/cluster/kubevirtprovider"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/handler"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/health"
@@ -63,11 +66,17 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("creating kubernetes client: %w", err)
 	}
 
+	var clusterCfg cluster.Config
+	if err := env.Parse(&clusterCfg); err != nil {
+		return fmt.Errorf("loading cluster configuration: %w", err)
+	}
+
 	registrar := registration.New(cfg.Registration, dcmClient, k8sClient, logger)
+	clusterService := kubevirtprovider.New(k8sClient, clusterCfg)
 
 	startTime := time.Now()
 	checker := health.NewChecker(k8sClient, cfg.Health, version, startTime)
-	strictHandler := handler.New(checker)
+	strictHandler := handler.New(clusterService, checker)
 	h := oapigen.NewStrictHandler(strictHandler, nil)
 	srv := apiserver.New(cfg, logger, h).WithOnReady(registrar.Start)
 

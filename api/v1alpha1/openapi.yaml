@@ -52,7 +52,7 @@ paths:
           required: false
           schema:
             type: string
-            pattern: '^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$'
+            pattern: '^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$'
       requestBody:
         required: true
         content:
@@ -124,7 +124,7 @@ paths:
             type: integer
             format: int32
             minimum: 1
-            maximum: 1000
+            maximum: 100
             default: 50
       responses:
         '200':
@@ -274,10 +274,7 @@ components:
         patterns:
           - clusters/{cluster}
       required:
-        - service_type
-        - version
-        - nodes
-        - metadata
+        - spec
       properties:
         id:
           type: string
@@ -288,30 +285,13 @@ components:
             Used in URL paths and the path field.
           readOnly: true
           example: 123e4567-e89b-12d3-a456-426614174000
-        service_type:
-          type: string
-          description: Service type identifier. Must be "cluster" for this SP.
-          enum:
-            - cluster
         path:
           type: string
           description: Resource path for this cluster
           readOnly: true
           example: clusters/123e4567-e89b-12d3-a456-426614174000
-        version:
-          type: string
-          description: >-
-            OpenShift version for the cluster (e.g., "4.17", "4.17.6").
-            For v1, the SP accepts OpenShift versions directly, matching
-            ClusterImageSet resources on the ACM Hub. The DCM upstream
-            cluster spec uses Kubernetes versions; the mapping is
-            OCP 4.x = K8s 1.(x+13).
-        nodes:
-          $ref: '#/components/schemas/ClusterNodes'
-        metadata:
-          $ref: '#/components/schemas/ClusterMetadata'
-        provider_hints:
-          $ref: '#/components/schemas/ProviderHints'
+        spec:
+          $ref: '#/components/schemas/ClusterSpec'
         status:
           type: string
           description: Current status of the cluster
@@ -322,6 +302,7 @@ components:
             - FAILED
             - DELETING
             - DELETED
+            - UNAVAILABLE
           readOnly: true
         status_message:
           type: string
@@ -353,6 +334,34 @@ components:
           description: Timestamp when the cluster was last updated
           readOnly: true
 
+    ClusterSpec:
+      type: object
+      description: Service-type-specific input specification for a cluster
+      required:
+        - service_type
+        - version
+        - nodes
+        - metadata
+      properties:
+        service_type:
+          type: string
+          description: Service type identifier. Must be "cluster" for this SP.
+          enum:
+            - cluster
+        version:
+          type: string
+          description: >-
+            Kubernetes minor version for the cluster (e.g., "1.30").
+            Mapped internally to an OpenShift version via the
+            compatibility matrix (OCP 4.x = K8s 1.(x+13)) and resolved
+            to a ClusterImageSet on the ACM Hub.
+        nodes:
+          $ref: '#/components/schemas/ClusterNodes'
+        metadata:
+          $ref: '#/components/schemas/ClusterMetadata'
+        provider_hints:
+          $ref: '#/components/schemas/ProviderHints'
+
     ClusterNodes:
       type: object
       description: Node configuration for the cluster
@@ -378,7 +387,6 @@ components:
           type: integer
           description: Number of control plane nodes
           enum: [1, 3, 5]
-          default: 3
         cpu:
           type: integer
           description: Number of CPU cores per control plane node
@@ -439,15 +447,11 @@ components:
           description: Key-value labels for the cluster
           additionalProperties:
             type: string
-        annotations:
-          type: object
-          description: Key-value annotations for the cluster
-          additionalProperties:
-            type: string
 
     ProviderHints:
       type: object
       description: Provider-specific configuration hints
+      additionalProperties: true
       properties:
         acm:
           $ref: '#/components/schemas/ACMProviderHints'
