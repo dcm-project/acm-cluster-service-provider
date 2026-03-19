@@ -9,7 +9,7 @@ import (
 
 var (
 	memoryFormatRe = regexp.MustCompile(`^[1-9][0-9]*(MB|GB|TB)$`)
-	clientIDRe     = regexp.MustCompile(`^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$`)
+	clientIDRe     = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 )
 
 // validateCreateRequest validates the CreateCluster request body.
@@ -44,7 +44,7 @@ func validateCreateRequest(body *oapigen.Cluster) error {
 // validateClientID validates the client-specified ?id= parameter format.
 func validateClientID(id string) error {
 	if !clientIDRe.MatchString(id) {
-		return fmt.Errorf("id must match pattern: ^[a-z]([a-z0-9-]{0,61}[a-z0-9])?$")
+		return fmt.Errorf("id must match pattern: ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
 	}
 	return nil
 }
