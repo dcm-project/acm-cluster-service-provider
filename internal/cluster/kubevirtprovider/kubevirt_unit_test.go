@@ -627,9 +627,10 @@ var _ = Describe("KubeVirt Service", func() {
 	// ── Delete ──────────────────────────────────────────────────────────
 
 	Describe("Delete", func() {
-		It("TC-KV-UT-013: deletes HostedCluster", func() {
+		It("TC-KV-UT-013: deletes HostedCluster and associated NodePools", func() {
 			hc := buildHostedCluster("my-cluster", testNamespace, withDCMLabels("test-id"))
-			svc, k8s := newTestService(cfg, hc)
+			np := buildNodePool("my-cluster", testNamespace, withNPDCMLabels("test-id"))
+			svc, k8s := newTestService(cfg, hc, np)
 
 			err := svc.Delete(ctx, "test-id")
 
@@ -638,6 +639,10 @@ var _ = Describe("KubeVirt Service", func() {
 			var hcList hyperv1.HostedClusterList
 			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
 			Expect(hcList.Items).To(BeEmpty())
+
+			var npList hyperv1.NodePoolList
+			Expect(k8s.List(ctx, &npList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(npList.Items).To(BeEmpty())
 		})
 
 		It("TC-KV-UT-022: K8s Delete() error returns internal error", func() {
@@ -648,6 +653,23 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(err).To(HaveOccurred())
 			var domainErr *service.DomainError
 			Expect(err).To(BeAssignableToTypeOf(domainErr))
+		})
+
+		It("TC-KV-UT-031: NodePool list failure during delete returns internal error", func() {
+			hc := buildHostedCluster("my-cluster", testNamespace, withDCMLabels("test-id"))
+			svc, _ := newTestServiceWithInterceptor(cfg, []client.Object{hc}, interceptor.Funcs{
+				List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
+					if _, ok := list.(*hyperv1.NodePoolList); ok {
+						return fmt.Errorf("simulated NP list failure")
+					}
+					return c.List(ctx, list, opts...)
+				},
+			})
+
+			err := svc.Delete(ctx, "test-id")
+			Expect(err).To(HaveOccurred())
+			var domainErr *service.DomainError
+			Expect(errors.As(err, &domainErr)).To(BeTrue())
 		})
 	})
 })

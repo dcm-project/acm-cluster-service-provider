@@ -94,6 +94,40 @@ func buildClusterImageSet(name, releaseImage string) *unstructured.Unstructured 
 	return cis
 }
 
+// npOption is a functional option for building NodePool test fixtures.
+type npOption func(*hyperv1.NodePool)
+
+func withNPDCMLabels(instanceID string) npOption {
+	return func(np *hyperv1.NodePool) {
+		if np.Labels == nil {
+			np.Labels = make(map[string]string)
+		}
+		np.Labels["app.kubernetes.io/managed-by"] = "dcm"
+		np.Labels["dcm-instance-id"] = instanceID
+		np.Labels["dcm-service-type"] = "cluster"
+	}
+}
+
+// buildNodePool creates a typed NodePool fixture with functional options.
+func buildNodePool(name, namespace string, opts ...npOption) *hyperv1.NodePool {
+	np := &hyperv1.NodePool{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: hyperv1.NodePoolSpec{
+			ClusterName: name,
+			Platform: hyperv1.NodePoolPlatform{
+				Type: hyperv1.KubevirtPlatform,
+			},
+		},
+	}
+	for _, opt := range opts {
+		opt(np)
+	}
+	return np
+}
+
 // hcOption is a functional option for building HostedCluster test fixtures.
 type hcOption func(*hyperv1.HostedCluster)
 
