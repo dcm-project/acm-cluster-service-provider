@@ -33,30 +33,30 @@ func (e *DomainError) WithDetail(detail string) *DomainError {
 
 // NewNotFoundError creates a NOT_FOUND domain error.
 func NewNotFoundError(msg string) *DomainError {
-	return &DomainError{Type: v1alpha1.NOTFOUND, Message: msg}
+	return &DomainError{Type: v1alpha1.ErrorTypeNOTFOUND, Message: msg}
 }
 
 // NewAlreadyExistsError creates an ALREADY_EXISTS domain error.
 func NewAlreadyExistsError(msg string) *DomainError {
-	return &DomainError{Type: v1alpha1.ALREADYEXISTS, Message: msg}
+	return &DomainError{Type: v1alpha1.ErrorTypeALREADYEXISTS, Message: msg}
 }
 
 // NewInvalidArgumentError creates an INVALID_ARGUMENT domain error.
 func NewInvalidArgumentError(msg string) *DomainError {
-	return &DomainError{Type: v1alpha1.INVALIDARGUMENT, Message: msg}
+	return &DomainError{Type: v1alpha1.ErrorTypeINVALIDARGUMENT, Message: msg}
 }
 
 // NewUnprocessableEntityError creates an UNPROCESSABLE_ENTITY domain error.
 func NewUnprocessableEntityError(msg string) *DomainError {
-	return &DomainError{Type: v1alpha1.UNPROCESSABLEENTITY, Message: msg}
+	return &DomainError{Type: v1alpha1.ErrorTypeUNPROCESSABLEENTITY, Message: msg}
 }
 
 // NewInternalError creates an INTERNAL domain error with a wrapped cause.
 func NewInternalError(msg string, cause error) *DomainError {
-	return &DomainError{Type: v1alpha1.INTERNAL, Message: msg, Cause: cause}
+	return &DomainError{Type: v1alpha1.ErrorTypeINTERNAL, Message: msg, Cause: cause}
 }
 
 // NewUnavailableError creates an UNAVAILABLE domain error.
 func NewUnavailableError(msg string) *DomainError {
-	return &DomainError{Type: v1alpha1.UNAVAILABLE, Message: msg}
+	return &DomainError{Type: v1alpha1.ErrorTypeUNAVAILABLE, Message: msg}
 }

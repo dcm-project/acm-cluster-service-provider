@@ -40,7 +40,7 @@ func writeRFC7807(w http.ResponseWriter, logger *slog.Logger, statusCode int, er
 // validation middleware.
 func newBadRequestHandler(logger *slog.Logger) func(http.ResponseWriter, *http.Request, error) {
 	return func(w http.ResponseWriter, _ *http.Request, err error) {
-		writeRFC7807(w, logger, http.StatusBadRequest, v1alpha1.INVALIDARGUMENT, "Bad Request", scrubValidationError(err))
+		writeRFC7807(w, logger, http.StatusBadRequest, v1alpha1.ErrorTypeINVALIDARGUMENT, "Bad Request", scrubValidationError(err))
 	}
 }
 

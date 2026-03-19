@@ -11,7 +11,7 @@
 ## Design Principles
 
 1. **Status mapping is SHARED** -- a single `statusFromConditions()` function tested once, used by both KubeVirt and BareMetal. Status mapping tests live in a shared `status` component, not duplicated per platform.
-2. **Test behaviors, not implementation details** -- CRD type strategy is deferred; tests assert K8s resource shapes via the `client.Client` fake, not via concrete Go CRD structs.
+2. **Test behaviors, not implementation details** -- CRD type strategy resolved: tests use typed HyperShift Go structs from `github.com/openshift/hypershift/api` (separate lightweight API module) with the `client.Client` fake.
 3. **Zero gaps** -- every REQ-xxx appears in at least one TC mapping.
 4. **Zero redundancy** -- no behavioral scenario tested twice at the same layer.
 5. **Layer isolation** -- handler tests mock `ClusterService`/`HealthChecker`; service tests use fake K8s client; integration tests use `envtest` + `httptest` with no mocks.

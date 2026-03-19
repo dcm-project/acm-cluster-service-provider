@@ -12,7 +12,7 @@ import (
 func MapDomainError(err error) (v1alpha1.ErrorType, int, string, string) {
 	var domainErr *service.DomainError
 	if !errors.As(err, &domainErr) {
-		return v1alpha1.INTERNAL, 500, "Internal Server Error", "an internal error occurred"
+		return v1alpha1.ErrorTypeINTERNAL, 500, "Internal Server Error", "an internal error occurred"
 	}
 
 	status := mapErrorTypeToStatus(domainErr.Type)
@@ -23,7 +23,7 @@ func MapDomainError(err error) (v1alpha1.ErrorType, int, string, string) {
 		detail = domainErr.Detail
 	}
 
-	if domainErr.Type == v1alpha1.INTERNAL {
+	if domainErr.Type == v1alpha1.ErrorTypeINTERNAL {
 		detail = "an internal error occurred"
 	}
 
@@ -32,17 +32,17 @@ func MapDomainError(err error) (v1alpha1.ErrorType, int, string, string) {
 
 func mapErrorTypeToStatus(t v1alpha1.ErrorType) int {
 	switch t {
-	case v1alpha1.INVALIDARGUMENT:
+	case v1alpha1.ErrorTypeINVALIDARGUMENT:
 		return 400
-	case v1alpha1.NOTFOUND:
+	case v1alpha1.ErrorTypeNOTFOUND:
 		return 404
-	case v1alpha1.ALREADYEXISTS:
+	case v1alpha1.ErrorTypeALREADYEXISTS:
 		return 409
-	case v1alpha1.UNPROCESSABLEENTITY:
+	case v1alpha1.ErrorTypeUNPROCESSABLEENTITY:
 		return 422
-	case v1alpha1.INTERNAL:
+	case v1alpha1.ErrorTypeINTERNAL:
 		return 500
-	case v1alpha1.UNAVAILABLE:
+	case v1alpha1.ErrorTypeUNAVAILABLE:
 		return 503
 	default:
 		return 500
@@ -51,17 +51,17 @@ func mapErrorTypeToStatus(t v1alpha1.ErrorType) int {
 
 func mapErrorTypeToTitle(t v1alpha1.ErrorType) string {
 	switch t {
-	case v1alpha1.INVALIDARGUMENT:
+	case v1alpha1.ErrorTypeINVALIDARGUMENT:
 		return "Bad Request"
-	case v1alpha1.NOTFOUND:
+	case v1alpha1.ErrorTypeNOTFOUND:
 		return "Not Found"
-	case v1alpha1.ALREADYEXISTS:
+	case v1alpha1.ErrorTypeALREADYEXISTS:
 		return "Conflict"
-	case v1alpha1.UNPROCESSABLEENTITY:
+	case v1alpha1.ErrorTypeUNPROCESSABLEENTITY:
 		return "Unprocessable Entity"
-	case v1alpha1.INTERNAL:
+	case v1alpha1.ErrorTypeINTERNAL:
 		return "Internal Server Error"
-	case v1alpha1.UNAVAILABLE:
+	case v1alpha1.ErrorTypeUNAVAILABLE:
 		return "Service Unavailable"
 	default:
 		return "Internal Server Error"

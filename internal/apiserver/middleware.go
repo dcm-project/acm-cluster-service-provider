@@ -36,7 +36,7 @@ func rfc7807RecoveryMiddleware(logger *slog.Logger) func(http.Handler) http.Hand
 						return
 					}
 
-					writeRFC7807(w, logger, http.StatusInternalServerError, v1alpha1.INTERNAL, "Internal Server Error", "an unexpected error occurred")
+					writeRFC7807(w, logger, http.StatusInternalServerError, v1alpha1.ErrorTypeINTERNAL, "Internal Server Error", "an unexpected error occurred")
 				}
 			}()
 			next.ServeHTTP(rw, r)
