@@ -49,7 +49,7 @@ var _ = Describe("CreateCluster Handler", func() {
 		Expect(created.Id).NotTo(BeNil())
 		Expect(*created.Id).To(MatchRegexp(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`))
 		Expect(created.Status).NotTo(BeNil())
-		Expect(*created.Status).To(Equal(oapigen.PENDING))
+		Expect(*created.Status).To(Equal(oapigen.ClusterStatusPENDING))
 		Expect(created.Path).NotTo(BeNil())
 	})
 
@@ -79,7 +79,7 @@ var _ = Describe("CreateCluster Handler", func() {
 
 	It("returns 400 for invalid service_type (TC-HDL-CRT-UT-004)", func() {
 		body := validClusterBody()
-		body.ServiceType = "invalid"
+		body.Spec.ServiceType = "invalid"
 
 		req := oapigen.CreateClusterRequestObject{
 			Body: &body,
@@ -90,12 +90,12 @@ var _ = Describe("CreateCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.INVALIDARGUMENT))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
 	})
 
 	It("returns 400 when workers are missing (TC-HDL-CRT-UT-005)", func() {
 		body := validClusterBody()
-		body.Nodes.Workers = oapigen.WorkerSpec{}
+		body.Spec.Nodes.Workers = oapigen.WorkerSpec{}
 
 		req := oapigen.CreateClusterRequestObject{
 			Body: &body,
@@ -106,12 +106,12 @@ var _ = Describe("CreateCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.INVALIDARGUMENT))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
 	})
 
 	It("returns 400 for invalid memory format (TC-HDL-CRT-UT-006)", func() {
 		body := validClusterBody()
-		body.Nodes.Workers.Memory = "invalid"
+		body.Spec.Nodes.Workers.Memory = "invalid"
 
 		req := oapigen.CreateClusterRequestObject{
 			Body: &body,
@@ -122,7 +122,7 @@ var _ = Describe("CreateCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.INVALIDARGUMENT))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
 	})
 
 	It("returns 409 for duplicate ID from service (TC-HDL-CRT-UT-007)", func() {
@@ -143,7 +143,7 @@ var _ = Describe("CreateCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.CreateCluster409ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected CreateCluster409ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.ALREADYEXISTS))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeALREADYEXISTS))
 	})
 
 	It("returns 409 for duplicate metadata.name from service (TC-HDL-CRT-UT-008)", func() {
@@ -162,7 +162,7 @@ var _ = Describe("CreateCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.CreateCluster409ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected CreateCluster409ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.ALREADYEXISTS))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeALREADYEXISTS))
 		Expect(errResp.Detail).NotTo(BeNil())
 		Expect(*errResp.Detail).To(ContainSubstring("test-cluster"))
 	})
@@ -182,12 +182,12 @@ var _ = Describe("CreateCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.CreateCluster422ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected CreateCluster422ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.UNPROCESSABLEENTITY))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeUNPROCESSABLEENTITY))
 	})
 
 	It("returns 422 for version not found from service (TC-HDL-CRT-UT-010)", func() {
 		body := validClusterBody()
-		body.Version = "9.99"
+		body.Spec.Version = "9.99"
 
 		req := oapigen.CreateClusterRequestObject{
 			Body: &body,
@@ -202,12 +202,12 @@ var _ = Describe("CreateCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.CreateCluster422ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected CreateCluster422ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.UNPROCESSABLEENTITY))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeUNPROCESSABLEENTITY))
 	})
 
 	It("returns 400 for missing required fields (TC-HDL-CRT-UT-011)", func() {
 		body := validClusterBody()
-		body.Version = ""
+		body.Spec.Version = ""
 
 		req := oapigen.CreateClusterRequestObject{
 			Body: &body,
@@ -218,7 +218,7 @@ var _ = Describe("CreateCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.INVALIDARGUMENT))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
 	})
 
 	It("returns 500 for internal error without leaking details (TC-HDL-CRT-UT-012)", func() {
@@ -237,7 +237,7 @@ var _ = Describe("CreateCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.CreateCluster500ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected CreateCluster500ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.INTERNAL))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINTERNAL))
 		if errResp.Detail != nil {
 			Expect(*errResp.Detail).NotTo(ContainSubstring("k8s"))
 			Expect(*errResp.Detail).NotTo(ContainSubstring("kube-apiserver"))
@@ -246,7 +246,7 @@ var _ = Describe("CreateCluster Handler", func() {
 
 	It("returns 400 when nodes are missing entirely (TC-HDL-CRT-UT-013)", func() {
 		body := validClusterBody()
-		body.Nodes = oapigen.ClusterNodes{}
+		body.Spec.Nodes = oapigen.ClusterNodes{}
 
 		req := oapigen.CreateClusterRequestObject{
 			Body: &body,
@@ -257,12 +257,12 @@ var _ = Describe("CreateCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.INVALIDARGUMENT))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
 	})
 
 	It("returns 400 when workers count is below minimum (TC-HDL-CRT-UT-014)", func() {
 		body := validClusterBody()
-		body.Nodes.Workers.Count = 0
+		body.Spec.Nodes.Workers.Count = 0
 
 		req := oapigen.CreateClusterRequestObject{
 			Body: &body,
@@ -273,7 +273,7 @@ var _ = Describe("CreateCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.INVALIDARGUMENT))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
 	})
 
 	It("returns 400 for invalid ?id= format (TC-HDL-CRT-UT-015)", func() {
@@ -290,12 +290,12 @@ var _ = Describe("CreateCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.INVALIDARGUMENT))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
 	})
 
 	It("returns 400 when service_type is missing (TC-HDL-CRT-UT-016)", func() {
 		body := validClusterBody()
-		body.ServiceType = ""
+		body.Spec.ServiceType = ""
 
 		req := oapigen.CreateClusterRequestObject{
 			Body: &body,
@@ -306,7 +306,7 @@ var _ = Describe("CreateCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.INVALIDARGUMENT))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
 	})
 
 	It("treats empty ?id= as absent and generates UUID (TC-HDL-CRT-UT-019)", func() {
@@ -364,7 +364,7 @@ var _ = Describe("GetCluster Handler", func() {
 		Expect(cluster.Id).NotTo(BeNil())
 		Expect(*cluster.Id).To(Equal("test-cluster-id"))
 		Expect(cluster.Status).NotTo(BeNil())
-		Expect(*cluster.Status).To(Equal(oapigen.READY))
+		Expect(*cluster.Status).To(Equal(oapigen.ClusterStatusREADY))
 		Expect(cluster.ApiEndpoint).NotTo(BeNil())
 		Expect(cluster.Kubeconfig).NotTo(BeNil())
 		Expect(cluster.ConsoleUri).NotTo(BeNil())
@@ -373,7 +373,7 @@ var _ = Describe("GetCluster Handler", func() {
 	It("returns non-READY cluster without credentials (TC-HDL-GET-UT-002)", func() {
 		mock.GetFunc = func(_ context.Context, id string) (*v1alpha1.Cluster, error) {
 			result := clusterResult(id)
-			result.Status = util.Ptr(v1alpha1.PENDING)
+			result.Status = util.Ptr(v1alpha1.ClusterStatusPENDING)
 			return result, nil
 		}
 
@@ -403,7 +403,7 @@ var _ = Describe("GetCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.GetCluster404ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected GetCluster404ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.NOTFOUND))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeNOTFOUND))
 	})
 
 	It("returns UNAVAILABLE cluster with credentials (TC-HDL-GET-UT-005)", func() {
@@ -478,7 +478,7 @@ var _ = Describe("ListClusters Handler", func() {
 
 		errResp, ok := resp.(oapigen.ListClusters400ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected ListClusters400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.INVALIDARGUMENT))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
 	})
 
 	It("returns 400 when max_page_size is below minimum (TC-HDL-LST-UT-003)", func() {
@@ -493,7 +493,7 @@ var _ = Describe("ListClusters Handler", func() {
 
 		errResp, ok := resp.(oapigen.ListClusters400ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected ListClusters400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.INVALIDARGUMENT))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
 	})
 
 	It("returns 400 for invalid page_token from service (TC-HDL-LST-UT-004)", func() {
@@ -512,7 +512,7 @@ var _ = Describe("ListClusters Handler", func() {
 
 		errResp, ok := resp.(oapigen.ListClusters400ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected ListClusters400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.INVALIDARGUMENT))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
 	})
 
 	It("returns last page without next_page_token (TC-HDL-LST-UT-005)", func() {
@@ -655,7 +655,7 @@ var _ = Describe("DeleteCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.DeleteCluster404ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected DeleteCluster404ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.NOTFOUND))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeNOTFOUND))
 	})
 
 	It("returns 404 for already-deleted cluster (TC-HDL-DEL-UT-003)", func() {
@@ -670,7 +670,7 @@ var _ = Describe("DeleteCluster Handler", func() {
 
 		errResp, ok := resp.(oapigen.DeleteCluster404ApplicationProblemPlusJSONResponse)
 		Expect(ok).To(BeTrue(), "expected DeleteCluster404ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.NOTFOUND))
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeNOTFOUND))
 	})
 
 	It("returns 204 for idempotent delete of DELETING cluster (TC-HDL-DEL-UT-004)", func() {
@@ -690,7 +690,7 @@ var _ = Describe("DeleteCluster Handler", func() {
 	It("returns DELETING status when getting cluster during deletion (TC-HDL-DEL-UT-005)", func() {
 		mock.GetFunc = func(_ context.Context, id string) (*v1alpha1.Cluster, error) {
 			result := clusterResult(id)
-			result.Status = util.Ptr(v1alpha1.DELETING)
+			result.Status = util.Ptr(v1alpha1.ClusterStatusDELETING)
 			return result, nil
 		}
 
@@ -716,12 +716,12 @@ var _ = Describe("Error Mapping", func() {
 			errType    v1alpha1.ErrorType
 			wantStatus int
 		}{
-			{v1alpha1.INVALIDARGUMENT, 400},
-			{v1alpha1.NOTFOUND, 404},
-			{v1alpha1.ALREADYEXISTS, 409},
-			{v1alpha1.UNPROCESSABLEENTITY, 422},
-			{v1alpha1.INTERNAL, 500},
-			{v1alpha1.UNAVAILABLE, 503},
+			{v1alpha1.ErrorTypeINVALIDARGUMENT, 400},
+			{v1alpha1.ErrorTypeNOTFOUND, 404},
+			{v1alpha1.ErrorTypeALREADYEXISTS, 409},
+			{v1alpha1.ErrorTypeUNPROCESSABLEENTITY, 422},
+			{v1alpha1.ErrorTypeINTERNAL, 500},
+			{v1alpha1.ErrorTypeUNAVAILABLE, 503},
 		}
 
 		for _, tc := range cases {
@@ -746,7 +746,7 @@ var _ = Describe("Error Mapping", func() {
 			WithDetail("cluster abc-123 does not exist")
 
 		errType, status, _, detail := handler.MapDomainError(domainErr)
-		Expect(errType).To(Equal(v1alpha1.NOTFOUND))
+		Expect(errType).To(Equal(v1alpha1.ErrorTypeNOTFOUND))
 		Expect(status).To(Equal(404))
 		Expect(detail).To(Equal("cluster abc-123 does not exist"))
 	})

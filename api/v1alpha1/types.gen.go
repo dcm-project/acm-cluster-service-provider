@@ -4,6 +4,8 @@
 package v1alpha1
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 )
 
@@ -25,45 +27,48 @@ func (e ACMProviderHintsPlatform) Valid() bool {
 	}
 }
 
-// Defines values for ClusterServiceType.
+// Defines values for ClusterStatus.
 const (
-	ClusterServiceTypeCluster ClusterServiceType = "cluster"
+	ClusterStatusDELETED      ClusterStatus = "DELETED"
+	ClusterStatusDELETING     ClusterStatus = "DELETING"
+	ClusterStatusFAILED       ClusterStatus = "FAILED"
+	ClusterStatusPENDING      ClusterStatus = "PENDING"
+	ClusterStatusPROVISIONING ClusterStatus = "PROVISIONING"
+	ClusterStatusREADY        ClusterStatus = "READY"
+	ClusterStatusUNAVAILABLE  ClusterStatus = "UNAVAILABLE"
 )
 
-// Valid indicates whether the value is a known member of the ClusterServiceType enum.
-func (e ClusterServiceType) Valid() bool {
+// Valid indicates whether the value is a known member of the ClusterStatus enum.
+func (e ClusterStatus) Valid() bool {
 	switch e {
-	case ClusterServiceTypeCluster:
+	case ClusterStatusDELETED:
+		return true
+	case ClusterStatusDELETING:
+		return true
+	case ClusterStatusFAILED:
+		return true
+	case ClusterStatusPENDING:
+		return true
+	case ClusterStatusPROVISIONING:
+		return true
+	case ClusterStatusREADY:
+		return true
+	case ClusterStatusUNAVAILABLE:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for ClusterStatus.
+// Defines values for ClusterSpecServiceType.
 const (
-	DELETED      ClusterStatus = "DELETED"
-	DELETING     ClusterStatus = "DELETING"
-	FAILED       ClusterStatus = "FAILED"
-	PENDING      ClusterStatus = "PENDING"
-	PROVISIONING ClusterStatus = "PROVISIONING"
-	READY        ClusterStatus = "READY"
+	ClusterSpecServiceTypeCluster ClusterSpecServiceType = "cluster"
 )
 
-// Valid indicates whether the value is a known member of the ClusterStatus enum.
-func (e ClusterStatus) Valid() bool {
+// Valid indicates whether the value is a known member of the ClusterSpecServiceType enum.
+func (e ClusterSpecServiceType) Valid() bool {
 	switch e {
-	case DELETED:
-		return true
-	case DELETING:
-		return true
-	case FAILED:
-		return true
-	case PENDING:
-		return true
-	case PROVISIONING:
-		return true
-	case READY:
+	case ClusterSpecServiceTypeCluster:
 		return true
 	default:
 		return false
@@ -93,34 +98,34 @@ func (e ControlPlaneSpecCount) Valid() bool {
 
 // Defines values for ErrorType.
 const (
-	ALREADYEXISTS       ErrorType = "ALREADY_EXISTS"
-	INTERNAL            ErrorType = "INTERNAL"
-	INVALIDARGUMENT     ErrorType = "INVALID_ARGUMENT"
-	NOTFOUND            ErrorType = "NOT_FOUND"
-	PERMISSIONDENIED    ErrorType = "PERMISSION_DENIED"
-	UNAUTHENTICATED     ErrorType = "UNAUTHENTICATED"
-	UNAVAILABLE         ErrorType = "UNAVAILABLE"
-	UNPROCESSABLEENTITY ErrorType = "UNPROCESSABLE_ENTITY"
+	ErrorTypeALREADYEXISTS       ErrorType = "ALREADY_EXISTS"
+	ErrorTypeINTERNAL            ErrorType = "INTERNAL"
+	ErrorTypeINVALIDARGUMENT     ErrorType = "INVALID_ARGUMENT"
+	ErrorTypeNOTFOUND            ErrorType = "NOT_FOUND"
+	ErrorTypePERMISSIONDENIED    ErrorType = "PERMISSION_DENIED"
+	ErrorTypeUNAUTHENTICATED     ErrorType = "UNAUTHENTICATED"
+	ErrorTypeUNAVAILABLE         ErrorType = "UNAVAILABLE"
+	ErrorTypeUNPROCESSABLEENTITY ErrorType = "UNPROCESSABLE_ENTITY"
 )
 
 // Valid indicates whether the value is a known member of the ErrorType enum.
 func (e ErrorType) Valid() bool {
 	switch e {
-	case ALREADYEXISTS:
+	case ErrorTypeALREADYEXISTS:
 		return true
-	case INTERNAL:
+	case ErrorTypeINTERNAL:
 		return true
-	case INVALIDARGUMENT:
+	case ErrorTypeINVALIDARGUMENT:
 		return true
-	case NOTFOUND:
+	case ErrorTypeNOTFOUND:
 		return true
-	case PERMISSIONDENIED:
+	case ErrorTypePERMISSIONDENIED:
 		return true
-	case UNAUTHENTICATED:
+	case ErrorTypeUNAUTHENTICATED:
 		return true
-	case UNAVAILABLE:
+	case ErrorTypeUNAVAILABLE:
 		return true
-	case UNPROCESSABLEENTITY:
+	case ErrorTypeUNPROCESSABLEENTITY:
 		return true
 	default:
 		return false
@@ -165,20 +170,11 @@ type Cluster struct {
 	// Kubeconfig Base64-encoded kubeconfig for cluster access. Populated when cluster status is READY. Empty during PENDING, PROVISIONING, or FAILED states.
 	Kubeconfig *string `json:"kubeconfig,omitempty"`
 
-	// Metadata Metadata for the cluster
-	Metadata ClusterMetadata `json:"metadata"`
-
-	// Nodes Node configuration for the cluster
-	Nodes ClusterNodes `json:"nodes"`
-
 	// Path Resource path for this cluster
 	Path *string `json:"path,omitempty"`
 
-	// ProviderHints Provider-specific configuration hints
-	ProviderHints *ProviderHints `json:"provider_hints,omitempty"`
-
-	// ServiceType Service type identifier. Must be "cluster" for this SP.
-	ServiceType ClusterServiceType `json:"service_type"`
+	// Spec Service-type-specific input specification for a cluster
+	Spec ClusterSpec `json:"spec"`
 
 	// Status Current status of the cluster
 	Status *ClusterStatus `json:"status,omitempty"`
@@ -188,13 +184,7 @@ type Cluster struct {
 
 	// UpdateTime Timestamp when the cluster was last updated
 	UpdateTime *time.Time `json:"update_time,omitempty"`
-
-	// Version OpenShift version for the cluster (e.g., "4.17", "4.17.6"). For v1, the SP accepts OpenShift versions directly, matching ClusterImageSet resources on the ACM Hub. The DCM upstream cluster spec uses Kubernetes versions; the mapping is OCP 4.x = K8s 1.(x+13).
-	Version string `json:"version"`
 }
-
-// ClusterServiceType Service type identifier. Must be "cluster" for this SP.
-type ClusterServiceType string
 
 // ClusterStatus Current status of the cluster
 type ClusterStatus string
@@ -210,9 +200,6 @@ type ClusterList struct {
 
 // ClusterMetadata Metadata for the cluster
 type ClusterMetadata struct {
-	// Annotations Key-value annotations for the cluster
-	Annotations *map[string]string `json:"annotations,omitempty"`
-
 	// Labels Key-value labels for the cluster
 	Labels *map[string]string `json:"labels,omitempty"`
 
@@ -228,6 +215,27 @@ type ClusterNodes struct {
 	// Workers Worker node specification
 	Workers WorkerSpec `json:"workers"`
 }
+
+// ClusterSpec Service-type-specific input specification for a cluster
+type ClusterSpec struct {
+	// Metadata Metadata for the cluster
+	Metadata ClusterMetadata `json:"metadata"`
+
+	// Nodes Node configuration for the cluster
+	Nodes ClusterNodes `json:"nodes"`
+
+	// ProviderHints Provider-specific configuration hints
+	ProviderHints *ProviderHints `json:"provider_hints,omitempty"`
+
+	// ServiceType Service type identifier. Must be "cluster" for this SP.
+	ServiceType ClusterSpecServiceType `json:"service_type"`
+
+	// Version Kubernetes minor version for the cluster (e.g., "1.30"). Mapped internally to an OpenShift version via the compatibility matrix (OCP 4.x = K8s 1.(x+13)) and resolved to a ClusterImageSet on the ACM Hub.
+	Version string `json:"version"`
+}
+
+// ClusterSpecServiceType Service type identifier. Must be "cluster" for this SP.
+type ClusterSpecServiceType string
 
 // ControlPlaneSpec Control plane node specification
 type ControlPlaneSpec struct {
@@ -292,7 +300,8 @@ type Health struct {
 // ProviderHints Provider-specific configuration hints
 type ProviderHints struct {
 	// Acm ACM-specific provider hints
-	Acm *ACMProviderHints `json:"acm,omitempty"`
+	Acm                  *ACMProviderHints      `json:"acm,omitempty"`
+	AdditionalProperties map[string]interface{} `json:"-"`
 }
 
 // WorkerSpec Worker node specification
@@ -330,3 +339,71 @@ type CreateClusterParams struct {
 
 // CreateClusterJSONRequestBody defines body for CreateCluster for application/json ContentType.
 type CreateClusterJSONRequestBody = Cluster
+
+// Getter for additional properties for ProviderHints. Returns the specified
+// element and whether it was found
+func (a ProviderHints) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ProviderHints
+func (a *ProviderHints) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ProviderHints to handle AdditionalProperties
+func (a *ProviderHints) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["acm"]; found {
+		err = json.Unmarshal(raw, &a.Acm)
+		if err != nil {
+			return fmt.Errorf("error reading 'acm': %w", err)
+		}
+		delete(object, "acm")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ProviderHints to handle AdditionalProperties
+func (a ProviderHints) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.Acm != nil {
+		object["acm"], err = json.Marshal(a.Acm)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling 'acm': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
