@@ -37,9 +37,9 @@ func NewVersionDiscoverer(k8sClient client.Client) *VersionDiscoverer {
 	}
 }
 
-// extractOCPVersion extracts the OCP major.minor from a release image reference.
+// ExtractOCPVersion extracts the OCP major.minor from a release image reference.
 // Example: "quay.io/openshift-release-dev/ocp-release:4.17.3-multi" -> "4.17"
-func extractOCPVersion(releaseImage string) string {
+func ExtractOCPVersion(releaseImage string) string {
 	colonIdx := strings.LastIndex(releaseImage, ":")
 	if colonIdx < 0 {
 		return ""
@@ -72,7 +72,7 @@ func (v *VersionDiscoverer) DiscoverVersions(ctx context.Context) ([]string, err
 		if releaseImage == "" {
 			continue
 		}
-		ocpVersion := extractOCPVersion(releaseImage)
+		ocpVersion := ExtractOCPVersion(releaseImage)
 		if k8sVersion, ok := v.matrix[ocpVersion]; ok {
 			seen[k8sVersion] = struct{}{}
 		}

@@ -1,3 +1,5 @@
+// Package cluster provides shared labels, conversion utilities,
+// and platform-agnostic operations for cluster service provider implementations.
 package cluster
 
 const (

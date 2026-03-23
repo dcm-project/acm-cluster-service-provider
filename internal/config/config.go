@@ -37,11 +37,23 @@ type RegistrationConfig struct {
 	ProviderZone               string        `env:"SP_ZONE"                          envDefault:""`
 }
 
+// ClusterConfig holds ACM cluster service configuration.
+type ClusterConfig struct {
+	ClusterNamespace  string `env:"SP_CLUSTER_NAMESPACE,required"`
+	BaseDomain        string `env:"SP_BASE_DOMAIN"`
+	ConsoleURIPattern string `env:"SP_CONSOLE_URI_PATTERN" envDefault:"https://console-openshift-console.apps.{name}.{base_domain}"`
+	VersionMatrixPath string `env:"SP_VERSION_MATRIX_PATH"`
+	DefaultInfraEnv   string `env:"SP_DEFAULT_INFRA_ENV"`
+	AgentNamespace    string `env:"SP_AGENT_NAMESPACE"`
+	InfraEnvLabelKey  string `env:"SP_INFRA_ENV_LABEL_KEY" envDefault:"infraenvs.agent-install.openshift.io"`
+}
+
 // Config is the root configuration for the service provider.
 type Config struct {
 	Server       ServerConfig
 	Registration RegistrationConfig
 	Health       HealthConfig
+	Cluster      ClusterConfig
 }
 
 // Load reads configuration from environment variables.
