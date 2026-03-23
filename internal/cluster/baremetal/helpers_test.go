@@ -1,11 +1,11 @@
-package kubevirtprovider_test
+package baremetal_test
 
 import (
 	v1alpha1 "github.com/dcm-project/acm-cluster-service-provider/api/v1alpha1"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/cluster/baremetal"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/cluster/clustertest"
-	"github.com/dcm-project/acm-cluster-service-provider/internal/cluster/kubevirtprovider"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
-	hyperv1 "github.com/openshift/hypershift/api/hypershift/v1beta1"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 )
@@ -13,32 +13,26 @@ import (
 const testNamespace = clustertest.TestNamespace
 
 func defaultConfig() config.ClusterConfig {
-	return clustertest.DefaultConfig()
+	cfg := clustertest.DefaultConfig()
+	cfg.AgentNamespace = "agent-ns"
+	cfg.InfraEnvLabelKey = "infraenvs.agent-install.openshift.io"
+	return cfg
 }
 
-func newTestService(cfg config.ClusterConfig, objs ...client.Object) (*kubevirtprovider.Service, client.Client) {
-	c := clustertest.BuildFakeClient(objs, nil)
-	return kubevirtprovider.New(c, cfg), c
+func newTestService(cfg config.ClusterConfig) (*baremetal.Service, client.Client) {
+	c := clustertest.BuildFakeClient(nil, nil)
+	return baremetal.New(c, cfg), c
 }
 
-func newTestServiceWithInterceptor(cfg config.ClusterConfig, objs []client.Object, fns interceptor.Funcs) (*kubevirtprovider.Service, client.Client) {
+func newTestServiceWithInterceptor(cfg config.ClusterConfig, objs []client.Object, fns interceptor.Funcs) (*baremetal.Service, client.Client) {
 	c := clustertest.BuildFakeClient(objs, &fns)
-	return kubevirtprovider.New(c, cfg), c
-}
-
-// ── HostedCluster fixtures ──────────────────────────────────────────
-
-func buildHostedCluster(name, namespace string, opts ...clustertest.HCOption) *hyperv1.HostedCluster {
-	return clustertest.BuildHostedCluster(name, namespace, opts...)
-}
-
-func withDCMLabels(instanceID string) clustertest.HCOption {
-	return clustertest.WithDCMLabels(instanceID)
+	return baremetal.New(c, cfg), c
 }
 
 // ── Request fixtures ────────────────────────────────────────────────
 
 func validCreateCluster() v1alpha1.Cluster {
+	platform := v1alpha1.Baremetal
 	return v1alpha1.Cluster{
 		Spec: v1alpha1.ClusterSpec{
 			Version:     "1.30",
@@ -58,6 +52,12 @@ func validCreateCluster() v1alpha1.Cluster {
 					Cpu:     8,
 					Memory:  "32GB",
 					Storage: "500GB",
+				},
+			},
+			ProviderHints: &v1alpha1.ProviderHints{
+				Acm: &v1alpha1.ACMProviderHints{
+					Platform: &platform,
+					InfraEnv: util.Ptr("my-infra"),
 				},
 			},
 		},
