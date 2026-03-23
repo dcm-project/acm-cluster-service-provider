@@ -52,23 +52,25 @@ func (m *mockClusterService) Delete(ctx context.Context, id string) error {
 // validClusterBody returns an oapigen.Cluster for use in CreateCluster request bodies.
 func validClusterBody() oapigen.Cluster {
 	return oapigen.Cluster{
-		Version:     "1.30",
-		ServiceType: oapigen.ClusterServiceTypeCluster,
-		Metadata: oapigen.ClusterMetadata{
-			Name: "test-cluster",
-		},
-		Nodes: oapigen.ClusterNodes{
-			ControlPlane: oapigen.ControlPlaneSpec{
-				Count:   oapigen.N3,
-				Cpu:     4,
-				Memory:  "16GB",
-				Storage: "120GB",
+		Spec: oapigen.ClusterSpec{
+			Version:     "1.30",
+			ServiceType: oapigen.ClusterSpecServiceTypeCluster,
+			Metadata: oapigen.ClusterMetadata{
+				Name: "test-cluster",
 			},
-			Workers: oapigen.WorkerSpec{
-				Count:   3,
-				Cpu:     8,
-				Memory:  "32GB",
-				Storage: "500GB",
+			Nodes: oapigen.ClusterNodes{
+				ControlPlane: oapigen.ControlPlaneSpec{
+					Count:   oapigen.N3,
+					Cpu:     4,
+					Memory:  "16GB",
+					Storage: "120GB",
+				},
+				Workers: oapigen.WorkerSpec{
+					Count:   3,
+					Cpu:     8,
+					Memory:  "32GB",
+					Storage: "500GB",
+				},
 			},
 		},
 	}
@@ -78,28 +80,30 @@ func validClusterBody() oapigen.Cluster {
 func clusterResult(id string) *v1alpha1.Cluster {
 	now := time.Now()
 	return &v1alpha1.Cluster{
-		Id:          util.Ptr(id),
-		Path:        util.Ptr("/api/v1alpha1/clusters/" + id),
-		Status:      util.Ptr(v1alpha1.PENDING),
-		CreateTime:  &now,
-		UpdateTime:  &now,
-		Version:     "1.30",
-		ServiceType: v1alpha1.ClusterServiceTypeCluster,
-		Metadata: v1alpha1.ClusterMetadata{
-			Name: "test-cluster",
-		},
-		Nodes: v1alpha1.ClusterNodes{
-			ControlPlane: v1alpha1.ControlPlaneSpec{
-				Count:   v1alpha1.N3,
-				Cpu:     4,
-				Memory:  "16GB",
-				Storage: "120GB",
+		Id:         util.Ptr(id),
+		Path:       util.Ptr("/api/v1alpha1/clusters/" + id),
+		Status:     util.Ptr(v1alpha1.ClusterStatusPENDING),
+		CreateTime: &now,
+		UpdateTime: &now,
+		Spec: v1alpha1.ClusterSpec{
+			Version:     "1.30",
+			ServiceType: v1alpha1.ClusterSpecServiceTypeCluster,
+			Metadata: v1alpha1.ClusterMetadata{
+				Name: "test-cluster",
 			},
-			Workers: v1alpha1.WorkerSpec{
-				Count:   3,
-				Cpu:     8,
-				Memory:  "32GB",
-				Storage: "500GB",
+			Nodes: v1alpha1.ClusterNodes{
+				ControlPlane: v1alpha1.ControlPlaneSpec{
+					Count:   v1alpha1.N3,
+					Cpu:     4,
+					Memory:  "16GB",
+					Storage: "120GB",
+				},
+				Workers: v1alpha1.WorkerSpec{
+					Count:   3,
+					Cpu:     8,
+					Memory:  "32GB",
+					Storage: "500GB",
+				},
 			},
 		},
 	}
@@ -108,7 +112,7 @@ func clusterResult(id string) *v1alpha1.Cluster {
 // readyClusterResult returns a READY cluster with credentials populated (v1alpha1 types).
 func readyClusterResult(id string) *v1alpha1.Cluster {
 	result := clusterResult(id)
-	result.Status = util.Ptr(v1alpha1.READY)
+	result.Status = util.Ptr(v1alpha1.ClusterStatusREADY)
 	result.ApiEndpoint = util.Ptr("https://api.cluster.example.com:6443")
 	result.Kubeconfig = util.Ptr("base64-kubeconfig-data")
 	result.ConsoleUri = util.Ptr("https://console.cluster.example.com")

@@ -14,28 +14,28 @@ var (
 
 // validateCreateRequest validates the CreateCluster request body.
 func validateCreateRequest(body *oapigen.Cluster) error {
-	if body.ServiceType != oapigen.ClusterServiceTypeCluster {
-		return fmt.Errorf("service_type must be %q", oapigen.ClusterServiceTypeCluster)
+	if body.Spec.ServiceType != oapigen.ClusterSpecServiceTypeCluster {
+		return fmt.Errorf("service_type must be %q", oapigen.ClusterSpecServiceTypeCluster)
 	}
-	if body.Version == "" {
+	if body.Spec.Version == "" {
 		return fmt.Errorf("version is required")
 	}
-	if body.Nodes.Workers.Count < 1 {
+	if body.Spec.Nodes.Workers.Count < 1 {
 		return fmt.Errorf("nodes.workers.count must be >= 1")
 	}
-	if body.Nodes.ControlPlane.Cpu < 1 {
+	if body.Spec.Nodes.ControlPlane.Cpu < 1 {
 		return fmt.Errorf("nodes.control_plane is required")
 	}
-	if body.Nodes.Workers.Memory != "" && !memoryFormatRe.MatchString(body.Nodes.Workers.Memory) {
+	if body.Spec.Nodes.Workers.Memory != "" && !memoryFormatRe.MatchString(body.Spec.Nodes.Workers.Memory) {
 		return fmt.Errorf("nodes.workers.memory must match format: [1-9][0-9]*(MB|GB|TB)")
 	}
-	if body.Nodes.Workers.Storage != "" && !memoryFormatRe.MatchString(body.Nodes.Workers.Storage) {
+	if body.Spec.Nodes.Workers.Storage != "" && !memoryFormatRe.MatchString(body.Spec.Nodes.Workers.Storage) {
 		return fmt.Errorf("nodes.workers.storage must match format: [1-9][0-9]*(MB|GB|TB)")
 	}
-	if body.Nodes.ControlPlane.Memory != "" && !memoryFormatRe.MatchString(body.Nodes.ControlPlane.Memory) {
+	if body.Spec.Nodes.ControlPlane.Memory != "" && !memoryFormatRe.MatchString(body.Spec.Nodes.ControlPlane.Memory) {
 		return fmt.Errorf("nodes.control_plane.memory must match format: [1-9][0-9]*(MB|GB|TB)")
 	}
-	if body.Nodes.ControlPlane.Storage != "" && !memoryFormatRe.MatchString(body.Nodes.ControlPlane.Storage) {
+	if body.Spec.Nodes.ControlPlane.Storage != "" && !memoryFormatRe.MatchString(body.Spec.Nodes.ControlPlane.Storage) {
 		return fmt.Errorf("nodes.control_plane.storage must match format: [1-9][0-9]*(MB|GB|TB)")
 	}
 	return nil

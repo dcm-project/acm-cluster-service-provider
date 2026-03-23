@@ -11,7 +11,7 @@
 ## Design Principles
 
 1. **Status mapping is SHARED** -- a single `statusFromConditions()` function tested once, used by both KubeVirt and BareMetal. Status mapping tests live in a shared `status` component, not duplicated per platform.
-2. **Test behaviors, not implementation details** -- CRD type strategy is deferred; tests assert K8s resource shapes via the `client.Client` fake, not via concrete Go CRD structs.
+2. **Test behaviors, not implementation details** -- CRD type strategy resolved: tests use typed HyperShift Go structs from `github.com/openshift/hypershift/api` (separate lightweight API module) with the `client.Client` fake.
 3. **Zero gaps** -- every REQ-xxx appears in at least one TC mapping.
 4. **Zero redundancy** -- no behavioral scenario tested twice at the same layer.
 5. **Layer isolation** -- handler tests mock `ClusterService`/`HealthChecker`; service tests use fake K8s client; integration tests use `envtest` + `httptest` with no mocks.
@@ -1036,6 +1036,14 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Given** a fake K8s client with a ClusterImageSet
 - **When** `Create()` is called with `provider_hints.acm.platform=""`
 - **Then** the HostedCluster is created with `platform.type=KubeVirt` (empty string treated as absent)
+
+#### TC-KV-UT-030: Invalid page_token returns INVALID_ARGUMENT error
+- **Requirements:** REQ-API-290 (service-layer enforcement)
+- **Type:** Unit
+- **Priority:** High
+- **Given** a fake K8s client with at least one HostedCluster
+- **When** `List(ctx, 50, "!!!invalid!!!")` is called with a non-base64 page_token
+- **Then** an `InvalidArgument` domain error is returned with message "invalid page_token"
 
 #### TC-KV-UT-018: Kubeconfig Secret missing for READY cluster
 - **Requirements:** REQ-ACM-130 (edge case)

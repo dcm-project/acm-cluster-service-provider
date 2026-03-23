@@ -136,13 +136,13 @@ func buildErrorResponse(errType oapigen.ErrorType, status int32, title, detail s
 
 func createError400(detail string) oapigen.CreateCluster400ApplicationProblemPlusJSONResponse {
 	return oapigen.CreateCluster400ApplicationProblemPlusJSONResponse(
-		buildErrorResponse(oapigen.INVALIDARGUMENT, 400, "Bad Request", detail),
+		buildErrorResponse(oapigen.ErrorTypeINVALIDARGUMENT, 400, "Bad Request", detail),
 	)
 }
 
 func createError500() oapigen.CreateCluster500ApplicationProblemPlusJSONResponse {
 	return oapigen.CreateCluster500ApplicationProblemPlusJSONResponse(
-		buildErrorResponse(oapigen.INTERNAL, 500, "Internal Server Error", "an internal error occurred"),
+		buildErrorResponse(oapigen.ErrorTypeINTERNAL, 500, "Internal Server Error", "an internal error occurred"),
 	)
 }
 
@@ -163,7 +163,7 @@ func mapCreateError(err error) oapigen.CreateClusterResponseObject {
 
 func getError500() oapigen.GetCluster500ApplicationProblemPlusJSONResponse {
 	return oapigen.GetCluster500ApplicationProblemPlusJSONResponse(
-		buildErrorResponse(oapigen.INTERNAL, 500, "Internal Server Error", "an internal error occurred"),
+		buildErrorResponse(oapigen.ErrorTypeINTERNAL, 500, "Internal Server Error", "an internal error occurred"),
 	)
 }
 
@@ -180,13 +180,13 @@ func mapGetError(err error) oapigen.GetClusterResponseObject {
 
 func listError400(detail string) oapigen.ListClusters400ApplicationProblemPlusJSONResponse {
 	return oapigen.ListClusters400ApplicationProblemPlusJSONResponse(
-		buildErrorResponse(oapigen.INVALIDARGUMENT, 400, "Bad Request", detail),
+		buildErrorResponse(oapigen.ErrorTypeINVALIDARGUMENT, 400, "Bad Request", detail),
 	)
 }
 
 func listError500() oapigen.ListClusters500ApplicationProblemPlusJSONResponse {
 	return oapigen.ListClusters500ApplicationProblemPlusJSONResponse(
-		buildErrorResponse(oapigen.INTERNAL, 500, "Internal Server Error", "an internal error occurred"),
+		buildErrorResponse(oapigen.ErrorTypeINTERNAL, 500, "Internal Server Error", "an internal error occurred"),
 	)
 }
 
