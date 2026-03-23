@@ -67,7 +67,7 @@ func run(logger *slog.Logger) error {
 
 	startTime := time.Now()
 	checker := health.NewChecker(k8sClient, cfg.Health, version, startTime)
-	strictHandler := handler.New(checker)
+	strictHandler := handler.New(nil, checker) // nil ClusterService — Topic 5 will provide real implementation
 	h := oapigen.NewStrictHandler(strictHandler, nil)
 	srv := apiserver.New(cfg, logger, h).WithOnReady(registrar.Start)
 

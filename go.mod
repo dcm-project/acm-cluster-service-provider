@@ -7,6 +7,7 @@ require (
 	github.com/dcm-project/service-provider-manager v0.0.0-20260305141649-5c7c603f8944
 	github.com/getkin/kin-openapi v0.133.0
 	github.com/go-chi/chi/v5 v5.2.5
+	github.com/google/uuid v1.6.0
 	github.com/oapi-codegen/oapi-codegen/v2 v2.6.0
 	github.com/oapi-codegen/runtime v1.2.0
 	github.com/onsi/ginkgo/v2 v2.28.1
@@ -36,7 +37,6 @@ require (
 	github.com/google/gnostic-models v0.7.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83 // indirect
-	github.com/google/uuid v1.6.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/mailru/easyjson v0.9.1 // indirect
