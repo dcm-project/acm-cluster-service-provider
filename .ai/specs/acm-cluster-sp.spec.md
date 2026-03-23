@@ -814,7 +814,7 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 | REQ-ACM-110 | For reads, MUST query HostedCluster CRs from K8s and map conditions to DCM status (see Status Mapping Table) | MUST |
 | REQ-ACM-120 | When status is READY, MUST extract `api_endpoint` from HostedCluster status | MUST |
 | REQ-ACM-130 | When status is READY, MUST extract kubeconfig from the associated K8s Secret, base64-encode it | MUST |
-| REQ-ACM-140 | For deletion, MUST delete the HostedCluster CR (HyperShift cascades NodePool and related resource deletion) | MUST |
+| REQ-ACM-140 | For deletion, MUST explicitly delete associated NodePool CRs (by `dcm-instance-id` label), then delete the HostedCluster CR. NodePool NotFound is treated as success (HyperShift may have already cascaded). | MUST |
 | REQ-ACM-150 | Memory/storage values from DCM format (`"16GB"`) MUST be converted to K8s resource quantity format | MUST |
 | REQ-ACM-160 | When multiple HostedCluster conditions are true simultaneously, status MUST be resolved using the following precedence (highest to lowest): `deletionTimestamp != nil` → DELETING, `Degraded=True` → FAILED, `Available=True + Progressing=False` → READY, `Progressing=True + Available=False` → PROVISIONING, `Available=False + Progressing=False` → UNAVAILABLE, `Progressing=Unknown` → PENDING. The highest-precedence matching condition wins. | MUST |
 | REQ-ACM-170 | On partial create failure (HostedCluster created but NodePool creation fails), the SP MUST delete the orphaned HostedCluster before returning the error | MUST |
@@ -926,11 +926,12 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 - **When** GetCluster is called
 - **Then** `kubeconfig` is populated with base64-encoded content from the associated K8s Secret
 
-##### AC-ACM-140: Delete cluster deletes HostedCluster
+##### AC-ACM-140: Delete cluster deletes NodePools and HostedCluster
 - **Requirements:** REQ-ACM-140
-- **Given** a HostedCluster with label `dcm-instance-id="my-cluster-id"` exists
+- **Given** a HostedCluster and NodePool(s) with label `dcm-instance-id="my-cluster-id"` exist
 - **When** DeleteCluster is called for `id="my-cluster-id"`
-- **Then** the HostedCluster CR is deleted from K8s (NodePool deletion cascades)
+- **Then** NodePools with matching `dcm-instance-id` label are deleted
+- **And** the HostedCluster CR is deleted from K8s
 
 ##### AC-ACM-150: Memory format conversion
 - **Requirements:** REQ-ACM-150
