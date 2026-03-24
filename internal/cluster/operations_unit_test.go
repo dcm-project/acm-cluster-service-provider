@@ -34,18 +34,18 @@ var _ = Describe("Shared Cluster Operations", func() {
 	// ── Get ─────────────────────────────────────────────────────────────
 
 	Describe("GetCluster", func() {
-		It("TC-KV-UT-010: READY cluster has api_endpoint, console_uri, kubeconfig, version, and update_time", func() {
+		It("TC-OPS-UT-001: READY cluster has api_endpoint, console_uri, kubeconfig, version, and update_time", func() {
 			kubeconfigData := []byte("apiVersion: v1\nkind: Config\nclusters: []")
 			availableTime := time.Date(2026, 3, 15, 10, 0, 0, 0, time.UTC)
 			progressingTime := time.Date(2026, 3, 15, 9, 30, 0, 0, time.UTC)
-			hc := buildHostedCluster("my-cluster", testNamespace,
+			hc := buildHostedCluster("my-cluster",
 				withDCMLabels("test-id"),
 				withConditions(
 					metav1.Condition{Type: "Available", Status: metav1.ConditionTrue, LastTransitionTime: metav1.NewTime(availableTime)},
 					metav1.Condition{Type: "Progressing", Status: metav1.ConditionFalse, LastTransitionTime: metav1.NewTime(progressingTime)},
 				),
-				withAPIEndpoint("api.cluster.example.com", 6443),
-				withKubeConfigRef("my-cluster-admin-kubeconfig"),
+				withAPIEndpoint(),
+				withKubeConfigRef(),
 				withBaseDomain("example.com"),
 			)
 			secret := buildKubeconfigSecret("my-cluster-admin-kubeconfig", testNamespace, kubeconfigData)
@@ -68,8 +68,8 @@ var _ = Describe("Shared Cluster Operations", func() {
 			Expect(*result.UpdateTime).To(BeTemporally("==", availableTime))
 		})
 
-		It("TC-KV-UT-011: PROVISIONING cluster has empty credentials", func() {
-			hc := buildHostedCluster("my-cluster", testNamespace,
+		It("TC-OPS-UT-002: PROVISIONING cluster has empty credentials", func() {
+			hc := buildHostedCluster("my-cluster",
 				withDCMLabels("test-id"),
 				withConditions(provisioningConditions()...),
 			)
@@ -84,22 +84,23 @@ var _ = Describe("Shared Cluster Operations", func() {
 			Expect(result.Kubeconfig).To(BeNil())
 		})
 
-		It("TC-KV-UT-012: not found returns NotFound error", func() {
+		It("TC-OPS-UT-003: not found returns NotFound error", func() {
 			k8s := buildFakeClient(nil, nil)
 
 			_, err := cluster.GetCluster(ctx, k8s, cfg, "nonexistent")
 
 			Expect(err).To(HaveOccurred())
 			var domainErr *service.DomainError
-			Expect(err).To(BeAssignableToTypeOf(domainErr))
+			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeNOTFOUND))
 		})
 
-		It("TC-KV-UT-018: kubeconfig Secret missing for READY cluster", func() {
-			hc := buildHostedCluster("my-cluster", testNamespace,
+		It("TC-OPS-UT-005: kubeconfig Secret missing for READY cluster", func() {
+			hc := buildHostedCluster("my-cluster",
 				withDCMLabels("test-id"),
 				withConditions(readyConditions()...),
-				withAPIEndpoint("api.cluster.example.com", 6443),
-				withKubeConfigRef("my-cluster-admin-kubeconfig"),
+				withAPIEndpoint(),
+				withKubeConfigRef(),
 			)
 			k8s := buildFakeClient([]client.Object{hc}, nil)
 
@@ -113,8 +114,8 @@ var _ = Describe("Shared Cluster Operations", func() {
 			Expect(result.Kubeconfig).To(SatisfyAny(BeNil(), HaveValue(BeEmpty())))
 		})
 
-		It("TC-KV-UT-019: console URI constructed from pattern", func() {
-			hc := buildHostedCluster("my-cluster", testNamespace,
+		It("TC-OPS-UT-006: console URI constructed from pattern", func() {
+			hc := buildHostedCluster("my-cluster",
 				withDCMLabels("test-id"),
 				withConditions(readyConditions()...),
 				withBaseDomain("example.com"),
@@ -131,18 +132,24 @@ var _ = Describe("Shared Cluster Operations", func() {
 			Expect(*result.ConsoleUri).To(Equal("https://console-openshift-console.apps.my-cluster.example.com"))
 		})
 
-		It("TC-KV-UT-021: K8s transient error returns internal error without leaking", func() {
-			k8s := buildFakeClient(nil, nil)
+		It("TC-OPS-UT-007: K8s transient error returns internal error without leaking", func() {
+			fns := interceptor.Funcs{
+				List: func(_ context.Context, _ client.WithWatch, _ client.ObjectList, _ ...client.ListOption) error {
+					return fmt.Errorf("simulated API server failure")
+				},
+			}
+			k8s := buildFakeClient(nil, &fns)
 
 			_, err := cluster.GetCluster(ctx, k8s, cfg, "test-id")
 			Expect(err).To(HaveOccurred())
 			var domainErr *service.DomainError
-			Expect(err).To(BeAssignableToTypeOf(domainErr))
+			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeINTERNAL))
 		})
 
-		It("TC-KV-UT-024: duplicate dcm-instance-id returns deterministic result", func() {
-			hc1 := buildHostedCluster("cluster-a", testNamespace, withDCMLabels("test-id"))
-			hc2 := buildHostedCluster("cluster-b", testNamespace, withDCMLabels("test-id"))
+		It("TC-OPS-UT-010: duplicate dcm-instance-id returns deterministic result", func() {
+			hc1 := buildHostedCluster("cluster-a", withDCMLabels("test-id"))
+			hc2 := buildHostedCluster("cluster-b", withDCMLabels("test-id"))
 			k8s := buildFakeClient([]client.Object{hc1, hc2}, nil)
 
 			result, err := cluster.GetCluster(ctx, k8s, cfg, "test-id")
@@ -152,12 +159,12 @@ var _ = Describe("Shared Cluster Operations", func() {
 			}
 		})
 
-		It("TC-KV-UT-025: kubeconfig Secret exists but missing kubeconfig key", func() {
-			hc := buildHostedCluster("my-cluster", testNamespace,
+		It("TC-OPS-UT-011: kubeconfig Secret exists but missing kubeconfig key", func() {
+			hc := buildHostedCluster("my-cluster",
 				withDCMLabels("test-id"),
 				withConditions(readyConditions()...),
-				withAPIEndpoint("api.cluster.example.com", 6443),
-				withKubeConfigRef("my-cluster-admin-kubeconfig"),
+				withAPIEndpoint(),
+				withKubeConfigRef(),
 			)
 			secret := &corev1.Secret{
 				ObjectMeta: metav1.ObjectMeta{
@@ -179,13 +186,13 @@ var _ = Describe("Shared Cluster Operations", func() {
 			Expect(result.Kubeconfig).To(SatisfyAny(BeNil(), HaveValue(BeEmpty())))
 		})
 
-		It("TC-KV-UT-027: UNAVAILABLE cluster still includes credentials", func() {
+		It("TC-OPS-UT-013: UNAVAILABLE cluster still includes credentials", func() {
 			kubeconfigData := []byte("apiVersion: v1\nkind: Config\nclusters: []")
-			hc := buildHostedCluster("my-cluster", testNamespace,
+			hc := buildHostedCluster("my-cluster",
 				withDCMLabels("test-id"),
 				withConditions(unavailableConditions()...),
-				withAPIEndpoint("api.cluster.example.com", 6443),
-				withKubeConfigRef("my-cluster-admin-kubeconfig"),
+				withAPIEndpoint(),
+				withKubeConfigRef(),
 				withBaseDomain("example.com"),
 			)
 			secret := buildKubeconfigSecret("my-cluster-admin-kubeconfig", testNamespace, kubeconfigData)
@@ -204,8 +211,9 @@ var _ = Describe("Shared Cluster Operations", func() {
 			Expect(result.Kubeconfig).NotTo(BeNil())
 			Expect(*result.Kubeconfig).To(Equal(base64.StdEncoding.EncodeToString(kubeconfigData)))
 		})
+
 		It("TC-OPS-UT-016: FAILED cluster has status_message from Degraded condition", func() {
-			hc := buildHostedCluster("my-cluster", testNamespace,
+			hc := buildHostedCluster("my-cluster",
 				withDCMLabels("test-id"),
 				withConditions(
 					metav1.Condition{
@@ -234,7 +242,7 @@ var _ = Describe("Shared Cluster Operations", func() {
 		})
 
 		It("TC-OPS-UT-017: UNAVAILABLE cluster has status_message from Available condition", func() {
-			hc := buildHostedCluster("my-cluster", testNamespace,
+			hc := buildHostedCluster("my-cluster",
 				withDCMLabels("test-id"),
 				withConditions(
 					metav1.Condition{
@@ -266,7 +274,7 @@ var _ = Describe("Shared Cluster Operations", func() {
 	// ── List ────────────────────────────────────────────────────────────
 
 	Describe("ListClusters", func() {
-		It("TC-KV-UT-023: K8s List() error returns internal error", func() {
+		It("TC-OPS-UT-009: K8s List() error returns internal error", func() {
 			fns := interceptor.Funcs{
 				List: func(_ context.Context, _ client.WithWatch, _ client.ObjectList, _ ...client.ListOption) error {
 					return fmt.Errorf("simulated list failure")
@@ -277,11 +285,12 @@ var _ = Describe("Shared Cluster Operations", func() {
 			_, err := cluster.ListClusters(ctx, k8s, cfg, 50, "")
 			Expect(err).To(HaveOccurred())
 			var domainErr *service.DomainError
-			Expect(err).To(BeAssignableToTypeOf(domainErr))
+			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeINTERNAL))
 		})
 
-		It("TC-KV-UT-030: invalid page_token returns InvalidArgument error", func() {
-			hc := buildHostedCluster("my-cluster", testNamespace, withDCMLabels("test-id"))
+		It("TC-OPS-UT-014: invalid page_token returns InvalidArgument error", func() {
+			hc := buildHostedCluster("my-cluster", withDCMLabels("test-id"))
 			k8s := buildFakeClient([]client.Object{hc}, nil)
 
 			_, err := cluster.ListClusters(ctx, k8s, cfg, 50, "!!!invalid!!!")
@@ -292,10 +301,10 @@ var _ = Describe("Shared Cluster Operations", func() {
 			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeINVALIDARGUMENT))
 		})
 
-		It("TC-KV-UT-026: results ordered by metadata.name ascending", func() {
-			hc1 := buildHostedCluster("charlie", testNamespace, withDCMLabels("id-c"))
-			hc2 := buildHostedCluster("alpha", testNamespace, withDCMLabels("id-a"))
-			hc3 := buildHostedCluster("bravo", testNamespace, withDCMLabels("id-b"))
+		It("TC-OPS-UT-012: results ordered by metadata.name ascending", func() {
+			hc1 := buildHostedCluster("charlie", withDCMLabels("id-c"))
+			hc2 := buildHostedCluster("alpha", withDCMLabels("id-a"))
+			hc3 := buildHostedCluster("bravo", withDCMLabels("id-b"))
 			k8s := buildFakeClient([]client.Object{hc1, hc2, hc3}, nil)
 
 			result, err := cluster.ListClusters(ctx, k8s, cfg, 50, "")
@@ -314,8 +323,8 @@ var _ = Describe("Shared Cluster Operations", func() {
 	// ── Delete ──────────────────────────────────────────────────────────
 
 	Describe("DeleteCluster", func() {
-		It("TC-KV-UT-013: deletes HostedCluster and associated NodePools", func() {
-			hc := buildHostedCluster("my-cluster", testNamespace, withDCMLabels("test-id"))
+		It("TC-OPS-UT-004: deletes HostedCluster and associated NodePools", func() {
+			hc := buildHostedCluster("my-cluster", withDCMLabels("test-id"))
 			np := buildNodePool("my-cluster", testNamespace, withNPDCMLabels("test-id"))
 			k8s := buildFakeClient([]client.Object{hc, np}, nil)
 
@@ -332,17 +341,18 @@ var _ = Describe("Shared Cluster Operations", func() {
 			Expect(npList.Items).To(BeEmpty())
 		})
 
-		It("TC-KV-UT-022: nonexistent cluster returns NotFound error", func() {
+		It("TC-OPS-UT-008: nonexistent cluster returns NotFound error", func() {
 			k8s := buildFakeClient(nil, nil)
 
 			err := cluster.DeleteCluster(ctx, k8s, cfg, "nonexistent")
 			Expect(err).To(HaveOccurred())
 			var domainErr *service.DomainError
-			Expect(err).To(BeAssignableToTypeOf(domainErr))
+			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeNOTFOUND))
 		})
 
-		It("TC-KV-UT-031: NodePool list failure during delete returns internal error", func() {
-			hc := buildHostedCluster("my-cluster", testNamespace, withDCMLabels("test-id"))
+		It("TC-OPS-UT-015: NodePool list failure during delete returns internal error", func() {
+			hc := buildHostedCluster("my-cluster", withDCMLabels("test-id"))
 			fns := interceptor.Funcs{
 				List: func(ctx context.Context, c client.WithWatch, list client.ObjectList, opts ...client.ListOption) error {
 					if _, ok := list.(*hyperv1.NodePoolList); ok {
@@ -357,6 +367,7 @@ var _ = Describe("Shared Cluster Operations", func() {
 			Expect(err).To(HaveOccurred())
 			var domainErr *service.DomainError
 			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeINTERNAL))
 		})
 	})
 })

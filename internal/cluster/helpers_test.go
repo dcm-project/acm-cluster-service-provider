@@ -30,15 +30,15 @@ func withConditions(conditions ...metav1.Condition) hcOption {
 	}
 }
 
-func withKubeConfigRef(secretName string) hcOption {
+func withKubeConfigRef() hcOption {
 	return func(hc *hyperv1.HostedCluster) {
-		hc.Status.KubeConfig = &corev1.LocalObjectReference{Name: secretName}
+		hc.Status.KubeConfig = &corev1.LocalObjectReference{Name: "my-cluster-admin-kubeconfig"}
 	}
 }
 
-func withAPIEndpoint(host string, port int32) hcOption {
+func withAPIEndpoint() hcOption {
 	return func(hc *hyperv1.HostedCluster) {
-		hc.Status.ControlPlaneEndpoint = hyperv1.APIEndpoint{Host: host, Port: port}
+		hc.Status.ControlPlaneEndpoint = hyperv1.APIEndpoint{Host: "api.cluster.example.com", Port: 6443}
 	}
 }
 
@@ -52,8 +52,8 @@ func withBaseDomain(domain string) hcOption {
 	}
 }
 
-func buildHostedCluster(name, namespace string, opts ...hcOption) *hyperv1.HostedCluster {
-	return clustertest.BuildHostedCluster(name, namespace, opts...)
+func buildHostedCluster(name string, opts ...hcOption) *hyperv1.HostedCluster {
+	return clustertest.BuildHostedCluster(name, testNamespace, opts...)
 }
 
 // ── NodePool fixtures ───────────────────────────────────────────────
