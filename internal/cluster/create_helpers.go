@@ -4,6 +4,8 @@ import (
 	"context"
 
 	v1alpha1 "github.com/dcm-project/acm-cluster-service-provider/api/v1alpha1"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/registration"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -16,10 +18,14 @@ func ResolveBaseDomain(req v1alpha1.Cluster, configDefault string) string {
 }
 
 // ResolveReleaseImage returns the release image from hints or resolves via ClusterImageSet.
-func ResolveReleaseImage(ctx context.Context, c client.Client, req v1alpha1.Cluster) (string, error) {
+func ResolveReleaseImage(ctx context.Context, c client.Client, cfg config.ClusterConfig, req v1alpha1.Cluster) (string, error) {
 	if req.Spec.ProviderHints != nil && req.Spec.ProviderHints.Acm != nil && req.Spec.ProviderHints.Acm.ReleaseImage != nil {
 		return *req.Spec.ProviderHints.Acm.ReleaseImage, nil
 	}
-	resolver := NewVersionResolver(c)
+	matrix := registration.CompatibilityMatrix(cfg.VersionMatrix)
+	if len(matrix) == 0 {
+		matrix = registration.DefaultCompatibilityMatrix
+	}
+	resolver := NewVersionResolver(c, matrix)
 	return resolver.Resolve(ctx, req.Spec.Version)
 }

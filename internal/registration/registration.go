@@ -48,13 +48,13 @@ type Registrar struct {
 }
 
 // New creates a Registrar with the given dependencies.
-func New(cfg config.RegistrationConfig, dcmClient *spmclient.ClientWithResponses, k8sClient client.Client, logger *slog.Logger) *Registrar {
+func New(cfg config.RegistrationConfig, dcmClient *spmclient.ClientWithResponses, k8sClient client.Client, logger *slog.Logger, matrix CompatibilityMatrix) *Registrar {
 	return &Registrar{
 		cfg:               cfg,
 		dcmClient:         dcmClient,
 		k8sClient:         k8sClient,
 		logger:            logger,
-		versionDiscoverer: NewVersionDiscoverer(k8sClient),
+		versionDiscoverer: NewVersionDiscoverer(k8sClient, matrix),
 		done:              make(chan struct{}),
 	}
 }

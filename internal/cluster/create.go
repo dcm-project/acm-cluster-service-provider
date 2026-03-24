@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	v1alpha1 "github.com/dcm-project/acm-cluster-service-provider/api/v1alpha1"
@@ -29,7 +30,7 @@ func CreateCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 		return nil, service.NewInvalidArgumentError("base_domain is required")
 	}
 
-	releaseImage, err := ResolveReleaseImage(ctx, c, req)
+	releaseImage, err := ResolveReleaseImage(ctx, c, cfg, req)
 	if err != nil {
 		return nil, err
 	}
@@ -50,6 +51,7 @@ func CreateCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 	labels := DCMLabels(id)
 
 	hc := pb.BuildHostedCluster(req, baseDomain, releaseImage, labels)
+	applyControlPlaneResourceOverrides(hc, req)
 	if err := c.Create(ctx, hc); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
 			return nil, service.NewAlreadyExistsError(fmt.Sprintf("cluster with name %q already exists", req.Spec.Metadata.Name))
@@ -79,4 +81,17 @@ func CreateCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 	}
 
 	return result, nil
+}
+
+// applyControlPlaneResourceOverrides sets HyperShift resource request override
+// annotations for kube-apiserver and etcd (REQ-ACM-060, REQ-ACM-061).
+func applyControlPlaneResourceOverrides(hc *hyperv1.HostedCluster, req v1alpha1.Cluster) {
+	cp := req.Spec.Nodes.ControlPlane
+	value := fmt.Sprintf("cpu=%d,memory=%s", cp.Cpu, strings.TrimSuffix(cp.Memory, "B"))
+
+	if hc.Annotations == nil {
+		hc.Annotations = make(map[string]string)
+	}
+	hc.Annotations[hyperv1.ResourceRequestOverrideAnnotationPrefix+"/kube-apiserver.kube-apiserver"] = value
+	hc.Annotations[hyperv1.ResourceRequestOverrideAnnotationPrefix+"/etcd.etcd"] = value
 }

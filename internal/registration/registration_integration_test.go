@@ -103,7 +103,7 @@ var _ = Describe("Registration Integration", func() {
 			"HTTP server should be ready before registration completes")
 
 		// Start registration AFTER server is ready (simulating WithOnReady hook).
-		reg := registration.New(regCfg, dcmClient, k8sClient, logger)
+		reg := registration.New(regCfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 		// RED: Start() is a no-op, so registration never happens.
 		reg.Start(ctx)
@@ -182,7 +182,7 @@ var _ = Describe("Registration Integration", func() {
 		}).WithTimeout(5 * time.Second).WithPolling(50 * time.Millisecond).Should(Succeed())
 
 		// Start registration (which will fail and retry indefinitely).
-		reg := registration.New(regCfg, dcmClient, k8sClient, logger)
+		reg := registration.New(regCfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 		reg.Start(ctx)
 
 		// Wait for at least one retry to be logged.
@@ -229,7 +229,7 @@ var _ = Describe("Registration Integration", func() {
 
 		logBuf = &syncBuffer{}
 		logger := slog.New(slog.NewJSONHandler(logBuf, nil))
-		reg := registration.New(regCfg, dcmClient, k8sClient, logger)
+		reg := registration.New(regCfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -307,7 +307,7 @@ var _ = Describe("Registration Integration", func() {
 
 		logBuf = &syncBuffer{}
 		logger := slog.New(slog.NewJSONHandler(logBuf, nil))
-		reg := registration.New(regCfg, dcmClient, k8sClient, logger)
+		reg := registration.New(regCfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()

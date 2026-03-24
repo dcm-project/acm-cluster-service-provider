@@ -16,6 +16,7 @@ import (
 	hyperv1 "github.com/openshift/hypershift/api/hypershift/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -43,16 +44,25 @@ func HostedClusterToCluster(ctx context.Context, c client.Client, cfg config.Clu
 	instanceID := hc.Labels[LabelInstanceID]
 	clusterStatus := status.MapConditionsToStatus(hc.Status.Conditions, hc.DeletionTimestamp)
 
+	var statusMessage *string
+	switch clusterStatus {
+	case v1alpha1.ClusterStatusFAILED:
+		statusMessage = conditionMessage(hc.Status.Conditions, "Degraded")
+	case v1alpha1.ClusterStatusUNAVAILABLE:
+		statusMessage = conditionMessage(hc.Status.Conditions, "Available")
+	}
+
 	cl := v1alpha1.Cluster{
-		Id:     util.Ptr(instanceID),
-		Path:   util.Ptr("clusters/" + instanceID),
-		Status: &clusterStatus,
+		Id:            util.Ptr(instanceID),
+		Path:          util.Ptr("clusters/" + instanceID),
+		Status:        &clusterStatus,
+		StatusMessage: statusMessage,
 		Spec: v1alpha1.ClusterSpec{
 			Metadata: v1alpha1.ClusterMetadata{
 				Name: hc.Name,
 			},
 			ServiceType: v1alpha1.ClusterSpecServiceTypeCluster,
-			Version:     ReleaseImageToK8sVersion(hc.Spec.Release.Image, registration.DefaultCompatibilityMatrix),
+			Version:     ReleaseImageToK8sVersion(hc.Spec.Release.Image, registration.CompatibilityMatrix(cfg.VersionMatrix)),
 		},
 	}
 
@@ -127,4 +137,14 @@ func BuildAPIEndpoint(hc *hyperv1.HostedCluster) *string {
 		strconv.FormatInt(int64(hc.Status.ControlPlaneEndpoint.Port), 10),
 	)
 	return &endpoint
+}
+
+// conditionMessage returns the Message from the named condition, or nil if absent/empty.
+func conditionMessage(conditions []metav1.Condition, condType string) *string {
+	for i := range conditions {
+		if conditions[i].Type == condType && conditions[i].Message != "" {
+			return &conditions[i].Message
+		}
+	}
+	return nil
 }

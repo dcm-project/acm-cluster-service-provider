@@ -220,6 +220,46 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(err).To(HaveOccurred())
 		})
 
+		It("TC-BM-UT-013: control_plane.count and storage are ignored", func() {
+			svc, k8s := newTestService(cfg)
+			req := validCreateCluster()
+			req.Spec.Nodes.ControlPlane.Count = v1alpha1.N5
+			req.Spec.Nodes.ControlPlane.Storage = "500GB"
+
+			result, err := svc.Create(ctx, "bm-id", req)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).NotTo(BeNil())
+
+			var hcList hyperv1.HostedClusterList
+			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(hcList.Items).To(HaveLen(1))
+			hc := hcList.Items[0]
+			Expect(hc.Spec.ControllerAvailabilityPolicy).To(BeZero())
+			Expect(hc.Spec.Etcd.Managed).To(BeNil())
+		})
+
+		It("TC-BM-UT-014: control_plane CPU and memory map to resource request override annotations", func() {
+			svc, k8s := newTestService(cfg)
+			req := validCreateCluster()
+			req.Spec.Nodes.ControlPlane.Cpu = 4
+			req.Spec.Nodes.ControlPlane.Memory = "16GB"
+
+			result, err := svc.Create(ctx, "bm-id", req)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).NotTo(BeNil())
+
+			var hcList hyperv1.HostedClusterList
+			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(hcList.Items).To(HaveLen(1))
+			hc := hcList.Items[0]
+
+			kasKey := hyperv1.ResourceRequestOverrideAnnotationPrefix + "/kube-apiserver.kube-apiserver"
+			Expect(hc.Annotations).To(HaveKeyWithValue(kasKey, "cpu=4,memory=16G"))
+
+			etcdKey := hyperv1.ResourceRequestOverrideAnnotationPrefix + "/etcd.etcd"
+			Expect(hc.Annotations).To(HaveKeyWithValue(etcdKey, "cpu=4,memory=16G"))
+		})
+
 		It("TC-BM-UT-012: release image override bypasses ClusterImageSet lookup", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()

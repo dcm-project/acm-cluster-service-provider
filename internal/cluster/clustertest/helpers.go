@@ -3,6 +3,7 @@ package clustertest
 
 import (
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/registration"
 	hyperv1 "github.com/openshift/hypershift/api/hypershift/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -26,6 +27,7 @@ func DefaultConfig() config.ClusterConfig {
 		ClusterNamespace:  TestNamespace,
 		BaseDomain:        TestBaseDomain,
 		ConsoleURIPattern: "https://console-openshift-console.apps.{name}.{base_domain}",
+		VersionMatrix:     map[string]string(registration.DefaultCompatibilityMatrix),
 	}
 }
 

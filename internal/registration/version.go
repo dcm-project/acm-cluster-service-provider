@@ -2,6 +2,9 @@ package registration
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -29,12 +32,29 @@ type VersionDiscoverer struct {
 	matrix    CompatibilityMatrix
 }
 
-// NewVersionDiscoverer creates a VersionDiscoverer with the default compatibility matrix.
-func NewVersionDiscoverer(k8sClient client.Client) *VersionDiscoverer {
+// NewVersionDiscoverer creates a VersionDiscoverer with the given compatibility matrix.
+func NewVersionDiscoverer(k8sClient client.Client, matrix CompatibilityMatrix) *VersionDiscoverer {
 	return &VersionDiscoverer{
 		k8sClient: k8sClient,
-		matrix:    DefaultCompatibilityMatrix,
+		matrix:    matrix,
 	}
+}
+
+// LoadCompatibilityMatrix loads a compatibility matrix from a JSON file.
+// If path is empty, returns the DefaultCompatibilityMatrix.
+func LoadCompatibilityMatrix(path string) (CompatibilityMatrix, error) {
+	if path == "" {
+		return DefaultCompatibilityMatrix, nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("loading compatibility matrix from %s: %w", path, err)
+	}
+	var matrix CompatibilityMatrix
+	if err := json.Unmarshal(data, &matrix); err != nil {
+		return nil, fmt.Errorf("parsing compatibility matrix from %s: %w", path, err)
+	}
+	return matrix, nil
 }
 
 // ExtractOCPVersion extracts the OCP major.minor from a release image reference.

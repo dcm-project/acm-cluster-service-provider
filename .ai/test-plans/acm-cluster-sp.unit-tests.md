@@ -5,7 +5,7 @@
 - **Related Spec:** .ai/specs/acm-cluster-sp.spec.md
 - **Related Requirements:** REQ-REG-xxx, REQ-HTTP-xxx, REQ-HLT-xxx, REQ-API-xxx, REQ-ACM-xxx, REQ-KV-xxx, REQ-BM-xxx, REQ-MON-xxx, REQ-XC-xxx
 - **Created:** 2026-02-17
-- **Last Updated:** 2026-03-16 (max_page_size limit corrected to 100 per REQ-API-270; 4 TCs reclassified from unit to integration/middleware scope)
+- **Last Updated:** 2026-03-24 (REQ-ACM-060/061: CP resource override annotations — refined TC-KV-UT-003, added TC-BM-UT-014)
 - **Scope:** This file covers **unit tests only** (131 unit test cases + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
 
 ## Design Principles
@@ -883,13 +883,15 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Then** the HostedCluster does not contain an explicit control plane replica count
 - **And** etcd storage config is not set (HyperShift manages it)
 
-#### TC-KV-UT-003: control_plane CPU and memory map to resource requests
-- **Requirements:** REQ-ACM-060
+#### TC-KV-UT-003: control_plane CPU and memory map to resource request override annotations
+- **Requirements:** REQ-ACM-060, REQ-ACM-061
 - **Type:** Unit
-- **Priority:** Medium
+- **Priority:** High
 - **Given** a fake K8s client with a ClusterImageSet
 - **When** `Create()` is called with `control_plane.cpu=4, control_plane.memory="16GB"`
-- **Then** the HostedCluster resource requests include mapped CPU (4 cores) and memory (16GB equivalent)
+- **Then** the HostedCluster has annotation `resource-request-override.hypershift.openshift.io/kube-apiserver.kube-apiserver` with value `cpu=4,memory=16G`
+- **And** the HostedCluster has annotation `resource-request-override.hypershift.openshift.io/etcd.etcd` with value `cpu=4,memory=16G`
+- **And** no other `resource-request-override.hypershift.openshift.io` annotations are present
 
 #### TC-KV-UT-004: Version validated via compatibility matrix and ClusterImageSets (table-driven)
 - **Requirements:** REQ-ACM-030, REQ-ACM-031, REQ-ACM-032, REQ-ACM-040
@@ -1246,6 +1248,25 @@ Tests the BareMetal `ClusterService` implementation. Status mapping is NOT retes
 - **And** no ClusterImageSet lookup error occurs
 - **Note:** Confirms shared release_image code works for BareMetal (TC-KV-UT-005 covers KubeVirt)
 
+#### TC-BM-UT-013: control_plane.count and storage are ignored
+- **Requirements:** REQ-ACM-070, REQ-ACM-080
+- **Type:** Unit
+- **Priority:** Medium
+- **Given** a fake K8s client with a ClusterImageSet
+- **When** `Create()` is called with `control_plane.count=5, control_plane.storage="500GB"`
+- **Then** the HostedCluster does not set `ControllerAvailabilityPolicy`
+- **And** the HostedCluster does not set `Etcd.Managed` config
+
+#### TC-BM-UT-014: control_plane CPU and memory map to resource request override annotations
+- **Requirements:** REQ-ACM-060, REQ-ACM-061
+- **Type:** Unit
+- **Priority:** High
+- **Given** a fake K8s client with a ClusterImageSet
+- **When** `Create()` is called with `platform="baremetal"`, `infra_env="my-infra"`, `control_plane.cpu=4, control_plane.memory="16GB"`
+- **Then** the HostedCluster has annotation `resource-request-override.hypershift.openshift.io/kube-apiserver.kube-apiserver` with value `cpu=4,memory=16G`
+- **And** the HostedCluster has annotation `resource-request-override.hypershift.openshift.io/etcd.etcd` with value `cpu=4,memory=16G`
+- **Note:** Confirms shared CP resource override code works for BareMetal (TC-KV-UT-003 is the primary test)
+
 #### TC-BM-UT-011: Create BareMetal with no base_domain and no SP_BASE_DOMAIN config
 - **Requirements:** REQ-API-380
 - **Type:** Unit
@@ -1593,9 +1614,10 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-ACM-040 | TC-KV-UT-004 | Covered |
 | REQ-ACM-050 | TC-KV-UT-005, TC-BM-UT-012 | Covered |
 | REQ-ACM-051 | TC-KV-UT-005, TC-BM-UT-012 | Covered |
-| REQ-ACM-060 | TC-KV-UT-003 | Covered |
-| REQ-ACM-070 | TC-KV-UT-002 | Covered |
-| REQ-ACM-080 | TC-KV-UT-002 | Covered |
+| REQ-ACM-060 | TC-KV-UT-003, TC-BM-UT-014 | Covered |
+| REQ-ACM-061 | TC-KV-UT-003, TC-BM-UT-014 | Covered |
+| REQ-ACM-070 | TC-KV-UT-002, TC-BM-UT-013 | Covered |
+| REQ-ACM-080 | TC-KV-UT-002, TC-BM-UT-013 | Covered |
 | REQ-ACM-090 | TC-KV-UT-001, TC-BM-UT-001 | Covered |
 | REQ-ACM-100 | TC-KV-UT-001 | Covered |
 | REQ-ACM-110 | TC-STS-UT-001..005, TC-STS-UT-011, TC-KV-UT-010, TC-KV-UT-011, TC-KV-UT-021, TC-KV-UT-024, TC-KV-UT-027, TC-BM-UT-007, TC-BM-UT-009 | Covered |
@@ -1700,6 +1722,7 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Release image override | TC-KV-UT-005 | TC-BM-UT-012 confirms shared code |
 | `base_domain` handling (config default + request override) | TC-KV-UT-006 | TC-BM-UT-010 (new) |
 | Memory/storage format conversion | TC-KV-UT-008 | N/A for BareMetal (informational per REQ-BM-060) |
+| CP resource override annotations (DEC-004) | TC-KV-UT-003 | TC-BM-UT-014 confirms shared code |
 | List ordering (`metadata.name` ascending) | TC-KV-UT-026 | Shared code; no platform-specific sort |
 
 ### Spec ACs Merged into Fewer Test Cases
@@ -1727,12 +1750,12 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 
 | Category | Count |
 |---|---|
-| **Total unit test cases** | **135** |
-| High priority | 61 |
+| **Total unit test cases** | **137** |
+| High priority | 63 |
 | Medium priority | 59 |
 | Low priority | 15 |
 | Structural (no behavioral test) | 10 requirements |
-| Total requirements covered (across both unit and integration) | 165 (all REQ-xxx IDs) |
+| Total requirements covered (across both unit and integration) | 166 (all REQ-xxx IDs) |
 | Coverage gaps | **0** |
 
 ### Test Cases by Component
@@ -1749,7 +1772,7 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Error Mapping | TC-ERR-UT-xxx | 3 |
 | Status Mapping (shared) | TC-STS-UT-xxx | 12 |
 | KubeVirt Service | TC-KV-UT-xxx | 29 |
-| BareMetal Service | TC-BM-UT-xxx | 12 |
+| BareMetal Service | TC-BM-UT-xxx | 14 |
 | Status Monitoring | TC-MON-UT-xxx | 16 |
 | Configuration | TC-CFG-UT-xxx | 3 |
 | Cross-Cutting: Identity | TC-XC-ID-UT-xxx | 2 |

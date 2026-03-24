@@ -17,11 +17,11 @@ type VersionResolver struct {
 	matrix registration.CompatibilityMatrix
 }
 
-// NewVersionResolver creates a VersionResolver with the default compatibility matrix.
-func NewVersionResolver(c client.Client) *VersionResolver {
+// NewVersionResolver creates a VersionResolver with the given compatibility matrix.
+func NewVersionResolver(c client.Client, matrix registration.CompatibilityMatrix) *VersionResolver {
 	return &VersionResolver{
 		client: c,
-		matrix: registration.DefaultCompatibilityMatrix,
+		matrix: matrix,
 	}
 }
 

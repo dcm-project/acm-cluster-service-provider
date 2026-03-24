@@ -14,6 +14,11 @@ func (s *Service) Create(ctx context.Context, id string, req v1alpha1.Cluster) (
 	return cluster.CreateCluster(ctx, s.client, s.config, id, req, s)
 }
 
+// BuildHostedCluster builds a KubeVirt-platform HostedCluster.
+// control_plane.count and control_plane.storage are intentionally not mapped:
+// HyperShift manages CP pod HA (ControllerAvailabilityPolicy) and etcd storage
+// internally — these DCM fields describe node-level resources that don't exist
+// in the hosted control plane model.
 func (s *Service) BuildHostedCluster(req v1alpha1.Cluster, baseDomain, releaseImage string, labels map[string]string) *hyperv1.HostedCluster {
 	return &hyperv1.HostedCluster{
 		ObjectMeta: metav1.ObjectMeta{
