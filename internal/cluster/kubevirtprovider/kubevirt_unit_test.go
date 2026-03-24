@@ -77,10 +77,12 @@ var _ = Describe("KubeVirt Service", func() {
 			var hcList hyperv1.HostedClusterList
 			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
-			// HC should not have explicit CP replica count or etcd storage config
+			hc := hcList.Items[0]
+			Expect(hc.Spec.ControllerAvailabilityPolicy).To(BeZero())
+			Expect(hc.Spec.Etcd.Managed).To(BeNil())
 		})
 
-		It("TC-KV-UT-003: control_plane CPU and memory map to resource requests", func() {
+		It("TC-KV-UT-003: control_plane CPU and memory map to resource request override annotations", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
 			req.Spec.Nodes.ControlPlane.Cpu = 4
@@ -93,7 +95,22 @@ var _ = Describe("KubeVirt Service", func() {
 			var hcList hyperv1.HostedClusterList
 			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
-			// HC resource requests should include mapped CPU (4) and memory (16GB)
+			hc := hcList.Items[0]
+
+			// Verify kube-apiserver resource request override annotation
+			kasKey := hyperv1.ResourceRequestOverrideAnnotationPrefix + "/kube-apiserver.kube-apiserver"
+			Expect(hc.Annotations).To(HaveKeyWithValue(kasKey, "cpu=4,memory=16G"))
+
+			// Verify etcd resource request override annotation
+			etcdKey := hyperv1.ResourceRequestOverrideAnnotationPrefix + "/etcd.etcd"
+			Expect(hc.Annotations).To(HaveKeyWithValue(etcdKey, "cpu=4,memory=16G"))
+
+			// No other resource-request-override annotations
+			for k := range hc.Annotations {
+				if k != kasKey && k != etcdKey {
+					Expect(k).NotTo(HavePrefix(hyperv1.ResourceRequestOverrideAnnotationPrefix))
+				}
+			}
 		})
 
 		DescribeTable("TC-KV-UT-004: version validation via compatibility matrix and ClusterImageSets",

@@ -64,7 +64,13 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("creating kubernetes client: %w", err)
 	}
 
-	registrar := registration.New(cfg.Registration, dcmClient, k8sClient, logger)
+	matrix, err := registration.LoadCompatibilityMatrix(cfg.Cluster.VersionMatrixPath)
+	if err != nil {
+		return fmt.Errorf("loading compatibility matrix: %w", err)
+	}
+	cfg.Cluster.VersionMatrix = map[string]string(matrix)
+
+	registrar := registration.New(cfg.Registration, dcmClient, k8sClient, logger, matrix)
 	clusterService := dispatcher.New(k8sClient, cfg.Cluster, cfg.Health.EnabledPlatforms)
 
 	startTime := time.Now()

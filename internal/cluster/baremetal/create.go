@@ -36,6 +36,11 @@ type builder struct {
 	infraEnv string
 }
 
+// BuildHostedCluster builds an Agent-platform HostedCluster for bare metal.
+// control_plane.count and control_plane.storage are intentionally not mapped:
+// HyperShift manages CP pod HA (ControllerAvailabilityPolicy) and etcd storage
+// internally — these DCM fields describe node-level resources that don't exist
+// in the hosted control plane model.
 func (b *builder) BuildHostedCluster(req v1alpha1.Cluster, baseDomain, releaseImage string, labels map[string]string) *hyperv1.HostedCluster {
 	return &hyperv1.HostedCluster{
 		ObjectMeta: metav1.ObjectMeta{

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -157,7 +158,7 @@ var _ = Describe("Registration", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-			reg := registration.New(cfg, dcmClient, k8sClient, logger)
+			reg := registration.New(cfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 			regErr := reg.Register(context.Background())
 
@@ -218,7 +219,7 @@ var _ = Describe("Registration", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-			reg := registration.New(cfg, dcmClient, k8sClient, logger)
+			reg := registration.New(cfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 			// RED: Register() returns "not implemented", so this will fail.
 			regErr := reg.Register(context.Background())
@@ -253,7 +254,7 @@ var _ = Describe("Registration", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-			reg := registration.New(cfg, dcmClient, k8sClient, logger)
+			reg := registration.New(cfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 			// RED: Register() returns "not implemented"
 			regErr := reg.Register(context.Background())
@@ -293,7 +294,7 @@ var _ = Describe("Registration", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-			reg := registration.New(cfg, dcmClient, k8sClient, logger)
+			reg := registration.New(cfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 			// RED: Register() returns "not implemented" without using dcmClient at all.
 			regErr := reg.Register(context.Background())
@@ -328,7 +329,7 @@ var _ = Describe("Registration", func() {
 
 			logBuf = &syncBuffer{}
 			logger := slog.New(slog.NewJSONHandler(logBuf, nil))
-			reg := registration.New(cfg, dcmClient, k8sClient, logger)
+			reg := registration.New(cfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -373,7 +374,7 @@ var _ = Describe("Registration", func() {
 
 				logBuf = &syncBuffer{}
 				logger := slog.New(slog.NewJSONHandler(logBuf, nil))
-				reg := registration.New(cfg, dcmClient, k8sClient, logger)
+				reg := registration.New(cfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
@@ -410,7 +411,7 @@ var _ = Describe("Registration", func() {
 
 				logBuf = &syncBuffer{}
 				logger := slog.New(slog.NewJSONHandler(logBuf, nil))
-				reg := registration.New(cfg, dcmClient, k8sClient, logger)
+				reg := registration.New(cfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 				ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 				defer cancel()
@@ -450,7 +451,7 @@ var _ = Describe("Registration", func() {
 
 			logBuf = &syncBuffer{}
 			logger := slog.New(slog.NewJSONHandler(logBuf, nil))
-			reg := registration.New(cfg, dcmClient, k8sClient, logger)
+			reg := registration.New(cfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -489,7 +490,7 @@ var _ = Describe("Registration", func() {
 			Expect(err).NotTo(HaveOccurred())
 
 			logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-			reg := registration.New(cfg, dcmClient, k8sClient, logger)
+			reg := registration.New(cfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -539,7 +540,7 @@ var _ = Describe("Registration", func() {
 
 			logBuf = &syncBuffer{}
 			logger := slog.New(slog.NewJSONHandler(logBuf, nil))
-			reg := registration.New(cfg, dcmClient, k8sClient, logger)
+			reg := registration.New(cfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -622,7 +623,7 @@ var _ = Describe("Registration", func() {
 
 			logBuf = &syncBuffer{}
 			logger := slog.New(slog.NewJSONHandler(logBuf, nil))
-			reg := registration.New(cfg, dcmClient, k8sClient, logger)
+			reg := registration.New(cfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -733,7 +734,7 @@ var _ = Describe("Registration", func() {
 
 			logBuf = &syncBuffer{}
 			logger := slog.New(slog.NewJSONHandler(logBuf, nil))
-			reg := registration.New(cfg, dcmClient, k8sClient, logger)
+			reg := registration.New(cfg, dcmClient, k8sClient, logger, registration.DefaultCompatibilityMatrix)
 
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -783,7 +784,7 @@ var _ = Describe("Registration", func() {
 			cis419 := newClusterImageSet("img4.19.0-multi", "4.19.0-multi")
 			k8sClient := newFakeK8sClient(cis416, cis417, cis419).Build()
 
-			discoverer := registration.NewVersionDiscoverer(k8sClient)
+			discoverer := registration.NewVersionDiscoverer(k8sClient, registration.DefaultCompatibilityMatrix)
 
 			// RED: DiscoverVersions() returns nil, fmt.Errorf("not implemented")
 			versions, err := discoverer.DiscoverVersions(context.Background())
@@ -805,7 +806,7 @@ var _ = Describe("Registration", func() {
 			cis416 := newClusterImageSet("img4.16.0-multi", "4.16.0-multi")
 			k8sClient := newFakeK8sClient(cis416).Build()
 
-			discoverer := registration.NewVersionDiscoverer(k8sClient)
+			discoverer := registration.NewVersionDiscoverer(k8sClient, registration.DefaultCompatibilityMatrix)
 
 			// RED: DiscoverVersions() returns nil, fmt.Errorf("not implemented")
 			versions, err := discoverer.DiscoverVersions(context.Background())
@@ -816,6 +817,39 @@ var _ = Describe("Registration", func() {
 
 			Expect(versions).To(Equal([]string{"1.29"}),
 				"versions should only include 1.29 (from CIS 4.16), not other matrix entries")
+		})
+	})
+
+	Describe("LoadCompatibilityMatrix", func() {
+		It("returns default matrix when path is empty", func() {
+			matrix, err := registration.LoadCompatibilityMatrix("")
+			Expect(err).NotTo(HaveOccurred())
+			Expect(matrix).To(Equal(registration.DefaultCompatibilityMatrix))
+		})
+
+		It("loads matrix from JSON file", func() {
+			content := `{"4.16": "1.29", "4.17": "1.30"}`
+			tmpFile := GinkgoT().TempDir() + "/matrix.json"
+			Expect(os.WriteFile(tmpFile, []byte(content), 0644)).To(Succeed())
+
+			matrix, err := registration.LoadCompatibilityMatrix(tmpFile)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(matrix).To(HaveLen(2))
+			Expect(matrix["4.16"]).To(Equal("1.29"))
+			Expect(matrix["4.17"]).To(Equal("1.30"))
+		})
+
+		It("returns error for non-existent file", func() {
+			_, err := registration.LoadCompatibilityMatrix("/nonexistent/path.json")
+			Expect(err).To(HaveOccurred())
+		})
+
+		It("returns error for invalid JSON", func() {
+			tmpFile := GinkgoT().TempDir() + "/bad.json"
+			Expect(os.WriteFile(tmpFile, []byte("not json"), 0644)).To(Succeed())
+
+			_, err := registration.LoadCompatibilityMatrix(tmpFile)
+			Expect(err).To(HaveOccurred())
 		})
 	})
 })

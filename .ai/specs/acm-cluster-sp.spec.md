@@ -32,6 +32,7 @@ The ACM Cluster Service Provider is a REST API that manages OpenShift cluster li
 | DEC-001 | **K8s minor version format enforced by SP:** The SP advertises available K8s minor versions in `kubernetesSupportedVersions` during registration. Two sources of truth govern version handling: (1) the internal compatibility matrix (OCP 4.x = K8s 1.(x+13)) is the source of truth for OCP↔K8s translation, and (2) ACM ClusterImageSets are the source of truth for which OCP versions are available on the hub. The SP queries ClusterImageSets, translates OCP versions to K8s via the matrix, and advertises the resulting K8s versions. Callers MUST use exactly one of the advertised K8s minor versions — no OCP versions, no format variations (e.g., `"1.3"` is not `"1.30"`). Version validation at creation time translates the K8s version back to OCP via the matrix, then performs a live ClusterImageSet lookup. When ClusterImageSets change, the SP re-registers to advertise the updated K8s version set. | The caller-facing API uses platform-agnostic K8s versions. The compatibility matrix is owned and maintained by the SP. |
 | DEC-002 | **Health status values:** The SP uses `"healthy"` / `"unhealthy"` instead of `"pass"` from the enhancement. | Aligns with AEP conventions and provides clearer semantics. The enhancement's `"pass"` value is not used. |
 | DEC-003 | **Provider name as unique identifier:** `SP_NAME` is used for CloudEvents subjects and DCM correlation. The provider ID returned by the registry is not persisted by the SP. The administrator is responsible for ensuring name uniqueness across SP instances. | CloudEvents subjects use the provider name, not the registry-assigned ID. Persisting the ID adds complexity with no identified use case. |
+| DEC-004 | **Control plane resources mapped via annotation overrides targeting kube-apiserver and etcd:** HyperShift's `HostedClusterSpec` has no field for per-component resource requests. The SP uses `resource-request-override.hypershift.openshift.io` annotations to set CPU and memory requests on `kube-apiserver` and `etcd` — the two largest CP consumers. Each component gets the full specified values (total CP overhead from overrides = 2x stated values). `ClusterSizingConfiguration` was rejected for v1 (requires pre-existing cluster-wide policy objects; operator-level concern). | Annotations are HyperShift's official per-cluster resource override mechanism. kube-apiserver and etcd are the dominant resource consumers. See `.ai/decisions/2026-03-24-14-00-cp-resource-override-mechanism.md`. |
 
 ## 2. Scope
 
@@ -806,7 +807,8 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 | REQ-ACM-040 | If no matching ClusterImageSet exists for the translated OCP version (or no K8s-to-OCP mapping exists), the operation MUST fail (handler returns 422) | MUST |
 | REQ-ACM-050 | The SP SHOULD support `provider_hints.acm.release_image` override | SHOULD |
 | REQ-ACM-051 | When `provider_hints.acm.release_image` is specified and supported, the SP MUST use it directly, bypassing ClusterImageSet lookup | MUST |
-| REQ-ACM-060 | `nodes.control_plane.cpu` and `memory` MUST map to resource requests for hosted control plane pods | MUST |
+| REQ-ACM-060 | `nodes.control_plane.cpu` and `memory` MUST be applied as resource request overrides on the HostedCluster using HyperShift's `resource-request-override.hypershift.openshift.io` annotation prefix (DEC-004). The SP MUST target `kube-apiserver.kube-apiserver` and `etcd.etcd` components. Each targeted component receives the full specified CPU and memory values. If `cpu` is 0 or `memory` is empty, the corresponding resource type MUST NOT appear in the annotation value | MUST |
+| REQ-ACM-061 | The annotation value format MUST be `cpu=<cores>,memory=<quantity>` where `<cores>` is the integer CPU core count and `<quantity>` is the DCM memory value converted to K8s SI format (e.g., `"16GB"` → `"16G"`). The SP MUST use the `ResourceRequestOverrideAnnotationPrefix` constant from the HyperShift API package to construct annotation keys | MUST |
 | REQ-ACM-070 | `nodes.control_plane.count` MUST be accepted but IGNORED (HyperShift manages HA internally) | MUST |
 | REQ-ACM-080 | `nodes.control_plane.storage` MUST be accepted but IGNORED (etcd managed by HyperShift) | MUST |
 | REQ-ACM-090 | `nodes.workers.count` MUST map to NodePool `replicas` | MUST |
@@ -882,10 +884,11 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 - **Then** the HostedCluster uses the specified release image directly
 - **And** ClusterImageSet lookup is bypassed
 
-##### AC-ACM-060: control_plane cpu/memory mapped to pod resources
-- **Requirements:** REQ-ACM-060
+##### AC-ACM-060: control_plane cpu/memory mapped to resource request override annotations
+- **Requirements:** REQ-ACM-060, REQ-ACM-061
 - **When** CreateCluster is called with `control_plane.cpu=4, control_plane.memory="16GB"`
-- **Then** the HostedCluster's control plane pods have corresponding resource requests
+- **Then** the HostedCluster has annotation `resource-request-override.hypershift.openshift.io/kube-apiserver.kube-apiserver` with value `cpu=4,memory=16G`
+- **And** the HostedCluster has annotation `resource-request-override.hypershift.openshift.io/etcd.etcd` with value `cpu=4,memory=16G`
 
 ##### AC-ACM-070: control_plane.count is ignored
 - **Requirements:** REQ-ACM-070
@@ -1328,7 +1331,7 @@ Error type to HTTP status mapping:
 | REQ-HTTP-NNN | 2: HTTP Server | 12 |
 | REQ-HLT-NNN | 3: Health Service | 12 |
 | REQ-API-NNN | 4: OpenAPI Endpoints | 49 |
-| REQ-ACM-NNN | 5: ACM Platform Services (Common) | 18 |
+| REQ-ACM-NNN | 5: ACM Platform Services (Common) | 19 |
 | REQ-KV-NNN | 5a: ACM - KubeVirt | 4 |
 | REQ-BM-NNN | 5b: ACM - BareMetal | 6 |
 | REQ-MON-NNN | 6: Status Monitoring | 22 |

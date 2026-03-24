@@ -204,6 +204,63 @@ var _ = Describe("Shared Cluster Operations", func() {
 			Expect(result.Kubeconfig).NotTo(BeNil())
 			Expect(*result.Kubeconfig).To(Equal(base64.StdEncoding.EncodeToString(kubeconfigData)))
 		})
+		It("TC-OPS-UT-016: FAILED cluster has status_message from Degraded condition", func() {
+			hc := buildHostedCluster("my-cluster", testNamespace,
+				withDCMLabels("test-id"),
+				withConditions(
+					metav1.Condition{
+						Type:               "Degraded",
+						Status:             metav1.ConditionTrue,
+						Message:            "etcd cluster unhealthy",
+						LastTransitionTime: metav1.Now(),
+					},
+					metav1.Condition{
+						Type:               "Available",
+						Status:             metav1.ConditionFalse,
+						LastTransitionTime: metav1.Now(),
+					},
+				),
+			)
+			k8s := buildFakeClient([]client.Object{hc}, nil)
+
+			result, err := cluster.GetCluster(ctx, k8s, cfg, "test-id")
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).NotTo(BeNil())
+			Expect(result.Status).NotTo(BeNil())
+			Expect(*result.Status).To(Equal(v1alpha1.ClusterStatusFAILED))
+			Expect(result.StatusMessage).NotTo(BeNil())
+			Expect(*result.StatusMessage).To(Equal("etcd cluster unhealthy"))
+		})
+
+		It("TC-OPS-UT-017: UNAVAILABLE cluster has status_message from Available condition", func() {
+			hc := buildHostedCluster("my-cluster", testNamespace,
+				withDCMLabels("test-id"),
+				withConditions(
+					metav1.Condition{
+						Type:               "Available",
+						Status:             metav1.ConditionFalse,
+						Message:            "cluster components not ready",
+						LastTransitionTime: metav1.Now(),
+					},
+					metav1.Condition{
+						Type:               "Progressing",
+						Status:             metav1.ConditionFalse,
+						LastTransitionTime: metav1.Now(),
+					},
+				),
+			)
+			k8s := buildFakeClient([]client.Object{hc}, nil)
+
+			result, err := cluster.GetCluster(ctx, k8s, cfg, "test-id")
+
+			Expect(err).NotTo(HaveOccurred())
+			Expect(result).NotTo(BeNil())
+			Expect(result.Status).NotTo(BeNil())
+			Expect(*result.Status).To(Equal(v1alpha1.ClusterStatusUNAVAILABLE))
+			Expect(result.StatusMessage).NotTo(BeNil())
+			Expect(*result.StatusMessage).To(Equal("cluster components not ready"))
+		})
 	})
 
 	// ── List ────────────────────────────────────────────────────────────
