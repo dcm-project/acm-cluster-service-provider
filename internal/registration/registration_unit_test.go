@@ -195,6 +195,14 @@ var _ = Describe("Registration", func() {
 			}
 			sort.Strings(versionStrings)
 			Expect(versionStrings).To(Equal([]string{"1.29", "1.30"}))
+
+			// REQ-REG-020: display_name, region, zone
+			Expect(receivedBody.DisplayName).NotTo(BeNil())
+			Expect(*receivedBody.DisplayName).To(Equal("ACM Cluster SP"))
+			Expect(receivedBody.Metadata.RegionCode).NotTo(BeNil())
+			Expect(*receivedBody.Metadata.RegionCode).To(Equal("us-east-1"))
+			Expect(receivedBody.Metadata.Zone).NotTo(BeNil())
+			Expect(*receivedBody.Metadata.Zone).To(Equal("az-1"))
 		})
 
 		// ---------------------------------------------------------------
@@ -385,6 +393,12 @@ var _ = Describe("Registration", func() {
 					BeNumerically(">=", 2),
 					"Start() should retry on 500 errors",
 				)
+
+				// REQ-REG-050: registration failures logged with detail
+				Eventually(logBuf.String).WithTimeout(2*time.Second).WithPolling(50*time.Millisecond).Should(
+					ContainSubstring("retry"),
+					"registration failure should be logged with retry detail",
+				)
 			})
 		})
 
@@ -425,6 +439,12 @@ var _ = Describe("Registration", func() {
 				// Verify only 1 request was sent (no retries on 4xx).
 				Expect(requestCount.Load()).To(BeNumerically("==", 1),
 					"Start() should NOT retry on 400 client errors")
+
+				// REQ-REG-050: non-retryable failure logged
+				Expect(logBuf.String()).To(
+					ContainSubstring("non-retryable"),
+					"non-retryable failure should be logged",
+				)
 			})
 		})
 
@@ -830,7 +850,7 @@ var _ = Describe("Registration", func() {
 		It("loads matrix from JSON file", func() {
 			content := `{"4.16": "1.29", "4.17": "1.30"}`
 			tmpFile := GinkgoT().TempDir() + "/matrix.json"
-			Expect(os.WriteFile(tmpFile, []byte(content), 0644)).To(Succeed())
+			Expect(os.WriteFile(tmpFile, []byte(content), 0o644)).To(Succeed())
 
 			matrix, err := registration.LoadCompatibilityMatrix(tmpFile)
 			Expect(err).NotTo(HaveOccurred())
@@ -846,7 +866,7 @@ var _ = Describe("Registration", func() {
 
 		It("returns error for invalid JSON", func() {
 			tmpFile := GinkgoT().TempDir() + "/bad.json"
-			Expect(os.WriteFile(tmpFile, []byte("not json"), 0644)).To(Succeed())
+			Expect(os.WriteFile(tmpFile, []byte("not json"), 0o644)).To(Succeed())
 
 			_, err := registration.LoadCompatibilityMatrix(tmpFile)
 			Expect(err).To(HaveOccurred())

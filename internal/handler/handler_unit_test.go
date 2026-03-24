@@ -726,8 +726,10 @@ var _ = Describe("Error Mapping", func() {
 
 		for _, tc := range cases {
 			domainErr := &service.DomainError{Type: tc.errType, Message: "test"}
-			_, status, _, _ := handler.MapDomainError(domainErr)
+			errType, status, title, _ := handler.MapDomainError(domainErr)
 			Expect(status).To(Equal(tc.wantStatus), "for error type %s", tc.errType)
+			Expect(errType).To(Equal(tc.errType), "errType should match input for %s", tc.errType)
+			Expect(title).NotTo(BeEmpty(), "title must be non-empty for %s", tc.errType)
 		}
 	})
 

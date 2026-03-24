@@ -62,6 +62,9 @@ var _ = Describe("KubeVirt Service", func() {
 			np := npList.Items[0]
 			Expect(np.Spec.Replicas).NotTo(BeNil())
 			Expect(*np.Spec.Replicas).To(Equal(int32(2)))
+			Expect(np.Spec.Platform.Type).To(Equal(hyperv1.KubevirtPlatform))
+			Expect(np.Labels).To(HaveKeyWithValue("app.kubernetes.io/managed-by", "dcm"))
+			Expect(np.Labels).To(HaveKeyWithValue("dcm-service-type", "cluster"))
 		})
 
 		It("TC-KV-UT-002: control_plane.count and storage are ignored", func() {
@@ -114,7 +117,7 @@ var _ = Describe("KubeVirt Service", func() {
 		})
 
 		DescribeTable("TC-KV-UT-004: version validation via compatibility matrix and ClusterImageSets",
-			func(version string, expectSuccess bool, _ *v1alpha1.ErrorType) {
+			func(version string, expectSuccess bool, expectedErrType *v1alpha1.ErrorType) {
 				svc, _ := newTestService(cfg)
 				req := validCreateCluster()
 				req.Spec.Version = version
@@ -127,7 +130,8 @@ var _ = Describe("KubeVirt Service", func() {
 				} else {
 					Expect(err).To(HaveOccurred())
 					var domainErr *service.DomainError
-					Expect(err).To(BeAssignableToTypeOf(domainErr))
+					Expect(errors.As(err, &domainErr)).To(BeTrue())
+					Expect(domainErr.Type).To(Equal(*expectedErrType))
 				}
 			},
 			Entry("valid version 1.28", "1.28", true, nil),
@@ -225,8 +229,7 @@ var _ = Describe("KubeVirt Service", func() {
 			np := npList.Items[0]
 			Expect(np.Spec.Platform.Kubevirt).NotTo(BeNil())
 			Expect(np.Spec.Platform.Kubevirt.Compute).NotTo(BeNil())
-			// Memory should be 16G equivalent
-			Expect(np.Spec.Platform.Kubevirt.Compute.Memory).NotTo(BeNil())
+			Expect(np.Spec.Platform.Kubevirt.Compute.Memory.String()).To(Equal("16G"))
 		})
 
 		It("TC-KV-UT-009: workers storage maps to root disk size", func() {
@@ -245,7 +248,7 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(np.Spec.Platform.Kubevirt).NotTo(BeNil())
 			Expect(np.Spec.Platform.Kubevirt.RootVolume).NotTo(BeNil())
 			Expect(np.Spec.Platform.Kubevirt.RootVolume.Persistent).NotTo(BeNil())
-			Expect(np.Spec.Platform.Kubevirt.RootVolume.Persistent.Size).NotTo(BeNil())
+			Expect(np.Spec.Platform.Kubevirt.RootVolume.Persistent.Size.String()).To(Equal("120G"))
 		})
 
 		It("TC-KV-UT-014: duplicate ID returns AlreadyExists error", func() {
@@ -257,7 +260,8 @@ var _ = Describe("KubeVirt Service", func() {
 
 			Expect(err).To(HaveOccurred())
 			var domainErr *service.DomainError
-			Expect(err).To(BeAssignableToTypeOf(domainErr))
+			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeALREADYEXISTS))
 		})
 
 		It("TC-KV-UT-015: duplicate metadata.name returns AlreadyExists with name conflict detail", func() {
@@ -271,6 +275,7 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(err).To(HaveOccurred())
 			var domainErr *service.DomainError
 			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeALREADYEXISTS))
 			// SF-2: Error message must indicate this is a name conflict
 			Expect(domainErr.Message).To(ContainSubstring("name"))
 		})
@@ -287,6 +292,7 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(err).To(HaveOccurred())
 			var domainErr *service.DomainError
 			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeINTERNAL))
 			Expect(domainErr.Message).NotTo(ContainSubstring("kube"))
 		})
 
@@ -304,6 +310,9 @@ var _ = Describe("KubeVirt Service", func() {
 			_, err := svc.Create(ctx, "test-id", req)
 
 			Expect(err).To(HaveOccurred())
+			var domainErr *service.DomainError
+			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeINTERNAL))
 
 			// Verify orphan HC was cleaned up
 			var hcList hyperv1.HostedClusterList
@@ -321,6 +330,9 @@ var _ = Describe("KubeVirt Service", func() {
 			_, err := svc.Create(ctx, "test-id", req)
 
 			Expect(err).To(HaveOccurred())
+			var domainErr *service.DomainError
+			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeINVALIDARGUMENT))
 		})
 
 		It("TC-KV-UT-028: rollback failure returns combined error", func() {
@@ -339,6 +351,9 @@ var _ = Describe("KubeVirt Service", func() {
 
 			_, err := svc.Create(ctx, "test-id", req)
 			Expect(err).To(HaveOccurred())
+			var domainErr *service.DomainError
+			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeINTERNAL))
 			// Error should contain both failures
 			Expect(err.Error()).To(ContainSubstring("rollback"))
 		})

@@ -105,6 +105,7 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(err).To(HaveOccurred())
 			var domainErr *service.DomainError
 			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeINVALIDARGUMENT))
 		})
 
 		It("TC-BM-UT-004: missing infra_env uses SP_DEFAULT_INFRA_ENV", func() {
@@ -165,6 +166,9 @@ var _ = Describe("BareMetal Service", func() {
 			_, err := svc.Create(ctx, "bm-id", req)
 
 			Expect(err).To(HaveOccurred())
+			var domainErr *service.DomainError
+			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeINTERNAL))
 
 			// Verify orphan HC was cleaned up
 			var hcList hyperv1.HostedClusterList
@@ -218,6 +222,9 @@ var _ = Describe("BareMetal Service", func() {
 			_, err := svc.Create(ctx, "bm-id", req)
 
 			Expect(err).To(HaveOccurred())
+			var domainErr *service.DomainError
+			Expect(errors.As(err, &domainErr)).To(BeTrue())
+			Expect(domainErr.Type).To(Equal(v1alpha1.ErrorTypeINVALIDARGUMENT))
 		})
 
 		It("TC-BM-UT-013: control_plane.count and storage are ignored", func() {
