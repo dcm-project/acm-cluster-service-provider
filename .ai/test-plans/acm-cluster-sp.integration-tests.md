@@ -5,7 +5,7 @@
 - **Related Spec:** .ai/specs/acm-cluster-sp.spec.md
 - **Related Requirements:** REQ-REG-xxx, REQ-HTTP-xxx, REQ-HLT-xxx, REQ-API-xxx, REQ-ACM-xxx, REQ-KV-xxx, REQ-BM-xxx, REQ-MON-xxx, REQ-XC-xxx
 - **Created:** 2026-02-17
-- **Last Updated:** 2026-03-06 (deep analysis findings applied)
+- **Last Updated:** 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; coverage matrix corrections; phantom BM TC references removed)
 - **Scope:** This file covers **integration tests only** (31 test cases). Unit tests are in `acm-cluster-sp.unit-tests.md`.
 
 ## Design Principles
@@ -22,22 +22,8 @@
 
 ## Decisions Log
 
-Decisions made during test plan creation that affect test design:
-
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Zero-value resources (`"0GB"`) | Reject — OpenAPI regex `^[1-9][0-9]*(MB\|GB\|TB)$` rejects at middleware level | Prevents invalid zero-value quantities from reaching business logic |
-| Version matching strategy | K8s minor version match + compatibility matrix translation | `version="1.30"` must match a K8s minor version in the compatibility matrix exactly; SP translates to OCP for ClusterImageSet lookup |
-| Partial create failure (HC ok, NP fails) | Rollback HostedCluster | Delete orphaned HostedCluster before returning error; ensures atomicity |
-| `base_domain` default | Shared across both platforms (HyperShift HostedCluster requires `dns.baseDomain` regardless of platform type). Optional at startup; validated at request time | Request `provider_hints.acm.base_domain` overrides config default |
-| Status change semantics | DCM-mapped status only | Events published only when DCM status changes, not on every K8s condition update |
-| NATS publish failure | Retry with configurable interval + max | `SP_NATS_PUBLISH_RETRY_INTERVAL=2s`, `SP_NATS_PUBLISH_RETRY_MAX=3`. Log and drop on exhaustion |
-| `console_uri` source | Construct from configurable pattern | `SP_CONSOLE_URI_PATTERN` template (default: `https://console-openshift-console.apps.{name}.{base_domain}`) when READY. Pattern is configurable since it may change across HyperShift versions |
-| Health critical deps | K8s API + HyperShift CRD | REQ-HLT-070/080 upgraded to MUST. Platform checks remain SHOULD (non-critical) |
-| Empty `page_token` | Treat as absent | Empty string returns first page, not a 400 error |
-| `metadata.name` validation | OpenAPI pattern | Already defined in OpenAPI spec, enforced by validation middleware. No handler code needed |
-| OpenAPI middleware validation | Middleware handles pattern/enum/min/max/required | `RequestErrorHandlerFunc` rejects invalid requests before handler code. Tests like TC-HDL-CRT-UT-004, TC-HDL-CRT-UT-006, TC-HDL-CRT-UT-017, TC-HDL-CRT-UT-018 verify middleware behavior as part of the API contract |
-| Utility function testing | Tested transitively, IDs kept for traceability | Pure utility functions (format conversion) are tested through consuming service/handler tests, not standalone. TC-STS-UT-xxx, TC-ERR-UT-xxx IDs remain for requirement coverage mapping |
+Test design decisions are documented in `.ai/decisions/test-decisions.md` (TD-001 through TD-014).
+Design and implementation decisions referenced by test cases are in `.ai/decisions/design-decisions.md` (DD-xxx) and `.ai/decisions/implementation-decisions.md` (IMPL-xxx).
 
 ---
 
@@ -507,15 +493,15 @@ Build constraint: `//go:build integration`
 | REQ-API-011 | Structural | Import analysis / depguard |
 | REQ-API-012 | Structural | Constructor signature |
 | REQ-API-020 | TC-ERR-UT-001 | Covered |
-| REQ-API-030 | TC-ERR-UT-001 | Covered |
+| REQ-API-030 | TC-ERR-UT-001 | Covered (TC-ERR-UT-001 now asserts errType return value) |
 | REQ-API-040 | TC-ERR-UT-001 | Covered |
-| REQ-API-050 | TC-HDL-CRT-UT-012, TC-ERR-UT-002, TC-KV-UT-021, TC-KV-UT-022, TC-KV-UT-023, TC-BM-UT-009 | Covered |
+| REQ-API-050 | TC-HDL-CRT-UT-012, TC-ERR-UT-002, TC-OPS-UT-007, TC-OPS-UT-008, TC-OPS-UT-009 | Covered (shared ops cover both platforms) |
 | REQ-API-060 | TC-HDL-CRT-UT-001, TC-INT-001 | Covered |
 | REQ-API-070 | TC-HDL-CRT-UT-011, TC-HDL-CRT-UT-013 | Covered |
 | REQ-API-080 | TC-HDL-CRT-UT-005, TC-HDL-CRT-UT-014 | Covered |
 | REQ-API-090 | TC-HDL-CRT-UT-004, TC-HDL-CRT-UT-016 | Covered |
 | REQ-API-100 | TC-HDL-CRT-UT-001, TC-HDL-CRT-UT-002, TC-HDL-CRT-UT-015 | Covered |
-| REQ-API-101 | TC-HDL-CRT-UT-003 | Covered |
+| REQ-API-101 | TC-HDL-CRT-UT-003 | Structural (IMPL-001: enforced by OpenAPI middleware) |
 | REQ-API-102 | TC-HDL-CRT-UT-007, TC-KV-UT-014 | Covered |
 | REQ-API-103 | TC-HDL-CRT-UT-008, TC-KV-UT-015 | Covered |
 | REQ-API-104 | TC-HDL-CRT-UT-002, TC-HDL-CRT-UT-003 | Covered |
@@ -523,10 +509,10 @@ Build constraint: `//go:build integration`
 | REQ-API-130 | TC-HDL-CRT-UT-009 | Covered |
 | REQ-API-140 | TC-HDL-CRT-UT-010 | Covered |
 | REQ-API-150 | TC-HDL-CRT-UT-011, TC-HDL-CRT-UT-013, TC-HDL-CRT-UT-015, TC-HDL-CRT-UT-016 | Covered |
-| REQ-API-160 | TC-HDL-CRT-UT-003 | Covered |
-| REQ-API-165 | TC-KV-UT-010 | Covered |
-| REQ-API-166 | TC-KV-UT-021 | Covered |
-| REQ-API-167 | TC-MON-UT-015 | Covered |
+| REQ-API-160 | TC-HDL-CRT-UT-003 | Structural (IMPL-001: enforced by OpenAPI middleware) |
+| REQ-API-165 | TC-OPS-UT-001 | Covered |
+| REQ-API-166 | TC-OPS-UT-016 | Covered (status_message from Degraded condition) |
+| REQ-API-167 | TC-OPS-UT-017 | Covered (status_message from Available condition) |
 | REQ-API-170 | TC-HDL-CRT-UT-006, TC-HDL-CRT-UT-017, TC-HDL-CRT-UT-018 | Covered |
 | REQ-API-175 | Structural (OpenAPI pattern + validation middleware) | Verified by OpenAPI spec |
 | REQ-API-180 | TC-HDL-GET-UT-001 | Covered |
@@ -535,7 +521,7 @@ Build constraint: `//go:build integration`
 | REQ-API-210 | TC-HDL-GET-UT-004, TC-HDL-DEL-UT-006 | Covered |
 | REQ-API-220 | TC-HDL-GET-UT-001 | Covered |
 | REQ-API-230 | TC-HDL-GET-UT-002 | Covered |
-| REQ-API-231 | TC-HDL-GET-UT-005, TC-KV-UT-027 | Covered |
+| REQ-API-231 | TC-HDL-GET-UT-005, TC-OPS-UT-013 | Covered |
 | REQ-API-240 | TC-HDL-LST-UT-001, TC-HDL-LST-UT-006 | Covered |
 | REQ-API-250 | TC-HDL-LST-UT-001, TC-INT-003 | Covered |
 | REQ-API-260 | TC-HDL-LST-UT-001 | Covered |
@@ -544,8 +530,8 @@ Build constraint: `//go:build integration`
 | REQ-API-290 | TC-HDL-LST-UT-004, TC-HDL-LST-UT-008 | Covered |
 | REQ-API-291 | TC-HDL-LST-UT-004 | Covered |
 | REQ-API-300 | TC-HDL-LST-UT-005, TC-HDL-LST-UT-006, TC-INT-003 | Covered |
-| REQ-API-310 | TC-HDL-LST-UT-001 (implicit), TC-KV-UT-023 | Covered |
-| REQ-API-315 | TC-KV-UT-026, TC-INT-003 | Covered |
+| REQ-API-310 | TC-HDL-LST-UT-001 (implicit), TC-OPS-UT-009 | Covered |
+| REQ-API-315 | TC-OPS-UT-012, TC-INT-003 | Covered |
 | REQ-API-320 | TC-HDL-DEL-UT-001, TC-INT-002 | Covered |
 | REQ-API-330 | TC-HDL-DEL-UT-001 | Covered |
 | REQ-API-340 | TC-HDL-DEL-UT-002, TC-INT-002 | Covered |
@@ -553,7 +539,7 @@ Build constraint: `//go:build integration`
 | REQ-API-360 | TC-HDL-DEL-UT-003 | Covered |
 | REQ-API-370 | TC-HDL-DEL-UT-004, TC-HDL-DEL-UT-005 | Covered |
 | REQ-API-380 | TC-KV-UT-006, TC-KV-UT-020, TC-BM-UT-010, TC-BM-UT-011 | Covered |
-| REQ-API-390 | TC-KV-UT-019, TC-KV-UT-010, TC-KV-UT-027, TC-BM-UT-007 | Covered |
+| REQ-API-390 | TC-OPS-UT-006, TC-OPS-UT-001, TC-OPS-UT-013 | Covered (shared ops cover both platforms) |
 
 ### ACM Common Requirements (REQ-ACM-xxx)
 
@@ -572,12 +558,12 @@ Build constraint: `//go:build integration`
 | REQ-ACM-080 | TC-KV-UT-002 | Covered |
 | REQ-ACM-090 | TC-KV-UT-001, TC-BM-UT-001 | Covered |
 | REQ-ACM-100 | TC-KV-UT-001 | Covered |
-| REQ-ACM-110 | TC-STS-UT-001..005, TC-STS-UT-011, TC-KV-UT-010, TC-KV-UT-011, TC-KV-UT-021, TC-KV-UT-024, TC-KV-UT-027, TC-BM-UT-007, TC-BM-UT-009 | Covered |
-| REQ-ACM-120 | TC-KV-UT-010 | Covered |
-| REQ-ACM-130 | TC-KV-UT-010, TC-KV-UT-018, TC-KV-UT-025 | Covered |
-| REQ-ACM-140 | TC-KV-UT-013, TC-KV-UT-022, TC-BM-UT-006, TC-INT-002 | Covered |
+| REQ-ACM-110 | TC-STS-UT-001..005, TC-STS-UT-011, TC-OPS-UT-001, TC-OPS-UT-002, TC-OPS-UT-007, TC-OPS-UT-010, TC-OPS-UT-013 | Covered (shared ops cover both platforms) |
+| REQ-ACM-120 | TC-OPS-UT-001 | Covered |
+| REQ-ACM-130 | TC-OPS-UT-001, TC-OPS-UT-005, TC-OPS-UT-011 | Covered |
+| REQ-ACM-140 | TC-OPS-UT-004, TC-OPS-UT-008, TC-INT-002 | Covered (shared delete via TC-OPS-UT-004) |
 | REQ-ACM-150 | TC-KV-UT-008 | Covered |
-| REQ-ACM-160 | TC-STS-UT-001..012, TC-BM-UT-007 | Covered |
+| REQ-ACM-160 | TC-STS-UT-001..012, TC-OPS-UT-001 | Covered (shared ops confirm delegation to shared mapper) |
 | REQ-ACM-170 | TC-KV-UT-017, TC-BM-UT-008 | Covered |
 
 ### KubeVirt Requirements (REQ-KV-xxx)
@@ -632,14 +618,14 @@ Build constraint: `//go:build integration`
 | Requirement | Test Cases | Status |
 |---|---|---|
 | REQ-XC-ERR-010 | TC-ERR-UT-001, TC-INT-005 | Covered |
-| REQ-XC-ERR-020 | TC-ERR-UT-001 | Covered |
+| REQ-XC-ERR-020 | TC-ERR-UT-001 | Covered (TC-ERR-UT-001 now asserts type, title, and status) |
 | REQ-XC-ERR-030 | TC-ERR-UT-003 | Covered |
 | REQ-XC-ERR-040 | TC-ERR-UT-002, TC-HDL-CRT-UT-012 | Covered |
 | REQ-XC-LBL-010 | TC-KV-UT-001, TC-BM-UT-001 | Covered |
 | REQ-XC-LBL-020 | TC-KV-UT-001 | Covered |
 | REQ-XC-LBL-030 | TC-MON-UT-008 | Covered |
 | REQ-XC-K8S-010 | Structural | Verified by go.mod dependency |
-| REQ-XC-K8S-020 | TC-CFG-UT-003 | Covered |
+| REQ-XC-K8S-020 | Deferred (SP_HUB_KUBECONFIG investigation needed) | Deferred |
 | REQ-XC-K8S-030 | Structural | Code review (context usage in all K8s calls) |
 | REQ-XC-LOG-010 | Structural | Code review / linter |
 | REQ-XC-LOG-020 | TC-HTTP-IT-010 | Covered |
@@ -658,8 +644,8 @@ Build constraint: `//go:build integration`
 The spec defines status mapping as a common behavior (REQ-ACM-110, REQ-ACM-160) shared across all platforms. Rather than duplicating status tests per platform:
 
 - **10 shared test cases** (TC-STS-UT-001 through TC-STS-UT-008, TC-STS-UT-011, TC-STS-UT-012) cover all condition combinations and precedence rules
-- **1 KubeVirt test** (TC-KV-UT-010) confirms the KubeVirt service extracts READY-specific fields using the shared mapper
-- **1 BareMetal test** (TC-BM-UT-007) confirms the BareMetal service delegates to the shared mapper
+- **1 KubeVirt test** (TC-OPS-UT-001) confirms the KubeVirt service extracts READY-specific fields using the shared mapper
+- **Shared ops tests** (TC-OPS-UT-001) confirm both platforms delegate to the shared mapper
 
 This reduces 15+ potential duplicate tests to 12 without losing coverage.
 
@@ -670,10 +656,10 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Version validation (ClusterImageSet lookup) | TC-KV-UT-004 | Shared code; TC-BM-UT-001 implicitly confirms |
 | Conflict detection (duplicate `id` by label) | TC-KV-UT-014 | Shared code |
 | Conflict detection (duplicate `metadata.name`) | TC-KV-UT-015 | Shared code |
-| `console_uri` construction | TC-KV-UT-019 | TC-BM-UT-007 confirms via READY status |
+| `console_uri` construction | TC-OPS-UT-006 | Shared ops (TC-OPS-UT-001 confirms via READY status) |
 | `base_domain` handling (config default + request override) | TC-KV-UT-006 | TC-BM-UT-010 (new) |
 | Memory/storage format conversion | TC-KV-UT-008 | N/A for BareMetal (informational per REQ-BM-060) |
-| List ordering (`metadata.name` ascending) | TC-KV-UT-026 | Shared code; no platform-specific sort |
+| List ordering (`metadata.name` ascending) | TC-OPS-UT-012 | Shared code; no platform-specific sort |
 
 ### Spec ACs Merged into Fewer Test Cases
 
@@ -692,7 +678,7 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 - **REQ-API-310** (List results from K8s): Handler just passes through; real K8s sourcing tested in service layer
 - **REQ-ACM-110 / REQ-ACM-160**: Tested ONCE in shared mapper (TC-STS-UT-xxx), NOT per platform
 - **AC-API-150 / AC-ACM-140**: DELETING status tested once in TC-STS-UT-005; handler pass-through in TC-HDL-DEL-UT-005
-- **REQ-API-315** (List ordering): Sorting is service-layer concern; handler passes through. Tested once via KubeVirt service (TC-KV-UT-026)
+- **REQ-API-315** (List ordering): Sorting is service-layer concern; handler passes through. Tested once via KubeVirt service (TC-OPS-UT-012)
 
 ---
 
@@ -706,7 +692,7 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Low priority | 7 |
 | Structural (no behavioral test) | 10 requirements |
 | Total requirements covered (across both unit and integration) | 165 (all REQ-xxx IDs) |
-| Coverage gaps | **0** |
+| Coverage gaps | **2 deferred** (TC-CFG-UT-003 pending investigation, REQ-HLT-010/REQ-HLT-120 integration-covered only) |
 
 ### Test Cases by Component
 
