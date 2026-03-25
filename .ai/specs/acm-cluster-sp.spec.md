@@ -27,12 +27,13 @@ The ACM Cluster Service Provider is a REST API that manages OpenShift cluster li
 
 ### Decision Log
 
-| ID | Decision | Rationale |
-|----|----------|-----------|
-| DEC-001 | **K8s minor version format enforced by SP:** The SP advertises available K8s minor versions in `kubernetesSupportedVersions` during registration. Two sources of truth govern version handling: (1) the internal compatibility matrix (OCP 4.x = K8s 1.(x+13)) is the source of truth for OCP↔K8s translation, and (2) ACM ClusterImageSets are the source of truth for which OCP versions are available on the hub. The SP queries ClusterImageSets, translates OCP versions to K8s via the matrix, and advertises the resulting K8s versions. Callers MUST use exactly one of the advertised K8s minor versions — no OCP versions, no format variations (e.g., `"1.3"` is not `"1.30"`). Version validation at creation time translates the K8s version back to OCP via the matrix, then performs a live ClusterImageSet lookup. When ClusterImageSets change, the SP re-registers to advertise the updated K8s version set. | The caller-facing API uses platform-agnostic K8s versions. The compatibility matrix is owned and maintained by the SP. |
-| DEC-002 | **Health status values:** The SP uses `"healthy"` / `"unhealthy"` instead of `"pass"` from the enhancement. | Aligns with AEP conventions and provides clearer semantics. The enhancement's `"pass"` value is not used. |
-| DEC-003 | **Provider name as unique identifier:** `SP_NAME` is used for CloudEvents subjects and DCM correlation. The provider ID returned by the registry is not persisted by the SP. The administrator is responsible for ensuring name uniqueness across SP instances. | CloudEvents subjects use the provider name, not the registry-assigned ID. Persisting the ID adds complexity with no identified use case. |
-| DEC-004 | **Control plane resources mapped via annotation overrides targeting kube-apiserver and etcd:** HyperShift's `HostedClusterSpec` has no field for per-component resource requests. The SP uses `resource-request-override.hypershift.openshift.io` annotations to set CPU and memory requests on `kube-apiserver` and `etcd` — the two largest CP consumers. Each component gets the full specified values (total CP overhead from overrides = 2x stated values). `ClusterSizingConfiguration` was rejected for v1 (requires pre-existing cluster-wide policy objects; operator-level concern). | Annotations are HyperShift's official per-cluster resource override mechanism. kube-apiserver and etcd are the dominant resource consumers. See `.ai/decisions/2026-03-24-14-00-cp-resource-override-mechanism.md`. |
+| ID | Type | Decision | Rationale | Details |
+|----|------|----------|-----------|---------|
+| DD-001 | Design | **K8s minor version format enforced by SP:** The SP advertises K8s minor versions derived from ClusterImageSets via compatibility matrix. Callers MUST use exactly one of the advertised versions. | Platform-agnostic K8s versions; compatibility matrix owned by SP. | `.ai/decisions/design-decisions.md` |
+| DD-002 | Design | **Health status values:** `"healthy"` / `"unhealthy"` instead of `"pass"` from the enhancement. | Aligns with AEP conventions and provides clearer semantics. | `.ai/decisions/design-decisions.md` |
+| DD-003 | Design | **Provider name as unique identifier:** `SP_NAME` used for CloudEvents subjects and DCM correlation. Provider ID from registry not persisted. | Persisting the ID adds complexity with no identified use case. | `.ai/decisions/design-decisions.md` |
+| DD-004 | Design | **CP resources mapped via annotation overrides targeting kube-apiserver and etcd.** Each component gets full specified values (total = 2x stated values). | Annotations are HyperShift's official per-cluster resource override mechanism. | `.ai/decisions/design-decisions.md` |
+| IMPL-001 | Implementation | **ReadOnly field stripping removed from handler:** Trusts OpenAPI validation middleware (`VisitAsRequest()`) to reject readOnly properties in requests. | Single point of defense at the middleware boundary; handler does not re-validate. | `.ai/decisions/implementation-decisions.md` |
 
 ## 2. Scope
 
@@ -187,7 +188,7 @@ Topics 1 and 2 can be delivered in parallel. Topics 5a and 5b can be delivered i
 
 On startup, the SP registers itself with the DCM SP Registry by calling `POST /api/v1alpha1/providers`. Registration is per-service-type, idempotent by name, and follows [`sp-registration-flow.md`](https://github.com/dcm-project/enhancements/blob/main/enhancements/sp-registration-flow/sp-registration-flow.md).
 
-> **Note (DEC-003):** The provider name (`SP_NAME`) is the unique identifier used for CloudEvents subjects and DCM correlation. The SP does not persist the provider ID returned by the registry. The administrator is responsible for ensuring name uniqueness across SP instances.
+> **Note (DD-003):** The provider name (`SP_NAME`) is the unique identifier used for CloudEvents subjects and DCM correlation. The SP does not persist the provider ID returned by the registry. The administrator is responsible for ensuring name uniqueness across SP instances.
 
 #### Requirements
 
@@ -416,7 +417,7 @@ The health endpoint (`GET /api/v1alpha1/clusters/health`) reports whether the SP
 
 > **Note:** DCM only checks HTTP status code (200 = alive) per the enhancement. The SP's Health response (`type`, `status`, `path`, `version`, `uptime`) provides richer information for debugging and AEP compliance. `path` is required per AEP singleton resource rules.
 
-> **Note (DEC-002):** Health status values are `"healthy"` / `"unhealthy"` rather than `"pass"` from the enhancement. This is an intentional deviation for clearer semantics.
+> **Note (DD-002):** Health status values are `"healthy"` / `"unhealthy"` rather than `"pass"` from the enhancement. This is an intentional deviation for clearer semantics.
 
 #### Requirements
 
@@ -426,8 +427,8 @@ The health endpoint (`GET /api/v1alpha1/clusters/health`) reports whether the SP
 | REQ-HLT-020 | The response MUST include: `status`, `type`, `path`, `version` (SP build version string), and `uptime` (seconds since SP started, integer) | MUST |
 | REQ-HLT-030 | `path` MUST be `"health"` | MUST |
 | REQ-HLT-040 | `type` MUST be `"acm-cluster-service-provider.dcm.io/health"` | MUST |
-| REQ-HLT-050 | `status` MUST be `"healthy"` when all dependency checks pass | MUST |
-| REQ-HLT-060 | `status` MUST be `"unhealthy"` when any critical dependency check fails | MUST |
+| REQ-HLT-050 | `status` MUST be `"healthy"` when all dependency checks pass (DD-002) | MUST |
+| REQ-HLT-060 | `status` MUST be `"unhealthy"` when any critical dependency check fails (DD-002) | MUST |
 | REQ-HLT-070 | The health check MUST verify connectivity to the ACM Hub K8s API server | MUST |
 | REQ-HLT-080 | The health check MUST verify HyperShift operator availability (e.g., HostedCluster CRD exists) | MUST |
 | REQ-HLT-090 | When KubeVirt platform is listed in `SP_ENABLED_PLATFORMS`, the health check SHOULD verify KubeVirt infrastructure accessibility | SHOULD |
@@ -518,7 +519,7 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 | REQ-API-080 | `nodes.workers` MUST be present and have `count >= 1`; if omitted, MUST return 400 with `type=INVALID_ARGUMENT` and a message indicating workers are required | MUST |
 | REQ-API-090 | The SP MUST validate that `service_type == "cluster"` and return 400 with `type=INVALID_ARGUMENT` if not | MUST |
 | REQ-API-100 | `id` MUST be the cluster resource identifier. If a client-specified `id` is provided via `?id=` query parameter, it MUST be used; if `?id=` is present but empty, it MUST be treated as absent (generate UUID). Otherwise the SP MUST generate a UUID. `path` MUST be set to `"clusters/<id>"`. The `dcm-instance-id` K8s label MUST be set to `id`. `metadata.name` MUST be used as the K8s HostedCluster resource name | MUST |
-| REQ-API-101 | `id` MUST be readOnly. If `id` appears in the request body, it MUST be ignored | MUST |
+| REQ-API-101 | `id` MUST be readOnly. If `id` appears in the request body, it MUST be ignored (IMPL-001) | MUST |
 | REQ-API-102 | On creation, the SP MUST check for an existing resource with the same `id` (by querying the `dcm-instance-id` label). If found, MUST return 409 with `type=ALREADY_EXISTS` | MUST |
 | REQ-API-103 | On creation, the SP MUST check for an existing K8s HostedCluster with the same `metadata.name` in the target namespace. If found, MUST return 409 with `type=ALREADY_EXISTS` and a detail message indicating the name conflict | MUST |
 | REQ-API-104 | If both `?id=` query parameter and `id` in the request body are provided, the query parameter MUST take precedence and the body value MUST be ignored | MUST |
@@ -526,7 +527,7 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 | REQ-API-130 | If the platform is not supported, MUST return 422 with `type=UNPROCESSABLE_ENTITY` | MUST |
 | REQ-API-140 | If the version has no matching ClusterImageSet, MUST return 422 with `type=UNPROCESSABLE_ENTITY` | MUST |
 | REQ-API-150 | If the body is malformed or fails validation, MUST return 400 with `type=INVALID_ARGUMENT` | MUST |
-| REQ-API-160 | Read-only fields in the request body (`id`, `status`, `api_endpoint`, `kubeconfig`, `create_time`, `update_time`, `path`, `status_message`, `console_uri`) MUST be ignored | MUST |
+| REQ-API-160 | Read-only fields in the request body (`id`, `status`, `api_endpoint`, `kubeconfig`, `create_time`, `update_time`, `path`, `status_message`, `console_uri`) MUST be ignored (IMPL-001: enforced by OpenAPI middleware, not handler) | MUST |
 | REQ-API-165 | `update_time` MUST reflect the timestamp of the most recent status transition as determined by the HostedCluster condition `lastTransitionTime`, or equal `create_time` if no transition has occurred | MUST |
 | REQ-API-166 | When `status` is `FAILED`, `status_message` SHOULD contain the failure reason from the HostedCluster's `Degraded` condition message | SHOULD |
 | REQ-API-167 | When `status` is `UNAVAILABLE`, `status_message` SHOULD contain a human-readable explanation if available from HostedCluster conditions | SHOULD |
@@ -763,7 +764,7 @@ Internal service implementing cluster lifecycle operations for all HyperShift-ba
 
 #### Version Mapping
 
-> **Note (DEC-001):** The SP advertises available K8s minor versions in `kubernetesSupportedVersions` during registration. Internally, the SP uses the compatibility matrix to translate K8s → OCP for ClusterImageSet lookup. Callers MUST use one of the advertised K8s minor versions when creating a cluster. The compatibility matrix SHOULD be loaded from a configuration file (`SP_VERSION_MATRIX_PATH`) to allow updates without code changes or redeployment. The table below shows the default compatibility matrix.
+> **Note (DD-001):** The SP advertises available K8s minor versions in `kubernetesSupportedVersions` during registration. Internally, the SP uses the compatibility matrix to translate K8s → OCP for ClusterImageSet lookup. Callers MUST use one of the advertised K8s minor versions when creating a cluster. The compatibility matrix SHOULD be loaded from a configuration file (`SP_VERSION_MATRIX_PATH`) to allow updates without code changes or redeployment. The table below shows the default compatibility matrix.
 
 | OpenShift Version | Kubernetes Version |
 |-------------------|--------------------|
@@ -801,14 +802,14 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 |----|-------------|----------|
 | REQ-ACM-010 | MUST create a HostedCluster CR and an associated NodePool CR for the given platform type | MUST |
 | REQ-ACM-020 | All created K8s resources MUST carry labels: `managed-by=dcm`, `dcm-instance-id=<id>`, `dcm-service-type=cluster` | MUST |
-| REQ-ACM-030 | `version` (a K8s minor version) MUST be translated to the corresponding OCP version using the internal compatibility matrix, then validated against available ClusterImageSet resources on the ACM Hub | MUST |
+| REQ-ACM-030 | `version` (a K8s minor version) MUST be translated to the corresponding OCP version using the internal compatibility matrix, then validated against available ClusterImageSet resources on the ACM Hub (DD-001) | MUST |
 | REQ-ACM-031 | If the caller-provided K8s version has no entry in the SP's compatibility matrix, the operation MUST fail (handler returns 422) with an error indicating the version is not supported | MUST |
 | REQ-ACM-032 | If the compatibility matrix maps the K8s version to an OCP version but no matching ClusterImageSet exists on the ACM Hub, the operation MUST fail (handler returns 422) with an error indicating no available release for that version | MUST |
 | REQ-ACM-040 | If no matching ClusterImageSet exists for the translated OCP version (or no K8s-to-OCP mapping exists), the operation MUST fail (handler returns 422) | MUST |
 | REQ-ACM-050 | The SP SHOULD support `provider_hints.acm.release_image` override | SHOULD |
 | REQ-ACM-051 | When `provider_hints.acm.release_image` is specified and supported, the SP MUST use it directly, bypassing ClusterImageSet lookup | MUST |
-| REQ-ACM-060 | `nodes.control_plane.cpu` and `memory` MUST be applied as resource request overrides on the HostedCluster using HyperShift's `resource-request-override.hypershift.openshift.io` annotation prefix (DEC-004). The SP MUST target `kube-apiserver.kube-apiserver` and `etcd.etcd` components. Each targeted component receives the full specified CPU and memory values. If `cpu` is 0 or `memory` is empty, the corresponding resource type MUST NOT appear in the annotation value | MUST |
-| REQ-ACM-061 | The annotation value format MUST be `cpu=<cores>,memory=<quantity>` where `<cores>` is the integer CPU core count and `<quantity>` is the DCM memory value converted to K8s SI format (e.g., `"16GB"` → `"16G"`). The SP MUST use the `ResourceRequestOverrideAnnotationPrefix` constant from the HyperShift API package to construct annotation keys | MUST |
+| REQ-ACM-060 | `nodes.control_plane.cpu` and `memory` MUST be applied as resource request overrides on the HostedCluster using HyperShift's `resource-request-override.hypershift.openshift.io` annotation prefix (DD-004). The SP MUST target `kube-apiserver.kube-apiserver` and `etcd.etcd` components. Each targeted component receives the full specified CPU and memory values. If `cpu` is 0 or `memory` is empty, the corresponding resource type MUST NOT appear in the annotation value | MUST |
+| REQ-ACM-061 | The annotation value format MUST be `cpu=<cores>,memory=<quantity>` where `<cores>` is the integer CPU core count and `<quantity>` is the DCM memory value converted to K8s SI format (e.g., `"16GB"` → `"16G"`). The SP MUST use the `ResourceRequestOverrideAnnotationPrefix` constant from the HyperShift API package to construct annotation keys (DD-004) | MUST |
 | REQ-ACM-070 | `nodes.control_plane.count` MUST be accepted but IGNORED (HyperShift manages HA internally) | MUST |
 | REQ-ACM-080 | `nodes.control_plane.storage` MUST be accepted but IGNORED (etcd managed by HyperShift) | MUST |
 | REQ-ACM-090 | `nodes.workers.count` MUST map to NodePool `replicas` | MUST |
@@ -1096,7 +1097,7 @@ Background controller that watches HostedCluster resources via `SharedIndexInfor
 | REQ-MON-040 | On status change, MUST publish a CloudEvent to NATS | MUST |
 | REQ-MON-050 | CloudEvent subject MUST follow: `dcm.providers.<providerName>.cluster.instances.<instanceId>.status` | MUST |
 | REQ-MON-060 | CloudEvent type MUST follow: `dcm.providers.<providerName>.status.update` | MUST |
-| REQ-MON-070 | `providerName` MUST be the configured `SP_NAME` value (see DEC-003) | MUST |
+| REQ-MON-070 | `providerName` MUST be the configured `SP_NAME` value (DD-003) | MUST |
 | REQ-MON-080 | `instanceId` MUST be extracted from the HostedCluster's `dcm-instance-id` label | MUST |
 | REQ-MON-090 | CloudEvent payload MUST include at minimum: `status` (string), `message` (string) | MUST |
 | REQ-MON-100 | CloudEvents MUST conform to CloudEvents v1.0 specification | MUST |

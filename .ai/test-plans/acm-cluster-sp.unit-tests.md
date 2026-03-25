@@ -5,7 +5,7 @@
 - **Related Spec:** .ai/specs/acm-cluster-sp.spec.md
 - **Related Requirements:** REQ-REG-xxx, REQ-HTTP-xxx, REQ-HLT-xxx, REQ-API-xxx, REQ-ACM-xxx, REQ-KV-xxx, REQ-BM-xxx, REQ-MON-xxx, REQ-XC-xxx
 - **Created:** 2026-02-17
-- **Last Updated:** 2026-03-24 (REQ-ACM-060/061: CP resource override annotations — refined TC-KV-UT-003, added TC-BM-UT-014)
+- **Last Updated:** 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; added TC-OPS-UT-016/017 for status_message; removed phantom TC-BM-UT-006/007/009; coverage matrix corrections)
 - **Scope:** This file covers **unit tests only** (131 unit test cases + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
 
 ## Design Principles
@@ -22,24 +22,8 @@
 
 ## Decisions Log
 
-Decisions made during test plan creation that affect test design:
-
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Zero-value resources (`"0GB"`) | Reject — OpenAPI regex `^[1-9][0-9]*(MB\|GB\|TB)$` rejects at middleware level | Prevents invalid zero-value quantities from reaching business logic |
-| Version matching strategy | K8s minor version match + compatibility matrix translation | `version="1.30"` must match a K8s minor version in the compatibility matrix exactly; SP translates to OCP for ClusterImageSet lookup |
-| Partial create failure (HC ok, NP fails) | Rollback HostedCluster | Delete orphaned HostedCluster before returning error; ensures atomicity |
-| `base_domain` default | Shared across both platforms (HyperShift HostedCluster requires `dns.baseDomain` regardless of platform type). Optional at startup; validated at request time | Request `provider_hints.acm.base_domain` overrides config default |
-| Status change semantics | DCM-mapped status only | Events published only when DCM status changes, not on every K8s condition update |
-| NATS publish failure | Retry with configurable interval + max | `SP_NATS_PUBLISH_RETRY_INTERVAL=2s`, `SP_NATS_PUBLISH_RETRY_MAX=3`. Log and drop on exhaustion |
-| `console_uri` source | Construct from configurable pattern | `SP_CONSOLE_URI_PATTERN` template (default: `https://console-openshift-console.apps.{name}.{base_domain}`) when READY. Pattern is configurable since it may change across HyperShift versions |
-| Health critical deps | K8s API + HyperShift CRD | REQ-HLT-070/080 upgraded to MUST. Platform checks remain SHOULD (non-critical) |
-| Empty `page_token` | Treat as absent | Empty string returns first page, not a 400 error |
-| `max_page_size` upper limit | 100 (per REQ-API-270) | Spec says 1-100; original test plan had 1-1000 which contradicted the spec |
-| Middleware-validated TCs reclassified | TC-HDL-GET-UT-004, TC-HDL-DEL-UT-006, TC-HDL-CRT-UT-017, TC-HDL-CRT-UT-018 moved to integration scope | OpenAPI spec patterns (`ClusterIdPath`, memory/storage regex) are enforced by the validation middleware before the handler. The generated `StrictServerInterface` has no 400 response types for GetCluster/DeleteCluster, confirming these validations cannot be returned by the handler |
-| `metadata.name` validation | OpenAPI pattern | Already defined in OpenAPI spec, enforced by validation middleware. No handler code needed |
-| OpenAPI middleware validation | Middleware handles pattern/enum/min/max/required | `RequestErrorHandlerFunc` rejects invalid requests before handler code. Tests like TC-HDL-CRT-UT-004, TC-HDL-CRT-UT-006, TC-HDL-CRT-UT-017, TC-HDL-CRT-UT-018 verify middleware behavior as part of the API contract |
-| Utility function testing | Tested transitively, IDs kept for traceability | Pure utility functions (format conversion) are tested through consuming service/handler tests, not standalone. TC-STS-UT-xxx, TC-ERR-UT-xxx IDs remain for requirement coverage mapping |
+Test design decisions are documented in `.ai/decisions/test-decisions.md` (TD-001 through TD-014).
+Design and implementation decisions referenced by test cases are in `.ai/decisions/design-decisions.md` (DD-xxx) and `.ai/decisions/implementation-decisions.md` (IMPL-xxx).
 
 ---
 
@@ -153,6 +137,7 @@ These requirements are validated by compilation, code review, or static analysis
 
 #### TC-REG-UT-001: Successful first-time registration with capabilities
 - **Requirements:** REQ-REG-010, REQ-REG-020, REQ-REG-080, REQ-REG-090
+- **Decisions:** DD-001
 - **Type:** Unit
 - **Priority:** High
 - **Given** a mock DCM Registry server that returns 201 with a generated provider ID
@@ -397,6 +382,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 
 #### TC-HDL-CRT-UT-003: Read-only fields in body are ignored
 - **Requirements:** REQ-API-101, REQ-API-104, REQ-API-160
+- **Decisions:** IMPL-001
 - **Type:** Unit
 - **Priority:** High
 - **Given** a mock `ClusterService.Create` that succeeds
@@ -524,6 +510,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 
 #### TC-HDL-CRT-UT-017: Zero-value memory rejected by middleware
 - **Requirements:** REQ-API-170
+- **Decisions:** TD-001, TD-011
 - **Type:** Integration (middleware)
 - **Priority:** High
 - **Reclassified:** Moved from unit to integration scope. The OpenAPI spec defines `pattern: '^[1-9][0-9]*(MB|GB|TB)$'` on memory fields, which rejects `"0GB"` at the validation middleware before the request reaches the handler. This TC must be tested through the full HTTP middleware stack.
@@ -533,6 +520,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 
 #### TC-HDL-CRT-UT-018: Zero-value storage rejected by middleware
 - **Requirements:** REQ-API-170
+- **Decisions:** TD-001, TD-011
 - **Type:** Integration (middleware)
 - **Priority:** Medium
 - **Reclassified:** Moved from unit to integration scope. The OpenAPI spec defines `pattern: '^[1-9][0-9]*(MB|GB|TB)$'` on storage fields, which rejects `"0TB"` at the validation middleware before the request reaches the handler. This TC must be tested through the full HTTP middleware stack.
@@ -578,6 +566,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 
 #### TC-HDL-GET-UT-004: clusterId format validation
 - **Requirements:** REQ-API-210
+- **Decisions:** TD-011
 - **Type:** Integration (middleware)
 - **Priority:** Medium
 - **Reclassified:** Moved from unit to integration scope. The OpenAPI spec defines a `pattern` on `ClusterIdPath` (`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`), enforced by the validation middleware before the request reaches the handler. The generated `StrictServerInterface` has no `GetCluster400` response type, confirming the handler cannot return 400. This TC must be tested through the full HTTP middleware stack.
@@ -658,6 +647,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 
 #### TC-HDL-LST-UT-008: Empty page_token treated as absent
 - **Requirements:** REQ-API-290
+- **Decisions:** TD-009
 - **Type:** Unit
 - **Priority:** Low
 - **Given** a mock `ClusterService.List` returns results normally for the first page
@@ -711,6 +701,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 
 #### TC-HDL-DEL-UT-006: clusterId format validation
 - **Requirements:** REQ-API-210
+- **Decisions:** TD-011
 - **Type:** Integration (middleware)
 - **Priority:** Medium
 - **Reclassified:** Moved from unit to integration scope. The OpenAPI spec defines a `pattern` on `ClusterIdPath` (`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`), enforced by the validation middleware before the request reaches the handler. The generated `StrictServerInterface` has no `DeleteCluster400` response type, confirming the handler cannot return 400. This TC must be tested through the full HTTP middleware stack.
@@ -885,6 +876,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 
 #### TC-KV-UT-003: control_plane CPU and memory map to resource request override annotations
 - **Requirements:** REQ-ACM-060, REQ-ACM-061
+- **Decisions:** DD-004
 - **Type:** Unit
 - **Priority:** High
 - **Given** a fake K8s client with a ClusterImageSet
@@ -895,6 +887,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 
 #### TC-KV-UT-004: Version validated via compatibility matrix and ClusterImageSets (table-driven)
 - **Requirements:** REQ-ACM-030, REQ-ACM-031, REQ-ACM-032, REQ-ACM-040
+- **Decisions:** DD-001, TD-002
 - **Type:** Unit
 - **Priority:** High
 - **Given** a fake K8s client with ClusterImageSets for OCP "4.15.2" and "4.17.0"
@@ -949,7 +942,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **When** `Create()` is called with `workers.storage="120GB"`
 - **Then** the NodePool VM template root disk size is set to the K8s equivalent of 120GB
 
-#### TC-KV-UT-010: Get cluster -- READY with api_endpoint and kubeconfig
+#### TC-OPS-UT-001: Get cluster -- READY with api_endpoint and kubeconfig
 - **Requirements:** REQ-ACM-110, REQ-ACM-120, REQ-ACM-130, REQ-API-390
 - **Type:** Unit
 - **Priority:** High
@@ -962,7 +955,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **And** `console_uri="https://console-openshift-console.apps.<cluster-name>.<base_domain>"`
 - **And** `kubeconfig` is the base64-encoded content from the Secret's `kubeconfig` key
 
-#### TC-KV-UT-011: Get cluster -- PROVISIONING, no credentials
+#### TC-OPS-UT-002: Get cluster -- PROVISIONING, no credentials
 - **Requirements:** REQ-ACM-110
 - **Type:** Unit
 - **Priority:** Medium
@@ -970,7 +963,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **When** `Get(ctx, "test-id")` is called
 - **Then** `api_endpoint`, `console_uri`, `kubeconfig` are empty/absent
 
-#### TC-KV-UT-012: Get cluster -- not found
+#### TC-OPS-UT-003: Get cluster -- not found
 - **Requirements:** (service-layer enforcement for handler's REQ-API-200)
 - **Type:** Unit
 - **Priority:** High
@@ -978,7 +971,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **When** `Get(ctx, "nonexistent")` is called
 - **Then** a `NotFound` domain error is returned
 
-#### TC-KV-UT-013: Delete cluster
+#### TC-OPS-UT-004: Delete cluster
 - **Requirements:** REQ-ACM-140
 - **Type:** Unit
 - **Priority:** High
@@ -1013,6 +1006,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 
 #### TC-KV-UT-017: NodePool creation failure triggers HostedCluster rollback
 - **Requirements:** REQ-ACM-170
+- **Decisions:** TD-003
 - **Type:** Unit
 - **Priority:** High
 - **Given** a fake K8s client that succeeds on HostedCluster creation but fails on NodePool creation
@@ -1032,14 +1026,14 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Note:** Tests the double-failure scenario where cleanup during partial create also fails
 
 #### TC-KV-UT-029: Empty platform string defaults to KubeVirt
-- **Requirements:** REQ-KV-010
+- **Requirements:** Spec note: empty platform string behavior
 - **Type:** Unit
 - **Priority:** Low
 - **Given** a fake K8s client with a ClusterImageSet
 - **When** `Create()` is called with `provider_hints.acm.platform=""`
 - **Then** the HostedCluster is created with `platform.type=KubeVirt` (empty string treated as absent)
 
-#### TC-KV-UT-030: Invalid page_token returns INVALID_ARGUMENT error
+#### TC-OPS-UT-014: Invalid page_token returns INVALID_ARGUMENT error
 - **Requirements:** REQ-API-290 (service-layer enforcement)
 - **Type:** Unit
 - **Priority:** High
@@ -1047,7 +1041,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **When** `List(ctx, 50, "!!!invalid!!!")` is called with a non-base64 page_token
 - **Then** an `InvalidArgument` domain error is returned with message "invalid page_token"
 
-#### TC-KV-UT-018: Kubeconfig Secret missing for READY cluster
+#### TC-OPS-UT-005: Kubeconfig Secret missing for READY cluster
 - **Requirements:** REQ-ACM-130 (edge case)
 - **Type:** Unit
 - **Priority:** Medium
@@ -1056,7 +1050,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Then** status is `READY` with `api_endpoint` populated
 - **And** `kubeconfig` is empty (graceful degradation, not an error)
 
-#### TC-KV-UT-019: Console URI construction
+#### TC-OPS-UT-006: Console URI construction
 - **Requirements:** REQ-API-390
 - **Type:** Unit
 - **Priority:** Medium
@@ -1081,7 +1075,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **When** `Create(ctx, "test-id", cluster)` is called
 - **Then** an error is returned indicating base domain is required
 
-#### TC-KV-UT-021: K8s client Get() transient error
+#### TC-OPS-UT-007: K8s client Get() transient error
 - **Requirements:** REQ-ACM-110, REQ-API-050
 - **Type:** Unit
 - **Priority:** Medium
@@ -1090,7 +1084,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Then** an `Internal` domain error is returned
 - **And** no K8s error details are leaked
 
-#### TC-KV-UT-022: K8s client Delete() error
+#### TC-OPS-UT-008: K8s client Delete() error
 - **Requirements:** REQ-ACM-140, REQ-API-050
 - **Type:** Unit
 - **Priority:** Medium
@@ -1098,7 +1092,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **When** `Delete(ctx, "test-id")` is called
 - **Then** an `Internal` domain error is returned
 
-#### TC-KV-UT-023: K8s client List() error
+#### TC-OPS-UT-009: K8s client List() error
 - **Requirements:** REQ-API-310, REQ-API-050
 - **Type:** Unit
 - **Priority:** Medium
@@ -1106,7 +1100,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **When** `List(ctx, "", 50)` is called
 - **Then** an `Internal` domain error is returned
 
-#### TC-KV-UT-024: Duplicate dcm-instance-id label on two HostedClusters
+#### TC-OPS-UT-010: Duplicate dcm-instance-id label on two HostedClusters
 - **Requirements:** REQ-ACM-110
 - **Type:** Unit
 - **Priority:** Low
@@ -1114,7 +1108,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **When** `Get(ctx, "test-id")` is called
 - **Then** a deterministic result or error is returned
 
-#### TC-KV-UT-025: Kubeconfig Secret exists but missing kubeconfig key
+#### TC-OPS-UT-011: Kubeconfig Secret exists but missing kubeconfig key
 - **Requirements:** REQ-ACM-130
 - **Type:** Unit
 - **Priority:** Low
@@ -1122,7 +1116,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **When** `Get(ctx, "test-id")` is called
 - **Then** status is `READY` with empty `kubeconfig` (graceful degradation)
 
-#### TC-KV-UT-026: List returns results ordered by metadata.name ascending
+#### TC-OPS-UT-012: List returns results ordered by metadata.name ascending
 - **Requirements:** REQ-API-315
 - **Type:** Unit
 - **Priority:** Medium
@@ -1130,7 +1124,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **When** `List(ctx, "", 50)` is called
 - **Then** results are returned in order: "alpha", "bravo", "charlie"
 
-#### TC-KV-UT-027: Get cluster -- UNAVAILABLE with credentials
+#### TC-OPS-UT-013: Get cluster -- UNAVAILABLE with credentials
 - **Requirements:** REQ-API-231, REQ-ACM-110
 - **Type:** Unit
 - **Priority:** High
@@ -1142,6 +1136,24 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **And** `api_endpoint="https://api.cluster.example.com:6443"` (populated if available)
 - **And** `console_uri="https://console-openshift-console.apps.<cluster-name>.<base_domain>"` (populated if base_domain available)
 - **And** `kubeconfig` is the base64-encoded content from the Secret
+
+#### TC-OPS-UT-016: FAILED cluster has status_message from Degraded condition
+
+- **Type:** Unit
+- **Requirements:** REQ-API-166
+- **Preconditions:** HostedCluster exists with Degraded=True condition containing a Message
+- **Steps:**
+  1. Call GetCluster for a cluster with Degraded=True, Message="etcd cluster unhealthy"
+- **Expected:** Cluster status is FAILED, StatusMessage equals "etcd cluster unhealthy"
+
+#### TC-OPS-UT-017: UNAVAILABLE cluster has status_message from Available condition
+
+- **Type:** Unit
+- **Requirements:** REQ-API-167
+- **Preconditions:** HostedCluster exists with Available=False, Progressing=False, Available condition has Message
+- **Steps:**
+  1. Call GetCluster for a cluster with Available=False (Message="cluster components not ready"), Progressing=False
+- **Expected:** Cluster status is UNAVAILABLE, StatusMessage equals "cluster components not ready"
 
 ---
 
@@ -1192,25 +1204,9 @@ Tests the BareMetal `ClusterService` implementation. Status mapping is NOT retes
 - **Then** the NodePool is created with `replicas=<count>`
 - **And** cpu/memory/storage do NOT appear as resource constraints on the NodePool (physical hardware determines resources)
 
-#### TC-BM-UT-006: Delete BareMetal cluster
-- **Requirements:** REQ-ACM-140
-- **Type:** Unit
-- **Priority:** High
-- **Given** a fake K8s client with a BareMetal HostedCluster with `dcm-instance-id=bm-id`
-- **When** `Delete(ctx, "bm-id")` is called
-- **Then** the HostedCluster is deleted
-
-#### TC-BM-UT-007: Get BareMetal cluster -- confirms shared status mapping delegation
-- **Requirements:** REQ-ACM-110, REQ-ACM-160
-- **Type:** Unit
-- **Priority:** High
-- **Given** a fake K8s client with a BareMetal HostedCluster with `Available=True`, `Progressing=False`, and kubeconfig Secret
-- **When** `Get(ctx, "bm-id")` is called
-- **Then** status is `READY` with `api_endpoint`, `console_uri`, and `kubeconfig` populated
-- **Note:** This single test validates the BareMetal service uses the shared status mapper. Full condition coverage is in TC-STS-UT-xxx.
-
 #### TC-BM-UT-008: NodePool creation failure triggers HostedCluster rollback
 - **Requirements:** REQ-ACM-170
+- **Decisions:** TD-003
 - **Type:** Unit
 - **Priority:** High
 - **Given** a fake K8s client that succeeds on HostedCluster creation but fails on NodePool creation
@@ -1218,14 +1214,6 @@ Tests the BareMetal `ClusterService` implementation. Status mapping is NOT retes
 - **Then** the SP deletes the orphaned HostedCluster
 - **And** an error is returned to the caller
 - **And** no HostedCluster remains in the fake client
-
-#### TC-BM-UT-009: K8s client Get() error for BareMetal
-- **Requirements:** REQ-ACM-110, REQ-API-050
-- **Type:** Unit
-- **Priority:** Medium
-- **Given** a fake K8s client that returns an error on `Get()` for HostedCluster
-- **When** `Get(ctx, "bm-id")` is called
-- **Then** an `Internal` domain error is returned
 
 #### TC-BM-UT-010: Create BareMetal with base_domain override and config fallback
 - **Requirements:** REQ-API-380
@@ -1259,6 +1247,7 @@ Tests the BareMetal `ClusterService` implementation. Status mapping is NOT retes
 
 #### TC-BM-UT-014: control_plane CPU and memory map to resource request override annotations
 - **Requirements:** REQ-ACM-060, REQ-ACM-061
+- **Decisions:** DD-004
 - **Type:** Unit
 - **Priority:** High
 - **Given** a fake K8s client with a ClusterImageSet
@@ -1350,6 +1339,7 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 
 #### TC-MON-UT-009: Condition update without DCM status change does not publish
 - **Requirements:** REQ-MON-040
+- **Decisions:** TD-005
 - **Type:** Unit
 - **Priority:** High
 - **Given** a HostedCluster with `dcm-instance-id="my-cluster"` has DCM status `PROVISIONING` (e.g., `Progressing=True`, `Available=False`)
@@ -1359,6 +1349,7 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 
 #### TC-MON-UT-010: NATS publish failure retries and drops on exhaustion
 - **Requirements:** REQ-MON-160
+- **Decisions:** TD-006
 - **Type:** Unit
 - **Priority:** High
 - **Given** a mock `StatusPublisher.Publish` that returns an error for the first 3 calls then succeeds
@@ -1554,15 +1545,15 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-API-011 | Structural | Import analysis / depguard |
 | REQ-API-012 | Structural | Constructor signature |
 | REQ-API-020 | TC-ERR-UT-001 | Covered |
-| REQ-API-030 | TC-ERR-UT-001 | Covered |
+| REQ-API-030 | TC-ERR-UT-001 | Covered (TC-ERR-UT-001 now asserts errType return value) |
 | REQ-API-040 | TC-ERR-UT-001 | Covered |
-| REQ-API-050 | TC-HDL-CRT-UT-012, TC-ERR-UT-002, TC-KV-UT-021, TC-KV-UT-022, TC-KV-UT-023, TC-BM-UT-009 | Covered |
+| REQ-API-050 | TC-HDL-CRT-UT-012, TC-ERR-UT-002, TC-OPS-UT-007, TC-OPS-UT-008, TC-OPS-UT-009 | Covered (shared ops cover both platforms) |
 | REQ-API-060 | TC-HDL-CRT-UT-001, TC-INT-001 | Covered |
 | REQ-API-070 | TC-HDL-CRT-UT-011, TC-HDL-CRT-UT-013 | Covered |
 | REQ-API-080 | TC-HDL-CRT-UT-005, TC-HDL-CRT-UT-014 | Covered |
 | REQ-API-090 | TC-HDL-CRT-UT-004, TC-HDL-CRT-UT-016 | Covered |
 | REQ-API-100 | TC-HDL-CRT-UT-001, TC-HDL-CRT-UT-002, TC-HDL-CRT-UT-015, TC-HDL-CRT-UT-019 | Covered |
-| REQ-API-101 | TC-HDL-CRT-UT-003 | Covered |
+| REQ-API-101 | TC-HDL-CRT-UT-003 | Structural (IMPL-001: enforced by OpenAPI middleware) |
 | REQ-API-102 | TC-HDL-CRT-UT-007, TC-KV-UT-014 | Covered |
 | REQ-API-103 | TC-HDL-CRT-UT-008, TC-KV-UT-015 | Covered |
 | REQ-API-104 | TC-HDL-CRT-UT-002, TC-HDL-CRT-UT-003 | Covered |
@@ -1570,10 +1561,10 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-API-130 | TC-HDL-CRT-UT-009 | Covered |
 | REQ-API-140 | TC-HDL-CRT-UT-010 | Covered |
 | REQ-API-150 | TC-HDL-CRT-UT-011, TC-HDL-CRT-UT-013, TC-HDL-CRT-UT-015, TC-HDL-CRT-UT-016 | Covered |
-| REQ-API-160 | TC-HDL-CRT-UT-003 | Covered |
-| REQ-API-165 | TC-KV-UT-010 | Covered (update_time from lastTransitionTime) |
-| REQ-API-166 | TC-KV-UT-021 | Covered (status_message for FAILED) |
-| REQ-API-167 | TC-MON-UT-015 | Covered (status_message for UNAVAILABLE) |
+| REQ-API-160 | TC-HDL-CRT-UT-003 | Structural (IMPL-001: enforced by OpenAPI middleware) |
+| REQ-API-165 | TC-OPS-UT-001 | Covered (update_time from lastTransitionTime) |
+| REQ-API-166 | TC-OPS-UT-016 | Covered (status_message from Degraded condition) |
+| REQ-API-167 | TC-OPS-UT-017 | Covered (status_message from Available condition) |
 | REQ-API-170 | TC-HDL-CRT-UT-006, TC-HDL-CRT-UT-017, TC-HDL-CRT-UT-018 | Covered |
 | REQ-API-175 | Structural (OpenAPI pattern + validation middleware) | Verified by OpenAPI spec |
 | REQ-API-180 | TC-HDL-GET-UT-001 | Covered |
@@ -1582,7 +1573,7 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-API-210 | TC-HDL-GET-UT-004, TC-HDL-DEL-UT-006 | Covered |
 | REQ-API-220 | TC-HDL-GET-UT-001 | Covered |
 | REQ-API-230 | TC-HDL-GET-UT-002 | Covered |
-| REQ-API-231 | TC-HDL-GET-UT-005, TC-KV-UT-027 | Covered |
+| REQ-API-231 | TC-HDL-GET-UT-005, TC-OPS-UT-013 | Covered |
 | REQ-API-240 | TC-HDL-LST-UT-001, TC-HDL-LST-UT-006 | Covered |
 | REQ-API-250 | TC-HDL-LST-UT-001, TC-INT-003 | Covered |
 | REQ-API-260 | TC-HDL-LST-UT-001 | Covered |
@@ -1591,8 +1582,8 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-API-290 | TC-HDL-LST-UT-004, TC-HDL-LST-UT-008 | Covered |
 | REQ-API-291 | TC-HDL-LST-UT-004 | Covered (token opacity/validation) |
 | REQ-API-300 | TC-HDL-LST-UT-005, TC-HDL-LST-UT-006, TC-INT-003 | Covered |
-| REQ-API-310 | TC-HDL-LST-UT-001 (implicit), TC-KV-UT-023 | Covered |
-| REQ-API-315 | TC-KV-UT-026, TC-INT-003 | Covered |
+| REQ-API-310 | TC-HDL-LST-UT-001 (implicit), TC-OPS-UT-009 | Covered |
+| REQ-API-315 | TC-OPS-UT-012, TC-INT-003 | Covered |
 | REQ-API-320 | TC-HDL-DEL-UT-001, TC-INT-002 | Covered |
 | REQ-API-330 | TC-HDL-DEL-UT-001 | Covered |
 | REQ-API-340 | TC-HDL-DEL-UT-002, TC-INT-002 | Covered |
@@ -1600,7 +1591,7 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-API-360 | TC-HDL-DEL-UT-003 | Covered |
 | REQ-API-370 | TC-HDL-DEL-UT-004, TC-HDL-DEL-UT-005 | Covered |
 | REQ-API-380 | TC-KV-UT-006, TC-KV-UT-020, TC-BM-UT-010, TC-BM-UT-011 | Covered |
-| REQ-API-390 | TC-KV-UT-019, TC-KV-UT-010, TC-KV-UT-027, TC-BM-UT-007 | Covered |
+| REQ-API-390 | TC-OPS-UT-006, TC-OPS-UT-001, TC-OPS-UT-013 | Covered (shared ops cover both platforms) |
 
 ### ACM Common Requirements (REQ-ACM-xxx)
 
@@ -1620,12 +1611,12 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-ACM-080 | TC-KV-UT-002, TC-BM-UT-013 | Covered |
 | REQ-ACM-090 | TC-KV-UT-001, TC-BM-UT-001 | Covered |
 | REQ-ACM-100 | TC-KV-UT-001 | Covered |
-| REQ-ACM-110 | TC-STS-UT-001..005, TC-STS-UT-011, TC-KV-UT-010, TC-KV-UT-011, TC-KV-UT-021, TC-KV-UT-024, TC-KV-UT-027, TC-BM-UT-007, TC-BM-UT-009 | Covered |
-| REQ-ACM-120 | TC-KV-UT-010 | Covered |
-| REQ-ACM-130 | TC-KV-UT-010, TC-KV-UT-018, TC-KV-UT-025 | Covered |
-| REQ-ACM-140 | TC-KV-UT-013, TC-KV-UT-022, TC-BM-UT-006, TC-INT-002 | Covered |
+| REQ-ACM-110 | TC-STS-UT-001..005, TC-STS-UT-011, TC-OPS-UT-001, TC-OPS-UT-002, TC-OPS-UT-007, TC-OPS-UT-010, TC-OPS-UT-013 | Covered (shared ops cover both platforms) |
+| REQ-ACM-120 | TC-OPS-UT-001 | Covered |
+| REQ-ACM-130 | TC-OPS-UT-001, TC-OPS-UT-005, TC-OPS-UT-011 | Covered |
+| REQ-ACM-140 | TC-OPS-UT-004, TC-OPS-UT-008, TC-INT-002 | Covered (shared delete via TC-OPS-UT-004) |
 | REQ-ACM-150 | TC-KV-UT-008 | Covered |
-| REQ-ACM-160 | TC-STS-UT-001..012, TC-BM-UT-007 | Covered |
+| REQ-ACM-160 | TC-STS-UT-001..012, TC-OPS-UT-001 | Covered (shared ops confirm delegation to shared mapper) |
 | REQ-ACM-170 | TC-KV-UT-017, TC-KV-UT-028, TC-BM-UT-008 | Covered |
 
 ### KubeVirt Requirements (REQ-KV-xxx)
@@ -1680,14 +1671,14 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | Requirement | Test Cases | Status |
 |---|---|---|
 | REQ-XC-ERR-010 | TC-ERR-UT-001, TC-INT-005 | Covered |
-| REQ-XC-ERR-020 | TC-ERR-UT-001 | Covered |
+| REQ-XC-ERR-020 | TC-ERR-UT-001 | Covered (TC-ERR-UT-001 now asserts type, title, and status) |
 | REQ-XC-ERR-030 | TC-ERR-UT-003 | Covered |
 | REQ-XC-ERR-040 | TC-ERR-UT-002, TC-HDL-CRT-UT-012 | Covered |
 | REQ-XC-LBL-010 | TC-KV-UT-001, TC-BM-UT-001 | Covered |
 | REQ-XC-LBL-020 | TC-KV-UT-001 | Covered |
 | REQ-XC-LBL-030 | TC-MON-UT-008 | Covered |
 | REQ-XC-K8S-010 | Structural | Verified by go.mod dependency |
-| REQ-XC-K8S-020 | TC-CFG-UT-003 | Covered |
+| REQ-XC-K8S-020 | Deferred (SP_HUB_KUBECONFIG investigation needed) | Deferred |
 | REQ-XC-K8S-030 | Structural | Code review (context usage in all K8s calls) |
 | REQ-XC-LOG-010 | Structural | Code review / linter |
 | REQ-XC-LOG-020 | TC-HTTP-IT-010 | Covered |
@@ -1706,8 +1697,8 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 The spec defines status mapping as a common behavior (REQ-ACM-110, REQ-ACM-160) shared across all platforms. Rather than duplicating status tests per platform:
 
 - **10 shared test cases** (TC-STS-UT-001 through TC-STS-UT-008, TC-STS-UT-011, TC-STS-UT-012) cover all condition combinations and precedence rules
-- **1 KubeVirt test** (TC-KV-UT-010) confirms the KubeVirt service extracts READY-specific fields using the shared mapper
-- **1 BareMetal test** (TC-BM-UT-007) confirms the BareMetal service delegates to the shared mapper
+- **1 KubeVirt test** (TC-OPS-UT-001) confirms the KubeVirt service extracts READY-specific fields using the shared mapper
+- **Shared ops tests** (TC-OPS-UT-001) confirm both platforms delegate to the shared mapper
 
 This reduces 15+ potential duplicate tests to 12 without losing coverage.
 
@@ -1718,12 +1709,12 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Version validation (ClusterImageSet lookup) | TC-KV-UT-004 | Shared code; TC-BM-UT-001 implicitly confirms |
 | Conflict detection (duplicate `id` by label) | TC-KV-UT-014 | Shared code |
 | Conflict detection (duplicate `metadata.name`) | TC-KV-UT-015 | Shared code |
-| `console_uri` construction | TC-KV-UT-019 | TC-BM-UT-007 confirms via READY status |
+| `console_uri` construction | TC-OPS-UT-006 | Shared ops (TC-OPS-UT-001 confirms via READY status) |
 | Release image override | TC-KV-UT-005 | TC-BM-UT-012 confirms shared code |
 | `base_domain` handling (config default + request override) | TC-KV-UT-006 | TC-BM-UT-010 (new) |
 | Memory/storage format conversion | TC-KV-UT-008 | N/A for BareMetal (informational per REQ-BM-060) |
 | CP resource override annotations (DEC-004) | TC-KV-UT-003 | TC-BM-UT-014 confirms shared code |
-| List ordering (`metadata.name` ascending) | TC-KV-UT-026 | Shared code; no platform-specific sort |
+| List ordering (`metadata.name` ascending) | TC-OPS-UT-012 | Shared code; no platform-specific sort |
 
 ### Spec ACs Merged into Fewer Test Cases
 
@@ -1742,7 +1733,7 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 - **REQ-API-310** (List results from K8s): Handler just passes through; real K8s sourcing tested in service layer
 - **REQ-ACM-110 / REQ-ACM-160**: Tested ONCE in shared mapper (TC-STS-UT-xxx), NOT per platform
 - **AC-API-150 / AC-ACM-140**: DELETING status tested once in TC-STS-UT-005; handler pass-through in TC-HDL-DEL-UT-005
-- **REQ-API-315** (List ordering): Sorting is service-layer concern; handler passes through. Tested once via KubeVirt service (TC-KV-UT-026)
+- **REQ-API-315** (List ordering): Sorting is service-layer concern; handler passes through. Tested once via KubeVirt service (TC-OPS-UT-012)
 
 ---
 
@@ -1750,13 +1741,13 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 
 | Category | Count |
 |---|---|
-| **Total unit test cases** | **137** |
+| **Total unit test cases** | **136** |
 | High priority | 63 |
 | Medium priority | 59 |
 | Low priority | 15 |
 | Structural (no behavioral test) | 10 requirements |
 | Total requirements covered (across both unit and integration) | 166 (all REQ-xxx IDs) |
-| Coverage gaps | **0** |
+| Coverage gaps | **2 deferred** (TC-CFG-UT-003 pending investigation, REQ-HLT-010/REQ-HLT-120 integration-covered only) |
 
 ### Test Cases by Component
 
@@ -1771,8 +1762,9 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Handler: Delete | TC-HDL-DEL-UT-xxx | 6 |
 | Error Mapping | TC-ERR-UT-xxx | 3 |
 | Status Mapping (shared) | TC-STS-UT-xxx | 12 |
-| KubeVirt Service | TC-KV-UT-xxx | 29 |
-| BareMetal Service | TC-BM-UT-xxx | 14 |
+| Shared Operations | TC-OPS-UT-xxx | 16 |
+| KubeVirt Service | TC-KV-UT-xxx | 16 |
+| BareMetal Service | TC-BM-UT-xxx | 11 |
 | Status Monitoring | TC-MON-UT-xxx | 16 |
 | Configuration | TC-CFG-UT-xxx | 3 |
 | Cross-Cutting: Identity | TC-XC-ID-UT-xxx | 2 |
