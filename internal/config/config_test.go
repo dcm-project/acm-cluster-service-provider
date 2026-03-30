@@ -15,6 +15,7 @@ var _ = Describe("Config", func() {
 		"DCM_REGISTRATION_URL": "http://dcm",
 		"SP_ENDPOINT":          "http://sp",
 		"SP_CLUSTER_NAMESPACE": "clusters",
+		"SP_NATS_URL":          "nats://localhost:4222",
 	}
 
 	setAllRequired := func() {
@@ -40,6 +41,7 @@ var _ = Describe("Config", func() {
 		Entry("DCM_REGISTRATION_URL missing", "DCM_REGISTRATION_URL"),
 		Entry("SP_ENDPOINT missing", "SP_ENDPOINT"),
 		Entry("SP_CLUSTER_NAMESPACE missing", "SP_CLUSTER_NAMESPACE"),
+		Entry("SP_NATS_URL missing", "SP_NATS_URL"),
 	)
 
 	It("TC-CFG-UT-002: applies defaults when optional vars are not set", func() {
@@ -51,5 +53,9 @@ var _ = Describe("Config", func() {
 		Expect(cfg.Server.ShutdownTimeout.String()).To(Equal("15s"))
 		Expect(cfg.Registration.ProviderName).To(Equal("acm-cluster-sp"))
 		Expect(cfg.Health.EnabledPlatforms).To(Equal([]string{"kubevirt", "baremetal"}))
+		Expect(cfg.Monitoring.DebounceInterval.String()).To(Equal("1s"))
+		Expect(cfg.Monitoring.ResyncInterval.String()).To(Equal("10m0s"))
+		Expect(cfg.Monitoring.PublishRetryMax).To(Equal(3))
+		Expect(cfg.Monitoring.PublishRetryInterval.String()).To(Equal("2s"))
 	})
 })

@@ -49,12 +49,22 @@ type ClusterConfig struct {
 	VersionMatrix     map[string]string `env:"-"`
 }
 
+// MonitoringConfig holds status monitoring settings.
+type MonitoringConfig struct {
+	NATSUrl              string        `env:"SP_NATS_URL,required"`
+	DebounceInterval     time.Duration `env:"SP_STATUS_DEBOUNCE_INTERVAL"     envDefault:"1s"`
+	ResyncInterval       time.Duration `env:"SP_STATUS_RESYNC_INTERVAL"       envDefault:"10m"`
+	PublishRetryMax      int           `env:"SP_NATS_PUBLISH_RETRY_MAX"       envDefault:"3"`
+	PublishRetryInterval time.Duration `env:"SP_NATS_PUBLISH_RETRY_INTERVAL"  envDefault:"2s"`
+}
+
 // Config is the root configuration for the service provider.
 type Config struct {
 	Server       ServerConfig
 	Registration RegistrationConfig
 	Health       HealthConfig
 	Cluster      ClusterConfig
+	Monitoring   MonitoringConfig
 }
 
 // Load reads configuration from environment variables.

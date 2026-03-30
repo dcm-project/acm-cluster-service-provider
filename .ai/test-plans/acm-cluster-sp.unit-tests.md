@@ -1280,9 +1280,10 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 - **And** `providerName="acm-cluster-sp"`
 - **When** a HostedCluster with `dcm-instance-id="my-cluster"` transitions to `Available=True`
 - **Then** a CloudEvent is published via the mock `StatusPublisher`
-- **And** subject is `dcm.providers.acm-cluster-sp.cluster.instances.my-cluster.status`
-- **And** type is `dcm.providers.acm-cluster-sp.status.update`
-- **And** payload contains `status="READY"` and a non-empty `message` field
+- **And** type is `dcm.status.cluster`
+- **And** subject is `dcm.cluster`
+- **And** source is `dcm/providers/acm-cluster-sp`
+- **And** payload contains `id="my-cluster"`, `status="READY"`, and a `message` field
 - **And** the event has `specversion="1.0"`, unique `id`, `source`, `type` (CloudEvents v1.0 conformant)
 
 #### TC-MON-UT-002: Deletion event publishes DELETED status
@@ -1660,8 +1661,9 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-MON-126 | TC-MON-IT-008 | Covered |
 | REQ-MON-130 | TC-MON-UT-002 | Covered |
 | REQ-MON-135 | TC-MON-IT-009 | Covered |
+| REQ-MON-035 | TC-MON-IT-010 | Covered |
 | REQ-MON-140 | TC-MON-UT-005, TC-MON-IT-010 | Covered |
-| REQ-MON-170 | TC-MON-IT-xxx | Covered |
+| REQ-MON-170 | TC-MON-IT-012 | Covered |
 | REQ-MON-150 | TC-MON-UT-007 | Covered |
 | REQ-MON-155 | TC-MON-UT-013, TC-MON-IT-011 | Covered |
 | REQ-MON-160 | TC-MON-UT-010 | Covered |
