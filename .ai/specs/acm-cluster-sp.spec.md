@@ -1095,11 +1095,11 @@ Background controller that watches HostedCluster resources via `SharedIndexInfor
 | REQ-MON-030 | On condition changes, MUST map HostedCluster conditions to DCM status using the Status Mapping Table (section 5.5) | MUST |
 | REQ-MON-035 | The informer MUST maintain a secondary index on `dcm-instance-id` label for fast lookups | MUST |
 | REQ-MON-040 | On status change, MUST publish a CloudEvent to NATS | MUST |
-| REQ-MON-050 | CloudEvent subject MUST follow: `dcm.providers.<providerName>.cluster.instances.<instanceId>.status` | MUST |
-| REQ-MON-060 | CloudEvent type MUST follow: `dcm.providers.<providerName>.status.update` | MUST |
-| REQ-MON-070 | `providerName` MUST be the configured `SP_NAME` value (DD-003) | MUST |
+| REQ-MON-050 | CloudEvent `subject` MUST be set to `dcm.cluster` (the NATS subject / service-type identifier) | MUST |
+| REQ-MON-060 | CloudEvent `type` MUST be `dcm.status.cluster` | MUST |
+| REQ-MON-070 | CloudEvent `source` MUST be `dcm/providers/<providerName>` where `providerName` is the configured `SP_NAME` value (DD-003) | MUST |
 | REQ-MON-080 | `instanceId` MUST be extracted from the HostedCluster's `dcm-instance-id` label | MUST |
-| REQ-MON-090 | CloudEvent payload MUST include at minimum: `status` (string), `message` (string) | MUST |
+| REQ-MON-090 | CloudEvent payload MUST include: `id` (string, instance ID), `status` (string), `message` (string). The JSON keys MUST be lowercase (`"id"`, `"status"`, `"message"`) | MUST |
 | REQ-MON-100 | CloudEvents MUST conform to CloudEvents v1.0 specification | MUST |
 | REQ-MON-110 | The informer MUST be resilient -- on watch disconnect, it MUST re-list and resume watching | MUST |
 | REQ-MON-115 | The monitor MUST implement debounce logic to avoid publishing rapid status oscillations | MUST |
@@ -1130,12 +1130,12 @@ Background controller that watches HostedCluster resources via `SharedIndexInfor
 #### Acceptance Criteria
 
 ##### AC-MON-010: Status change triggers CloudEvent
-- **Requirements:** REQ-MON-040, REQ-MON-050, REQ-MON-090
+- **Requirements:** REQ-MON-040, REQ-MON-050, REQ-MON-060, REQ-MON-090
 - **Given** the informer is watching HostedCluster resources
 - **And** a HostedCluster with `dcm-instance-id="my-cluster"` exists
 - **When** the HostedCluster conditions change to `Available=True`, `Progressing=False`
-- **Then** a CloudEvent is published to NATS with subject `dcm.providers.<providerName>.cluster.instances.my-cluster.status`
-- **And** the payload contains `status="READY"`
+- **Then** a CloudEvent is published to NATS with type `dcm.status.cluster` and subject `dcm.cluster`
+- **And** the payload contains `id="my-cluster"` and `status="READY"`
 
 ##### AC-MON-020: HostedCluster deletion detected
 - **Requirements:** REQ-MON-130
@@ -1170,11 +1170,11 @@ Background controller that watches HostedCluster resources via `SharedIndexInfor
 - **Then** a CloudEvent is published for each of the 3 clusters with their current status
 - **And** consumers treat these as idempotent status updates
 
-##### AC-MON-070: CloudEvent type follows expected pattern
+##### AC-MON-070: CloudEvent type follows DCM standard
 - **Requirements:** REQ-MON-060
 - **Given** a status change occurs for a cluster
 - **When** a CloudEvent is published
-- **Then** the event type is `dcm.providers.<providerName>.status.update`
+- **Then** the event type is `dcm.status.cluster`
 
 ##### AC-MON-080: CloudEvent conforms to v1.0 spec
 - **Requirements:** REQ-MON-100
@@ -1221,9 +1221,31 @@ Background controller that watches HostedCluster resources via `SharedIndexInfor
 - **When** the informer detects the status change to FAILED
 - **Then** the CloudEvent message includes the failure reason "etcd cluster unhealthy"
 
+##### AC-MON-145: Informer indexes HostedClusters by dcm-instance-id
+- **Requirements:** REQ-MON-035
+- **Given** the informer is watching HostedCluster resources
+- **When** a HostedCluster with a `dcm-instance-id` label is added or updated
+- **Then** the resource is indexed by its `dcm-instance-id` label value
+- **And** the index is available for efficient lookups by instance ID
+
+##### AC-MON-150: NATS unavailability does not block SP startup
+- **Requirements:** REQ-MON-170
+- **Given** the NATS server is unreachable at the configured `SP_NATS_URL`
+- **When** the SP starts up
+- **Then** the SP starts successfully without blocking
+- **And** the status monitor begins watching HostedCluster resources
+- **And** publish failures are handled by the existing retry/drop mechanism (REQ-MON-160)
+
+##### AC-MON-155: Status monitor publishes through StatusPublisher interface
+- **Requirements:** REQ-MON-150
+- **Given** the status monitor is configured with a `StatusPublisher` implementation
+- **When** a status change is detected
+- **Then** the event is published through the `StatusPublisher` interface
+- **And** the monitor has no direct dependency on a NATS client
+
 #### Dependencies
 
-- **Topic 1 (DCM Registration)**: provider name for CloudEvent subjects
+- **Topic 1 (DCM Registration)**: provider name for CloudEvent `source` attribute
 - **Topic 5 (ACM Platform Services)**: needs existing HostedCluster resources to watch
 
 ---
@@ -1254,9 +1276,9 @@ Error type to HTTP status mapping:
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| REQ-XC-LBL-010 | Every K8s resource created by the SP MUST carry: `managed-by=dcm`, `dcm-instance-id=<id>`, `dcm-service-type=cluster` | MUST |
+| REQ-XC-LBL-010 | Every K8s resource created by the SP MUST carry labels: `dcm.project/managed-by=dcm`, `dcm.project/dcm-instance-id=<id>`, `dcm.project/dcm-service-type=cluster`. All DCM labels MUST use the `dcm.project/` prefix | MUST |
 | REQ-XC-LBL-020 | These labels MUST be set at creation time and MUST NOT be modified | MUST |
-| REQ-XC-LBL-030 | The informer MUST use both labels `managed-by=dcm` AND `dcm-service-type=cluster` as label selector | MUST |
+| REQ-XC-LBL-030 | The informer MUST use both labels `dcm.project/managed-by=dcm` AND `dcm.project/dcm-service-type=cluster` as label selector | MUST |
 
 ### 6.3 Kubernetes API Integration
 

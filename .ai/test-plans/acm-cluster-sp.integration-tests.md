@@ -337,6 +337,15 @@ These requirements are validated by compilation, code review, or static analysis
 - **When** the informer detects the status change to FAILED
 - **Then** the published CloudEvent's `message` field includes the failure reason
 
+#### TC-MON-IT-012: NATS unavailability does not block SP startup
+- **Requirements:** REQ-MON-170
+- **Type:** Integration | **Priority:** Medium
+- **Given** `SP_NATS_URL` is configured with an unreachable NATS URL
+- **When** `NewNATSPublisher` is called with that URL
+- **Then** the publisher is created successfully (no error, no blocking)
+- **And** calling `Publish` does not panic or block indefinitely
+- **And** calling `Close` completes cleanly
+
 ---
 
 ### 2.14 Integration Tests (TC-INT-xxx)
@@ -607,8 +616,9 @@ Build constraint: `//go:build integration`
 | REQ-MON-126 | TC-MON-IT-008 | Covered |
 | REQ-MON-130 | TC-MON-UT-002 | Covered |
 | REQ-MON-135 | TC-MON-IT-009 | Covered |
+| REQ-MON-035 | TC-MON-IT-010 | Covered |
 | REQ-MON-140 | TC-MON-UT-005, TC-MON-IT-010 | Covered |
-| REQ-MON-170 | TC-MON-IT-xxx | Covered |
+| REQ-MON-170 | TC-MON-IT-012 | Covered |
 | REQ-MON-150 | TC-MON-UT-007 | Covered |
 | REQ-MON-155 | TC-MON-UT-013, TC-MON-IT-011 | Covered |
 | REQ-MON-160 | TC-MON-UT-010 | Covered |
