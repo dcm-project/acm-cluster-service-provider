@@ -18,7 +18,7 @@ import (
 	"github.com/dcm-project/acm-cluster-service-provider/internal/health"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/monitoring"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/registration"
-	spmclient "github.com/dcm-project/service-provider-manager/pkg/client"
+	spmclient "github.com/dcm-project/service-provider-manager/pkg/client/provider"
 	"k8s.io/client-go/dynamic"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

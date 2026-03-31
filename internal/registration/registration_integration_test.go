@@ -16,8 +16,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	spmv1alpha1 "github.com/dcm-project/service-provider-manager/api/v1alpha1"
-	spmclient "github.com/dcm-project/service-provider-manager/pkg/client"
+	spmv1alpha1 "github.com/dcm-project/service-provider-manager/api/v1alpha1/provider"
+	spmclient "github.com/dcm-project/service-provider-manager/pkg/client/provider"
 
 	oapigen "github.com/dcm-project/acm-cluster-service-provider/internal/api/server"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/apiserver"
