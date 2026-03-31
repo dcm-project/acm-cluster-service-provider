@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	spmv1alpha1 "github.com/dcm-project/service-provider-manager/api/v1alpha1"
-	spmclient "github.com/dcm-project/service-provider-manager/pkg/client"
+	spmv1alpha1 "github.com/dcm-project/service-provider-manager/api/v1alpha1/provider"
+	spmclient "github.com/dcm-project/service-provider-manager/pkg/client/provider"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
