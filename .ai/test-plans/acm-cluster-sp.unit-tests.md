@@ -5,7 +5,7 @@
 - **Related Spec:** .ai/specs/acm-cluster-sp.spec.md
 - **Related Requirements:** REQ-REG-xxx, REQ-HTTP-xxx, REQ-HLT-xxx, REQ-API-xxx, REQ-ACM-xxx, REQ-KV-xxx, REQ-BM-xxx, REQ-MON-xxx, REQ-XC-xxx
 - **Created:** 2026-02-17
-- **Last Updated:** 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; added TC-OPS-UT-016/017 for status_message; removed phantom TC-BM-UT-006/007/009; coverage matrix corrections)
+- **Last Updated:** 2026-03-31 (label prefix alignment) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; added TC-OPS-UT-016/017 for status_message; removed phantom TC-BM-UT-006/007/009; coverage matrix corrections)
 - **Scope:** This file covers **unit tests only** (131 unit test cases + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
 
 ## Design Principles
@@ -863,7 +863,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Then** a HostedCluster named "my-cluster" is created in namespace "clusters" with `platform.type=KubeVirt`
 - **And** a NodePool is created in namespace "clusters" with `replicas=2`
 - **And** NodePool worker VM template has resources matching cpu=4, memory=16GB equivalent, storage=120GB equivalent
-- **And** both carry labels `managed-by=dcm`, `dcm-instance-id=test-id`, `dcm-service-type=cluster`
+- **And** both carry labels `dcm.project/managed-by=dcm`, `dcm.project/dcm-instance-id=test-id`, `dcm.project/dcm-service-type=cluster`
 
 #### TC-KV-UT-002: control_plane.count and storage are ignored
 - **Requirements:** REQ-ACM-070, REQ-ACM-080
@@ -947,7 +947,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Type:** Unit
 - **Priority:** High
 - **Given** a fake K8s client with:
-  - A HostedCluster with `dcm-instance-id=test-id`, `Available=True`, `Progressing=False`, `status.controlPlaneEndpoint.host="api.cluster.example.com"`, `port=6443`
+  - A HostedCluster with `dcm.project/dcm-instance-id=test-id`, `Available=True`, `Progressing=False`, `status.controlPlaneEndpoint.host="api.cluster.example.com"`, `port=6443`
   - A kubeconfig Secret named `<cluster-name>-admin-kubeconfig` with `kubeconfig` key (naming convention derived from HyperShift behavior, not DCM-defined)
 - **When** `Get(ctx, "test-id")` is called
 - **Then** the returned cluster has `status=READY`
@@ -967,7 +967,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Requirements:** (service-layer enforcement for handler's REQ-API-200)
 - **Type:** Unit
 - **Priority:** High
-- **Given** a fake K8s client with no matching HostedCluster (no `dcm-instance-id=nonexistent` label)
+- **Given** a fake K8s client with no matching HostedCluster (no `dcm.project/dcm-instance-id=nonexistent` label)
 - **When** `Get(ctx, "nonexistent")` is called
 - **Then** a `NotFound` domain error is returned
 
@@ -975,7 +975,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Requirements:** REQ-ACM-140
 - **Type:** Unit
 - **Priority:** High
-- **Given** a fake K8s client with a HostedCluster with `dcm-instance-id=test-id`
+- **Given** a fake K8s client with a HostedCluster with `dcm.project/dcm-instance-id=test-id`
 - **When** `Delete(ctx, "test-id")` is called
 - **Then** the HostedCluster is deleted from the fake client
 
@@ -983,7 +983,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Requirements:** REQ-API-102 (service-layer enforcement)
 - **Type:** Unit
 - **Priority:** High
-- **Given** a fake K8s client with an existing HostedCluster carrying label `dcm-instance-id=abc123`
+- **Given** a fake K8s client with an existing HostedCluster carrying label `dcm.project/dcm-instance-id=abc123`
 - **When** `Create(ctx, "abc123", cluster)` is called
 - **Then** an `AlreadyExists` domain error is returned
 
@@ -1100,11 +1100,11 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **When** `List(ctx, "", 50)` is called
 - **Then** an `Internal` domain error is returned
 
-#### TC-OPS-UT-010: Duplicate dcm-instance-id label on two HostedClusters
+#### TC-OPS-UT-010: Duplicate dcm.project/dcm-instance-id label on two HostedClusters
 - **Requirements:** REQ-ACM-110
 - **Type:** Unit
 - **Priority:** Low
-- **Given** a fake K8s client with two HostedClusters both carrying label `dcm-instance-id=test-id`
+- **Given** a fake K8s client with two HostedClusters both carrying label `dcm.project/dcm-instance-id=test-id`
 - **When** `Get(ctx, "test-id")` is called
 - **Then** a deterministic result or error is returned
 
@@ -1129,7 +1129,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Type:** Unit
 - **Priority:** High
 - **Given** a fake K8s client with:
-  - A HostedCluster with `dcm-instance-id=test-id`, `Available=False`, `Progressing=False`, `status.controlPlaneEndpoint.host="api.cluster.example.com"`, `port=6443`
+  - A HostedCluster with `dcm.project/dcm-instance-id=test-id`, `Available=False`, `Progressing=False`, `status.controlPlaneEndpoint.host="api.cluster.example.com"`, `port=6443`
   - A kubeconfig Secret named `<cluster-name>-admin-kubeconfig` with `kubeconfig` key (naming convention derived from HyperShift behavior, not DCM-defined)
 - **When** `Get(ctx, "test-id")` is called
 - **Then** the returned cluster has `status=UNAVAILABLE`
@@ -1278,7 +1278,7 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 - **Given** a fake informer watching HostedCluster resources
 - **And** a mock `StatusPublisher`
 - **And** `providerName="acm-cluster-sp"`
-- **When** a HostedCluster with `dcm-instance-id="my-cluster"` transitions to `Available=True`
+- **When** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` transitions to `Available=True`
 - **Then** a CloudEvent is published via the mock `StatusPublisher`
 - **And** type is `dcm.status.cluster`
 - **And** subject is `dcm.cluster`
@@ -1290,7 +1290,7 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 - **Requirements:** REQ-MON-130
 - **Type:** Unit
 - **Priority:** High
-- **Given** a fake informer with a HostedCluster (`dcm-instance-id="my-cluster"`)
+- **Given** a fake informer with a HostedCluster (`dcm.project/dcm-instance-id="my-cluster"`)
 - **When** the HostedCluster is deleted (informer DELETE event)
 - **Then** a CloudEvent is published with `status="DELETED"`
 
@@ -1298,7 +1298,7 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 - **Requirements:** REQ-MON-020
 - **Type:** Unit
 - **Priority:** High
-- **Given** a HostedCluster WITHOUT labels `managed-by=dcm` and `dcm-service-type=cluster`
+- **Given** a HostedCluster WITHOUT labels `dcm.project/managed-by=dcm` and `dcm.project/dcm-service-type=cluster`
 - **When** its conditions change
 - **Then** the mock `StatusPublisher` is NOT called
 
@@ -1333,7 +1333,7 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 - **Requirements:** REQ-XC-LBL-030
 - **Type:** Unit
 - **Priority:** High
-- **Given** the informer is configured with label selector `managed-by=dcm,dcm-service-type=cluster`
+- **Given** the informer is configured with label selector `dcm.project/managed-by=dcm,dcm.project/dcm-service-type=cluster`
 - **And** the fake K8s client contains both DCM-managed and non-DCM HostedClusters
 - **When** the informer lists resources
 - **Then** only resources matching BOTH labels are returned
@@ -1343,7 +1343,7 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 - **Decisions:** TD-005
 - **Type:** Unit
 - **Priority:** High
-- **Given** a HostedCluster with `dcm-instance-id="my-cluster"` has DCM status `PROVISIONING` (e.g., `Progressing=True`, `Available=False`)
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` has DCM status `PROVISIONING` (e.g., `Progressing=True`, `Available=False`)
 - **And** a CloudEvent for `PROVISIONING` was already published
 - **When** the HostedCluster conditions update (e.g., a `message` changes on `Progressing`) but the mapped DCM status remains `PROVISIONING`
 - **Then** no new CloudEvent is published via the mock `StatusPublisher`
@@ -1370,27 +1370,27 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 - **Requirements:** REQ-MON-030, REQ-MON-040
 - **Type:** Unit
 - **Priority:** High
-- **Given** a HostedCluster with `dcm-instance-id="my-cluster"` has status `READY`
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` has status `READY`
 - **And** a CloudEvent for `READY` was already published
 - **When** the HostedCluster is updated with `deletionTimestamp` set (K8s Update event, not Delete)
 - **Then** a CloudEvent is published with `status="DELETING"`
 - **And** when the HostedCluster is subsequently fully removed (Delete event)
 - **Then** a CloudEvent is published with `status="DELETED"`
 
-#### TC-MON-UT-012: dcm-instance-id secondary index returns correct resources
+#### TC-MON-UT-012: dcm.project/dcm-instance-id secondary index returns correct resources
 - **Requirements:** REQ-MON-035
 - **Type:** Unit
 - **Priority:** Medium
-- **Given** the informer has a secondary index on the `dcm-instance-id` label
-- **And** 3 HostedClusters exist with distinct `dcm-instance-id` values
-- **When** a lookup by `dcm-instance-id="target-id"` is performed
+- **Given** the informer has a secondary index on the `dcm.project/dcm-instance-id` label
+- **And** 3 HostedClusters exist with distinct `dcm.project/dcm-instance-id` values
+- **When** a lookup by `dcm.project/dcm-instance-id="target-id"` is performed
 - **Then** only the matching HostedCluster is returned
 
 #### TC-MON-UT-014: UNAVAILABLE to READY recovery transition
 - **Requirements:** REQ-MON-040, REQ-ACM-110
 - **Type:** Unit
 - **Priority:** Medium
-- **Given** a HostedCluster with `dcm-instance-id="my-cluster"` has DCM status `UNAVAILABLE`
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` has DCM status `UNAVAILABLE`
 - **And** a CloudEvent for `UNAVAILABLE` was already published
 - **When** the HostedCluster conditions change to `Available=True`, `Progressing=False`
 - **Then** a CloudEvent is published with `status="READY"`
@@ -1400,33 +1400,33 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 - **Requirements:** REQ-MON-090, REQ-API-167
 - **Type:** Unit
 - **Priority:** Low
-- **Given** a HostedCluster with `dcm-instance-id="my-cluster"` has `Available=False`, `Progressing=False` with a condition message "API server unreachable"
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` has `Available=False`, `Progressing=False` with a condition message "API server unreachable"
 - **When** the informer detects the status change to UNAVAILABLE
 - **Then** the published CloudEvent's `message` field includes context from conditions (e.g., "API server unreachable")
 
-#### TC-MON-UT-016: Missing dcm-instance-id label is handled gracefully
+#### TC-MON-UT-016: Missing dcm.project/dcm-instance-id label is handled gracefully
 - **Requirements:** REQ-MON-080
 - **Type:** Unit
 - **Priority:** Medium
-- **Given** a HostedCluster with labels `managed-by=dcm`, `dcm-service-type=cluster` but WITHOUT `dcm-instance-id`
+- **Given** a HostedCluster with labels `dcm.project/managed-by=dcm`, `dcm.project/dcm-service-type=cluster` but WITHOUT `dcm.project/dcm-instance-id`
 - **When** the informer receives an event for this resource
 - **Then** the resource is skipped (no CloudEvent published)
 - **And** a warning is logged indicating the missing label
 
-#### TC-MON-UT-017: Duplicate dcm-instance-id in monitoring path
+#### TC-MON-UT-017: Duplicate dcm.project/dcm-instance-id in monitoring path
 - **Requirements:** REQ-MON-080
 - **Type:** Unit
 - **Priority:** Low
-- **Given** two HostedClusters both have label `dcm-instance-id="shared-id"`
+- **Given** two HostedClusters both have label `dcm.project/dcm-instance-id="shared-id"`
 - **When** the informer receives events for both resources
 - **Then** CloudEvents are published for each (both with the same instanceId)
-- **And** a warning is logged indicating duplicate `dcm-instance-id` detected
+- **And** a warning is logged indicating duplicate `dcm.project/dcm-instance-id` detected
 
 #### TC-MON-UT-013: FAILED CloudEvent message includes failure reason
 - **Requirements:** REQ-MON-155
 - **Type:** Unit
 - **Priority:** Medium
-- **Given** a HostedCluster with `dcm-instance-id="my-cluster"` has `Degraded=True` with condition message "etcd cluster unhealthy"
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` has `Degraded=True` with condition message "etcd cluster unhealthy"
 - **When** the informer detects the status change to FAILED
 - **Then** the published CloudEvent's `message` field includes the failure reason "etcd cluster unhealthy"
 
@@ -1470,15 +1470,15 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 - **Priority:** Medium
 - **Given** a cluster is created with `id="dcm-id"` and `metadata.name="my-cluster"`
 - **When** the K8s resources are inspected
-- **Then** the HostedCluster has `metadata.name="my-cluster"` and label `dcm-instance-id=dcm-id`
-- **And** the NodePool has label `dcm-instance-id=dcm-id`
+- **Then** the HostedCluster has `metadata.name="my-cluster"` and label `dcm.project/dcm-instance-id=dcm-id`
+- **And** the NodePool has label `dcm.project/dcm-instance-id=dcm-id`
 
-#### TC-XC-ID-UT-002: dcm-instance-id label matches the id field
+#### TC-XC-ID-UT-002: dcm.project/dcm-instance-id label matches the id field
 - **Requirements:** REQ-XC-ID-020
 - **Type:** Unit (Structural)
 - **Priority:** Medium
 - **Given** a cluster is created with `id="test-id"`
-- **When** the HostedCluster is retrieved by label `dcm-instance-id=test-id`
+- **When** the HostedCluster is retrieved by label `dcm.project/dcm-instance-id=test-id`
 - **Then** the matching resource is found
 - **And** conflict detection checks both `id` uniqueness (via label) and `metadata.name` uniqueness (via K8s name) independently
 

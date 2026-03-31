@@ -3,9 +3,9 @@
 package cluster
 
 const (
-	LabelManagedBy   = "app.kubernetes.io/managed-by"
-	LabelInstanceID  = "dcm-instance-id"
-	LabelServiceType = "dcm-service-type"
+	LabelManagedBy   = "dcm.project/managed-by"
+	LabelInstanceID  = "dcm.project/dcm-instance-id"
+	LabelServiceType = "dcm.project/dcm-service-type"
 	ValueManagedBy   = "dcm"
 	ValueServiceType = "cluster"
 )

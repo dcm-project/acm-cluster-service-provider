@@ -48,9 +48,9 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(hc.Spec.Platform.Type).To(Equal(hyperv1.AgentPlatform))
 			Expect(hc.Spec.Platform.Agent).NotTo(BeNil())
 			Expect(hc.Spec.Platform.Agent.AgentNamespace).To(Equal("agent-ns"))
-			Expect(hc.Labels).To(HaveKeyWithValue("app.kubernetes.io/managed-by", "dcm"))
-			Expect(hc.Labels).To(HaveKeyWithValue("dcm-instance-id", "bm-id"))
-			Expect(hc.Labels).To(HaveKeyWithValue("dcm-service-type", "cluster"))
+			Expect(hc.Labels).To(HaveKeyWithValue("dcm.project/managed-by", "dcm"))
+			Expect(hc.Labels).To(HaveKeyWithValue("dcm.project/dcm-instance-id", "bm-id"))
+			Expect(hc.Labels).To(HaveKeyWithValue("dcm.project/dcm-service-type", "cluster"))
 
 			// Verify NodePool
 			var npList hyperv1.NodePoolList
@@ -65,7 +65,7 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(np.Spec.Platform.Agent.AgentLabelSelector.MatchLabels).To(
 				HaveKeyWithValue("infraenvs.agent-install.openshift.io", "my-infra"),
 			)
-			Expect(np.Labels).To(HaveKeyWithValue("dcm-instance-id", "bm-id"))
+			Expect(np.Labels).To(HaveKeyWithValue("dcm.project/dcm-instance-id", "bm-id"))
 		})
 
 		It("TC-BM-UT-002: agent labels merged into NodePool AgentLabelSelector", func() {

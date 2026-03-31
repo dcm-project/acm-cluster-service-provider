@@ -65,9 +65,9 @@ func withNPDCMLabels(instanceID string) npOption {
 		if np.Labels == nil {
 			np.Labels = make(map[string]string)
 		}
-		np.Labels["app.kubernetes.io/managed-by"] = "dcm"
-		np.Labels["dcm-instance-id"] = instanceID
-		np.Labels["dcm-service-type"] = "cluster"
+		np.Labels["dcm.project/managed-by"] = "dcm"
+		np.Labels["dcm.project/dcm-instance-id"] = instanceID
+		np.Labels["dcm.project/dcm-service-type"] = "cluster"
 	}
 }
 
