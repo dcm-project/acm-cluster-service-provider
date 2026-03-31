@@ -2,7 +2,7 @@
 
 > **Status**: Draft
 > **Created**: 2026-02-13
-> **Last Updated**: 2026-03-06 (deep analysis findings applied)
+> **Last Updated**: 2026-03-31 (label prefix alignment)
 > **Authors**: @gabriel-farache (with Claude Code)
 
 ## 1. Overview
@@ -496,7 +496,7 @@ The health endpoint (`GET /api/v1alpha1/clusters/health`) reports whether the SP
 
 Thin HTTP handler implementations of `StrictServerInterface` (defined at `internal/api/server/server.gen.go:728-744`). Handlers parse requests, validate inputs, return RFC 7807 errors, and delegate business logic to internal services (Topic 5). Handlers do NOT contain K8s API calls or cluster provisioning logic.
 
-> **Design Decision — Dual Identity (`id` + `metadata.name`):** The SP follows AEP-133's dual-identity pattern. `id` is the DCM-level resource identifier: readOnly, either client-specified via the `?id=` query parameter or server-generated as a UUID. `metadata.name` is the user-provided human-readable name used as the K8s HostedCluster `metadata.name`. The `path` field is set to `"clusters/<id>"`. The `dcm-instance-id` K8s label stores `id`. URL paths use `id` (`/clusters/{clusterId}`). On creation, the SP checks for conflicts on both `id` (via label query) and `metadata.name` (via K8s name lookup in the target namespace).
+> **Design Decision — Dual Identity (`id` + `metadata.name`):** The SP follows AEP-133's dual-identity pattern. `id` is the DCM-level resource identifier: readOnly, either client-specified via the `?id=` query parameter or server-generated as a UUID. `metadata.name` is the user-provided human-readable name used as the K8s HostedCluster `metadata.name`. The `path` field is set to `"clusters/<id>"`. The `dcm.project/dcm-instance-id` K8s label stores `id`. URL paths use `id` (`/clusters/{clusterId}`). On creation, the SP checks for conflicts on both `id` (via label query) and `metadata.name` (via K8s name lookup in the target namespace).
 
 #### Requirements - General
 
@@ -518,9 +518,9 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 | REQ-API-070 | `version` and `nodes.control_plane` MUST be present (required fields) | MUST |
 | REQ-API-080 | `nodes.workers` MUST be present and have `count >= 1`; if omitted, MUST return 400 with `type=INVALID_ARGUMENT` and a message indicating workers are required | MUST |
 | REQ-API-090 | The SP MUST validate that `service_type == "cluster"` and return 400 with `type=INVALID_ARGUMENT` if not | MUST |
-| REQ-API-100 | `id` MUST be the cluster resource identifier. If a client-specified `id` is provided via `?id=` query parameter, it MUST be used; if `?id=` is present but empty, it MUST be treated as absent (generate UUID). Otherwise the SP MUST generate a UUID. `path` MUST be set to `"clusters/<id>"`. The `dcm-instance-id` K8s label MUST be set to `id`. `metadata.name` MUST be used as the K8s HostedCluster resource name | MUST |
+| REQ-API-100 | `id` MUST be the cluster resource identifier. If a client-specified `id` is provided via `?id=` query parameter, it MUST be used; if `?id=` is present but empty, it MUST be treated as absent (generate UUID). Otherwise the SP MUST generate a UUID. `path` MUST be set to `"clusters/<id>"`. The `dcm.project/dcm-instance-id` K8s label MUST be set to `id`. `metadata.name` MUST be used as the K8s HostedCluster resource name | MUST |
 | REQ-API-101 | `id` MUST be readOnly. If `id` appears in the request body, it MUST be ignored (IMPL-001) | MUST |
-| REQ-API-102 | On creation, the SP MUST check for an existing resource with the same `id` (by querying the `dcm-instance-id` label). If found, MUST return 409 with `type=ALREADY_EXISTS` | MUST |
+| REQ-API-102 | On creation, the SP MUST check for an existing resource with the same `id` (by querying the `dcm.project/dcm-instance-id` label). If found, MUST return 409 with `type=ALREADY_EXISTS` | MUST |
 | REQ-API-103 | On creation, the SP MUST check for an existing K8s HostedCluster with the same `metadata.name` in the target namespace. If found, MUST return 409 with `type=ALREADY_EXISTS` and a detail message indicating the name conflict | MUST |
 | REQ-API-104 | If both `?id=` query parameter and `id` in the request body are provided, the query parameter MUST take precedence and the body value MUST be ignored | MUST |
 | REQ-API-110 | Successful creation MUST return 201 with the full `Cluster` resource including server-set fields: `id`, `path`, `status=PENDING`, `create_time`, `update_time` | MUST |
@@ -801,7 +801,7 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | REQ-ACM-010 | MUST create a HostedCluster CR and an associated NodePool CR for the given platform type | MUST |
-| REQ-ACM-020 | All created K8s resources MUST carry labels: `managed-by=dcm`, `dcm-instance-id=<id>`, `dcm-service-type=cluster` | MUST |
+| REQ-ACM-020 | All created K8s resources MUST carry labels: `dcm.project/managed-by=dcm`, `dcm.project/dcm-instance-id=<id>`, `dcm.project/dcm-service-type=cluster` | MUST |
 | REQ-ACM-030 | `version` (a K8s minor version) MUST be translated to the corresponding OCP version using the internal compatibility matrix, then validated against available ClusterImageSet resources on the ACM Hub (DD-001) | MUST |
 | REQ-ACM-031 | If the caller-provided K8s version has no entry in the SP's compatibility matrix, the operation MUST fail (handler returns 422) with an error indicating the version is not supported | MUST |
 | REQ-ACM-032 | If the compatibility matrix maps the K8s version to an OCP version but no matching ClusterImageSet exists on the ACM Hub, the operation MUST fail (handler returns 422) with an error indicating no available release for that version | MUST |
@@ -817,7 +817,7 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 | REQ-ACM-110 | For reads, MUST query HostedCluster CRs from K8s and map conditions to DCM status (see Status Mapping Table) | MUST |
 | REQ-ACM-120 | When status is READY, MUST extract `api_endpoint` from HostedCluster status | MUST |
 | REQ-ACM-130 | When status is READY, MUST extract kubeconfig from the associated K8s Secret, base64-encode it | MUST |
-| REQ-ACM-140 | For deletion, MUST explicitly delete associated NodePool CRs (by `dcm-instance-id` label), then delete the HostedCluster CR. NodePool NotFound is treated as success (HyperShift may have already cascaded). | MUST |
+| REQ-ACM-140 | For deletion, MUST explicitly delete associated NodePool CRs (by `dcm.project/dcm-instance-id` label), then delete the HostedCluster CR. NodePool NotFound is treated as success (HyperShift may have already cascaded). | MUST |
 | REQ-ACM-150 | Memory/storage values from DCM format (`"16GB"`) MUST be converted to K8s resource quantity format | MUST |
 | REQ-ACM-160 | When multiple HostedCluster conditions are true simultaneously, status MUST be resolved using the following precedence (highest to lowest): `deletionTimestamp != nil` → DELETING, `Degraded=True` → FAILED, `Available=True + Progressing=False` → READY, `Progressing=True + Available=False` → PROVISIONING, `Available=False + Progressing=False` → UNAVAILABLE, `Progressing=Unknown` → PENDING. The highest-precedence matching condition wins. | MUST |
 | REQ-ACM-170 | On partial create failure (HostedCluster created but NodePool creation fails), the SP MUST delete the orphaned HostedCluster before returning the error | MUST |
@@ -851,7 +851,7 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 - **Requirements:** REQ-ACM-020
 - **Given** a cluster is being created
 - **When** K8s resources (HostedCluster, NodePool) are created
-- **Then** both CRs carry labels: `managed-by=dcm`, `dcm-instance-id=<id>`, `dcm-service-type=cluster`
+- **Then** both CRs carry labels: `dcm.project/managed-by=dcm`, `dcm.project/dcm-instance-id=<id>`, `dcm.project/dcm-service-type=cluster`
 
 ##### AC-ACM-030: Version validated against ClusterImageSets via compatibility matrix
 - **Requirements:** REQ-ACM-030
@@ -932,9 +932,9 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 
 ##### AC-ACM-140: Delete cluster deletes NodePools and HostedCluster
 - **Requirements:** REQ-ACM-140
-- **Given** a HostedCluster and NodePool(s) with label `dcm-instance-id="my-cluster-id"` exist
+- **Given** a HostedCluster and NodePool(s) with label `dcm.project/dcm-instance-id="my-cluster-id"` exist
 - **When** DeleteCluster is called for `id="my-cluster-id"`
-- **Then** NodePools with matching `dcm-instance-id` label are deleted
+- **Then** NodePools with matching `dcm.project/dcm-instance-id` label are deleted
 - **And** the HostedCluster CR is deleted from K8s
 
 ##### AC-ACM-150: Memory format conversion
@@ -1091,14 +1091,14 @@ Background controller that watches HostedCluster resources via `SharedIndexInfor
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | REQ-MON-010 | MUST use a `SharedIndexInformer` (or equivalent) to watch HostedCluster resources | MUST |
-| REQ-MON-020 | The informer MUST filter by labels `managed-by=dcm` AND `dcm-service-type=cluster` | MUST |
+| REQ-MON-020 | The informer MUST filter by labels `dcm.project/managed-by=dcm` AND `dcm.project/dcm-service-type=cluster` | MUST |
 | REQ-MON-030 | On condition changes, MUST map HostedCluster conditions to DCM status using the Status Mapping Table (section 5.5) | MUST |
-| REQ-MON-035 | The informer MUST maintain a secondary index on `dcm-instance-id` label for fast lookups | MUST |
+| REQ-MON-035 | The informer MUST maintain a secondary index on `dcm.project/dcm-instance-id` label for fast lookups | MUST |
 | REQ-MON-040 | On status change, MUST publish a CloudEvent to NATS | MUST |
 | REQ-MON-050 | CloudEvent `subject` MUST be set to `dcm.cluster` (the NATS subject / service-type identifier) | MUST |
 | REQ-MON-060 | CloudEvent `type` MUST be `dcm.status.cluster` | MUST |
 | REQ-MON-070 | CloudEvent `source` MUST be `dcm/providers/<providerName>` where `providerName` is the configured `SP_NAME` value (DD-003) | MUST |
-| REQ-MON-080 | `instanceId` MUST be extracted from the HostedCluster's `dcm-instance-id` label | MUST |
+| REQ-MON-080 | `instanceId` MUST be extracted from the HostedCluster's `dcm.project/dcm-instance-id` label | MUST |
 | REQ-MON-090 | CloudEvent payload MUST include: `id` (string, instance ID), `status` (string), `message` (string). The JSON keys MUST be lowercase (`"id"`, `"status"`, `"message"`) | MUST |
 | REQ-MON-100 | CloudEvents MUST conform to CloudEvents v1.0 specification | MUST |
 | REQ-MON-110 | The informer MUST be resilient -- on watch disconnect, it MUST re-list and resume watching | MUST |
@@ -1113,9 +1113,9 @@ Background controller that watches HostedCluster resources via `SharedIndexInfor
 | REQ-MON-160 | On `StatusPublisher.Publish` failure, the monitor MUST retry with configurable interval and max attempts (`SP_NATS_PUBLISH_RETRY_INTERVAL`, `SP_NATS_PUBLISH_RETRY_MAX`). On exhaustion, MUST log and drop the event without blocking subsequent events | MUST |
 | REQ-MON-170 | The SP MUST handle NATS connection failures gracefully. If NATS is unreachable at startup, the monitor SHOULD buffer or drop events and retry connection. NATS availability MUST NOT block SP startup | MUST |
 
-> **Note (missing `dcm-instance-id`):** If a HostedCluster matches the informer's label selector (`managed-by=dcm`, `dcm-service-type=cluster`) but lacks the `dcm-instance-id` label, the monitor MUST skip the resource and log a warning. It MUST NOT panic or publish a CloudEvent with an empty `instanceId`.
+> **Note (missing `dcm-instance-id`):** If a HostedCluster matches the informer's label selector (`dcm.project/managed-by=dcm`, `dcm.project/dcm-service-type=cluster`) but lacks the `dcm.project/dcm-instance-id` label, the monitor MUST skip the resource and log a warning. It MUST NOT panic or publish a CloudEvent with an empty `instanceId`.
 
-> **Note (duplicate `dcm-instance-id`):** If multiple HostedClusters share the same `dcm-instance-id` label, the monitor may publish conflicting status events for the same instanceId. The SP relies on `dcm-instance-id` uniqueness being enforced at creation time (REQ-API-102). The monitor SHOULD log a warning if it detects duplicate `dcm-instance-id` values.
+> **Note (duplicate `dcm-instance-id`):** If multiple HostedClusters share the same `dcm.project/dcm-instance-id` label, the monitor may publish conflicting status events for the same instanceId. The SP relies on `dcm.project/dcm-instance-id` uniqueness being enforced at creation time (REQ-API-102). The monitor SHOULD log a warning if it detects duplicate `dcm.project/dcm-instance-id` values.
 
 #### Configuration Introduced
 
@@ -1132,20 +1132,20 @@ Background controller that watches HostedCluster resources via `SharedIndexInfor
 ##### AC-MON-010: Status change triggers CloudEvent
 - **Requirements:** REQ-MON-040, REQ-MON-050, REQ-MON-060, REQ-MON-090
 - **Given** the informer is watching HostedCluster resources
-- **And** a HostedCluster with `dcm-instance-id="my-cluster"` exists
+- **And** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` exists
 - **When** the HostedCluster conditions change to `Available=True`, `Progressing=False`
 - **Then** a CloudEvent is published to NATS with type `dcm.status.cluster` and subject `dcm.cluster`
 - **And** the payload contains `id="my-cluster"` and `status="READY"`
 
 ##### AC-MON-020: HostedCluster deletion detected
 - **Requirements:** REQ-MON-130
-- **Given** a HostedCluster with `dcm-instance-id="my-cluster"` exists
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` exists
 - **When** the HostedCluster is deleted from K8s
 - **Then** a CloudEvent is published with `status="DELETED"`
 
 ##### AC-MON-030: Non-DCM resources are ignored
 - **Requirements:** REQ-MON-020
-- **Given** a HostedCluster exists WITHOUT labels `managed-by=dcm` and `dcm-service-type=cluster`
+- **Given** a HostedCluster exists WITHOUT labels `dcm.project/managed-by=dcm` and `dcm.project/dcm-service-type=cluster`
 - **When** its conditions change
 - **Then** no CloudEvent is published
 
@@ -1221,11 +1221,11 @@ Background controller that watches HostedCluster resources via `SharedIndexInfor
 - **When** the informer detects the status change to FAILED
 - **Then** the CloudEvent message includes the failure reason "etcd cluster unhealthy"
 
-##### AC-MON-145: Informer indexes HostedClusters by dcm-instance-id
+##### AC-MON-145: Informer indexes HostedClusters by dcm.project/dcm-instance-id
 - **Requirements:** REQ-MON-035
 - **Given** the informer is watching HostedCluster resources
-- **When** a HostedCluster with a `dcm-instance-id` label is added or updated
-- **Then** the resource is indexed by its `dcm-instance-id` label value
+- **When** a HostedCluster with a `dcm.project/dcm-instance-id` label is added or updated
+- **Then** the resource is indexed by its `dcm.project/dcm-instance-id` label value
 - **And** the index is available for efficient lookups by instance ID
 
 ##### AC-MON-150: NATS unavailability does not block SP startup
@@ -1307,8 +1307,8 @@ Error type to HTTP status mapping:
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| REQ-XC-ID-010 | Two identifiers MUST be used: `id` (DCM identifier, stored as `dcm-instance-id` label, used in URL paths) and `metadata.name` (K8s resource name, used as HostedCluster/NodePool name) | MUST |
-| REQ-XC-ID-020 | Conflict detection MUST check both `id` uniqueness (via `dcm-instance-id` label) and `metadata.name` uniqueness (via K8s name). Both constraints apply independently | MUST |
+| REQ-XC-ID-010 | Two identifiers MUST be used: `id` (DCM identifier, stored as `dcm.project/dcm-instance-id` label, used in URL paths) and `metadata.name` (K8s resource name, used as HostedCluster/NodePool name) | MUST |
+| REQ-XC-ID-020 | Conflict detection MUST check both `id` uniqueness (via `dcm.project/dcm-instance-id` label) and `metadata.name` uniqueness (via K8s name). Both constraints apply independently | MUST |
 
 ## 7. Consolidated Configuration Reference
 

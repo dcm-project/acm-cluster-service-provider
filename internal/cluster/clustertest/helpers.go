@@ -81,9 +81,9 @@ func WithDCMLabels(instanceID string) HCOption {
 		if hc.Labels == nil {
 			hc.Labels = make(map[string]string)
 		}
-		hc.Labels["app.kubernetes.io/managed-by"] = "dcm"
-		hc.Labels["dcm-instance-id"] = instanceID
-		hc.Labels["dcm-service-type"] = "cluster"
+		hc.Labels["dcm.project/managed-by"] = "dcm"
+		hc.Labels["dcm.project/dcm-instance-id"] = instanceID
+		hc.Labels["dcm.project/dcm-service-type"] = "cluster"
 	}
 }
 

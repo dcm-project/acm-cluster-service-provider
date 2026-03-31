@@ -51,9 +51,9 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(hcList.Items).To(HaveLen(1))
 			hc := hcList.Items[0]
 			Expect(hc.Spec.Platform.Type).To(Equal(hyperv1.KubevirtPlatform))
-			Expect(hc.Labels).To(HaveKeyWithValue("app.kubernetes.io/managed-by", "dcm"))
-			Expect(hc.Labels).To(HaveKeyWithValue("dcm-instance-id", "test-id"))
-			Expect(hc.Labels).To(HaveKeyWithValue("dcm-service-type", "cluster"))
+			Expect(hc.Labels).To(HaveKeyWithValue("dcm.project/managed-by", "dcm"))
+			Expect(hc.Labels).To(HaveKeyWithValue("dcm.project/dcm-instance-id", "test-id"))
+			Expect(hc.Labels).To(HaveKeyWithValue("dcm.project/dcm-service-type", "cluster"))
 
 			// Verify NodePool was created
 			var npList hyperv1.NodePoolList
@@ -63,8 +63,8 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(np.Spec.Replicas).NotTo(BeNil())
 			Expect(*np.Spec.Replicas).To(Equal(int32(2)))
 			Expect(np.Spec.Platform.Type).To(Equal(hyperv1.KubevirtPlatform))
-			Expect(np.Labels).To(HaveKeyWithValue("app.kubernetes.io/managed-by", "dcm"))
-			Expect(np.Labels).To(HaveKeyWithValue("dcm-service-type", "cluster"))
+			Expect(np.Labels).To(HaveKeyWithValue("dcm.project/managed-by", "dcm"))
+			Expect(np.Labels).To(HaveKeyWithValue("dcm.project/dcm-service-type", "cluster"))
 		})
 
 		It("TC-KV-UT-002: control_plane.count and storage are ignored", func() {
@@ -394,12 +394,12 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(hcList.Items).To(HaveLen(1))
 			hc := hcList.Items[0]
 			Expect(hc.Name).To(Equal("my-cluster"))
-			Expect(hc.Labels).To(HaveKeyWithValue("dcm-instance-id", "dcm-id"))
+			Expect(hc.Labels).To(HaveKeyWithValue("dcm.project/dcm-instance-id", "dcm-id"))
 
 			var npList hyperv1.NodePoolList
 			Expect(k8s.List(ctx, &npList, client.InNamespace(testNamespace))).To(Succeed())
 			Expect(npList.Items).To(HaveLen(1))
-			Expect(npList.Items[0].Labels).To(HaveKeyWithValue("dcm-instance-id", "dcm-id"))
+			Expect(npList.Items[0].Labels).To(HaveKeyWithValue("dcm.project/dcm-instance-id", "dcm-id"))
 		})
 
 		It("TC-XC-ID-UT-002: dcm-instance-id label matches id field for lookup", func() {
@@ -413,7 +413,7 @@ var _ = Describe("KubeVirt Service", func() {
 			var hcList hyperv1.HostedClusterList
 			Expect(k8s.List(ctx, &hcList,
 				client.InNamespace(testNamespace),
-				client.MatchingLabels{"dcm-instance-id": "test-id"},
+				client.MatchingLabels{"dcm.project/dcm-instance-id": "test-id"},
 			)).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 		})
