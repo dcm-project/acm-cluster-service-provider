@@ -5,8 +5,8 @@ import (
 
 	"github.com/dcm-project/acm-cluster-service-provider/internal/registration"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/service"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -34,11 +34,7 @@ func (r *VersionResolver) Resolve(ctx context.Context, k8sVersion string) (strin
 	}
 
 	cisList := &unstructured.UnstructuredList{}
-	cisList.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "hypershift.openshift.io",
-		Version: "v1beta1",
-		Kind:    "ClusterImageSetList",
-	})
+	cisList.SetGroupVersionKind(util.ClusterImageSetListGVK)
 
 	if err := r.client.List(ctx, cisList); err != nil {
 		return "", service.NewInternalError("failed to list cluster image sets", err)

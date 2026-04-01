@@ -10,6 +10,7 @@ import (
 
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/health"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,12 +22,8 @@ import (
 
 // GVKs for resources used in health checks.
 var (
-	hostedClusterGVK = schema.GroupVersionKind{
-		Group: "hypershift.openshift.io", Version: "v1beta1", Kind: "HostedCluster",
-	}
-	hostedClusterListGVK = schema.GroupVersionKind{
-		Group: "hypershift.openshift.io", Version: "v1beta1", Kind: "HostedClusterList",
-	}
+	hostedClusterGVK     = util.HostedClusterGVK
+	hostedClusterListGVK = util.HostedClusterListGVK
 	kubevirtVMIGVK = schema.GroupVersionKind{
 		Group: "kubevirt.io", Version: "v1", Kind: "VirtualMachineInstance",
 	}
