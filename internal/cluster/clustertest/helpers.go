@@ -4,13 +4,13 @@ package clustertest
 import (
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/registration"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
 	hyperv1 "github.com/openshift/hypershift/api/hypershift/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -39,11 +39,7 @@ func BuildFakeClient(objs []client.Object, fns *interceptor.Funcs) client.Client
 	_ = hyperv1.AddToScheme(scheme)
 
 	restMapper := meta.NewDefaultRESTMapper(nil)
-	restMapper.Add(schema.GroupVersionKind{
-		Group:   "hypershift.openshift.io",
-		Version: "v1beta1",
-		Kind:    "ClusterImageSet",
-	}, meta.RESTScopeRoot)
+	restMapper.Add(util.ClusterImageSetGVK, meta.RESTScopeRoot)
 
 	allObjs := append(DefaultClusterImageSets(), objs...)
 
@@ -70,11 +66,7 @@ func DefaultClusterImageSets() []client.Object {
 // BuildClusterImageSet creates an unstructured ClusterImageSet for testing.
 func BuildClusterImageSet(name, releaseImage string) *unstructured.Unstructured {
 	cis := &unstructured.Unstructured{}
-	cis.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "hypershift.openshift.io",
-		Version: "v1beta1",
-		Kind:    "ClusterImageSet",
-	})
+	cis.SetGroupVersionKind(util.ClusterImageSetGVK)
 	cis.SetName(name)
 	_ = unstructured.SetNestedField(cis.Object, releaseImage, "spec", "releaseImage")
 	return cis

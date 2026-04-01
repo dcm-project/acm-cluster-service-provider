@@ -22,10 +22,10 @@ import (
 
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/registration"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -53,11 +53,7 @@ func (b *syncBuffer) String() string {
 // name and OCP release image tag (e.g., "4.17.3-multi").
 func newClusterImageSet(name, releaseTag string) *unstructured.Unstructured {
 	cis := &unstructured.Unstructured{}
-	cis.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "hypershift.openshift.io",
-		Version: "v1beta1",
-		Kind:    "ClusterImageSet",
-	})
+	cis.SetGroupVersionKind(util.ClusterImageSetGVK)
 	cis.SetName(name)
 	_ = unstructured.SetNestedField(
 		cis.Object,
@@ -72,14 +68,8 @@ func newClusterImageSet(name, releaseTag string) *unstructured.Unstructured {
 func newFakeK8sClient(objects ...*unstructured.Unstructured) *fake.ClientBuilder {
 	s := runtime.NewScheme()
 
-	gvk := schema.GroupVersionKind{
-		Group: "hypershift.openshift.io", Version: "v1beta1", Kind: "ClusterImageSet",
-	}
-	listGVK := schema.GroupVersionKind{
-		Group: "hypershift.openshift.io", Version: "v1beta1", Kind: "ClusterImageSetList",
-	}
-	s.AddKnownTypeWithName(gvk, &unstructured.Unstructured{})
-	s.AddKnownTypeWithName(listGVK, &unstructured.UnstructuredList{})
+	s.AddKnownTypeWithName(util.ClusterImageSetGVK, &unstructured.Unstructured{})
+	s.AddKnownTypeWithName(util.ClusterImageSetListGVK, &unstructured.UnstructuredList{})
 
 	builder := fake.NewClientBuilder().WithScheme(s)
 	if len(objects) > 0 {

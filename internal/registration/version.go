@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -76,11 +76,7 @@ func ExtractOCPVersion(releaseImage string) string {
 // filters through the compatibility matrix, and returns sorted K8s minor versions.
 func (v *VersionDiscoverer) DiscoverVersions(ctx context.Context) ([]string, error) {
 	cisList := &unstructured.UnstructuredList{}
-	cisList.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   "hypershift.openshift.io",
-		Version: "v1beta1",
-		Kind:    "ClusterImageSetList",
-	})
+	cisList.SetGroupVersionKind(util.ClusterImageSetListGVK)
 
 	if err := v.k8sClient.List(ctx, cisList); err != nil {
 		return nil, err

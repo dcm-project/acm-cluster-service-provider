@@ -20,10 +20,8 @@ var _ service.HealthChecker = (*Checker)(nil)
 
 // GVKs for dependency health checks.
 var (
-	hostedClusterListGVK = schema.GroupVersionKind{
-		Group: "hypershift.openshift.io", Version: "v1beta1", Kind: "HostedClusterList",
-	}
-	kubevirtVMIListGVK = schema.GroupVersionKind{
+	hostedClusterListGVK = util.HostedClusterListGVK
+	kubevirtVMIListGVK   = schema.GroupVersionKind{
 		Group: "kubevirt.io", Version: "v1", Kind: "VirtualMachineInstanceList",
 	}
 	agentListGVK = schema.GroupVersionKind{
