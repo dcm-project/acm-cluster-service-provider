@@ -469,9 +469,9 @@ Build constraint: `//go:build integration`
 | REQ-REG-020 | TC-REG-UT-001 | Covered |
 | REQ-REG-030 | TC-REG-IT-004 | Covered |
 | REQ-REG-031 | TC-REG-IT-004 | Covered |
-| REQ-REG-040 | TC-REG-UT-003, TC-REG-UT-009, TC-REG-UT-010, TC-REG-IT-006 | Covered |
+| REQ-REG-040 | TC-REG-UT-003, TC-REG-UT-004, TC-REG-UT-009, TC-REG-UT-010, TC-REG-IT-006 | Covered |
 | REQ-REG-050 | TC-REG-UT-003, TC-REG-UT-009 | Covered |
-| REQ-REG-051 | TC-REG-UT-003, TC-REG-UT-009, TC-REG-IT-005 | Covered |
+| REQ-REG-051 | TC-REG-UT-003, TC-REG-UT-004, TC-REG-UT-009, TC-REG-IT-005 | Covered |
 | REQ-REG-060 | TC-REG-UT-002 | Covered |
 | REQ-REG-070 | TC-REG-UT-011, TC-REG-IT-007 | Covered |
 | REQ-REG-080 | TC-REG-UT-001 | Covered |
@@ -488,7 +488,7 @@ Build constraint: `//go:build integration`
 | REQ-HTTP-020 | TC-HTTP-IT-001, TC-INT-007 | Covered |
 | REQ-HTTP-030 | TC-HTTP-IT-002, TC-HTTP-IT-009 | Covered |
 | REQ-HTTP-040 | TC-HTTP-IT-002, TC-HTTP-IT-009 | Covered |
-| REQ-HTTP-050 | TC-HTTP-UT-006 | Covered |
+| REQ-HTTP-050 | TC-HTTP-UT-006, TC-HTTP-UT-012 | Covered |
 | REQ-HTTP-060 | TC-HTTP-IT-010 | Covered |
 | REQ-HTTP-070 | TC-HTTP-IT-003 | Covered |
 | REQ-HTTP-080 | TC-HTTP-IT-011 | Covered |
@@ -528,7 +528,7 @@ Build constraint: `//go:build integration`
 | REQ-API-070 | TC-HDL-CRT-UT-011, TC-HDL-CRT-UT-013 | Covered |
 | REQ-API-080 | TC-HDL-CRT-UT-005, TC-HDL-CRT-UT-014 | Covered |
 | REQ-API-090 | TC-HDL-CRT-UT-004, TC-HDL-CRT-UT-016 | Covered |
-| REQ-API-100 | TC-HDL-CRT-UT-001, TC-HDL-CRT-UT-002, TC-HDL-CRT-UT-015 | Covered |
+| REQ-API-100 | TC-HDL-CRT-UT-001, TC-HDL-CRT-UT-002, TC-HDL-CRT-UT-015, TC-HDL-CRT-UT-019 | Covered |
 | REQ-API-101 | TC-HDL-CRT-UT-003 | Structural (IMPL-001: enforced by OpenAPI middleware) |
 | REQ-API-102 | TC-HDL-CRT-UT-007, TC-KV-UT-014 | Covered |
 | REQ-API-103 | TC-HDL-CRT-UT-008, TC-KV-UT-015 | Covered |
@@ -581,9 +581,10 @@ Build constraint: `//go:build integration`
 | REQ-ACM-040 | TC-KV-UT-004 | Covered |
 | REQ-ACM-050 | TC-KV-UT-005, TC-BM-UT-012 | Covered |
 | REQ-ACM-051 | TC-KV-UT-005, TC-BM-UT-012 | Covered |
-| REQ-ACM-060 | TC-KV-UT-003 | Covered |
-| REQ-ACM-070 | TC-KV-UT-002 | Covered |
-| REQ-ACM-080 | TC-KV-UT-002 | Covered |
+| REQ-ACM-060 | TC-KV-UT-003, TC-BM-UT-014 | Covered |
+| REQ-ACM-061 | TC-KV-UT-003, TC-BM-UT-014 | Covered |
+| REQ-ACM-070 | TC-KV-UT-002, TC-BM-UT-013 | Covered |
+| REQ-ACM-080 | TC-KV-UT-002, TC-BM-UT-013 | Covered |
 | REQ-ACM-090 | TC-KV-UT-001, TC-BM-UT-001 | Covered |
 | REQ-ACM-100 | TC-KV-UT-001 | Covered |
 | REQ-ACM-110 | TC-STS-UT-001..005, TC-STS-UT-011, TC-OPS-UT-001, TC-OPS-UT-002, TC-OPS-UT-007, TC-OPS-UT-010, TC-OPS-UT-013 | Covered (shared ops cover both platforms) |
@@ -626,7 +627,7 @@ Build constraint: `//go:build integration`
 | REQ-MON-010 | TC-MON-UT-001 | Covered |
 | REQ-MON-020 | TC-MON-UT-003, TC-MON-UT-008 | Covered |
 | REQ-MON-030 | TC-MON-UT-001, TC-MON-UT-011 | Covered |
-| REQ-MON-035 | TC-MON-UT-012 | Covered |
+| REQ-MON-035 | TC-MON-UT-012, TC-MON-IT-010 | Covered |
 | REQ-MON-040 | TC-MON-UT-001, TC-MON-UT-009, TC-MON-UT-011 | Covered |
 | REQ-MON-050 | TC-MON-UT-001 | Covered |
 | REQ-MON-060 | TC-MON-UT-001 | Covered |
@@ -640,7 +641,6 @@ Build constraint: `//go:build integration`
 | REQ-MON-126 | TC-MON-IT-008 | Covered |
 | REQ-MON-130 | TC-MON-UT-002 | Covered |
 | REQ-MON-135 | TC-MON-IT-009 | Covered |
-| REQ-MON-035 | TC-MON-IT-010 | Covered |
 | REQ-MON-140 | TC-MON-UT-005, TC-MON-IT-010 | Covered |
 | REQ-MON-170 | TC-MON-IT-012 | Covered |
 | REQ-MON-150 | TC-MON-UT-007 | Covered |
