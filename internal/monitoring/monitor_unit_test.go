@@ -11,6 +11,7 @@ import (
 	v1alpha1 "github.com/dcm-project/acm-cluster-service-provider/api/v1alpha1"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/cluster"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/monitoring"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -98,7 +99,7 @@ var _ = Describe("Status Monitor — Unit Tests", func() {
 		publisher.Reset()
 
 		// Delete the resource.
-		err := client.Resource(hostedClusterGVR()).Namespace(testNamespace).Delete(ctx, "cluster-2", metav1.DeleteOptions{})
+		err := client.Resource(util.HostedClusterGVR).Namespace(testNamespace).Delete(ctx, "cluster-2", metav1.DeleteOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		Eventually(func() []monitoring.StatusEvent {
@@ -270,7 +271,7 @@ var _ = Describe("Status Monitor — Unit Tests", func() {
 
 		// Update the resource with same status (still READY).
 		updated := buildUnstructuredHostedCluster("cluster-9", instanceID, readyConditions())
-		_, err := client.Resource(hostedClusterGVR()).Namespace(testNamespace).Update(ctx, updated, metav1.UpdateOptions{})
+		_, err := client.Resource(util.HostedClusterGVR).Namespace(testNamespace).Update(ctx, updated, metav1.UpdateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		// No new event should be published (status unchanged).
@@ -340,7 +341,7 @@ var _ = Describe("Status Monitor — Unit Tests", func() {
 		publisher.Reset()
 
 		updated := buildUnstructuredHostedCluster("cluster-10b", "inst-010b", failedConditions())
-		_, err := clientB.Resource(hostedClusterGVR()).Namespace(testNamespace).Update(ctx, updated, metav1.UpdateOptions{})
+		_, err := clientB.Resource(util.HostedClusterGVR).Namespace(testNamespace).Update(ctx, updated, metav1.UpdateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		Eventually(func() int {
@@ -372,7 +373,7 @@ var _ = Describe("Status Monitor — Unit Tests", func() {
 		// Update with deletionTimestamp set.
 		updated := buildUnstructuredHostedCluster("cluster-11", instanceID, readyConditions(),
 			withDeletionTimestamp(time.Now()))
-		_, err := client.Resource(hostedClusterGVR()).Namespace(testNamespace).Update(ctx, updated, metav1.UpdateOptions{})
+		_, err := client.Resource(util.HostedClusterGVR).Namespace(testNamespace).Update(ctx, updated, metav1.UpdateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		Eventually(func() []monitoring.StatusEvent {
@@ -388,7 +389,7 @@ var _ = Describe("Status Monitor — Unit Tests", func() {
 		publisher.Reset()
 
 		// Fully delete the resource (Delete event).
-		err = client.Resource(hostedClusterGVR()).Namespace(testNamespace).Delete(ctx, "cluster-11", metav1.DeleteOptions{})
+		err = client.Resource(util.HostedClusterGVR).Namespace(testNamespace).Delete(ctx, "cluster-11", metav1.DeleteOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		Eventually(func() []monitoring.StatusEvent {
@@ -463,7 +464,7 @@ var _ = Describe("Status Monitor — Unit Tests", func() {
 
 		// Update to READY.
 		updated := buildUnstructuredHostedCluster("cluster-14", instanceID, readyConditions())
-		_, err := client.Resource(hostedClusterGVR()).Namespace(testNamespace).Update(ctx, updated, metav1.UpdateOptions{})
+		_, err := client.Resource(util.HostedClusterGVR).Namespace(testNamespace).Update(ctx, updated, metav1.UpdateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		// Should publish READY event.
@@ -541,14 +542,13 @@ var _ = Describe("Status Monitor — Unit Tests", func() {
 			_ = monitor.Start(ctx)
 		}()
 
-		// Both resources should publish events despite duplicate instance-id.
+		// Debouncer key is now instanceID. Two HCs with same instanceID
+		// submit to the same debouncer key; within the debounce window,
+		// the second HC's event replaces the first's timer. Only 1 fires.
 		Eventually(func() int {
 			return len(publisher.Events())
-		}, 5*time.Second, 100*time.Millisecond).Should(Equal(2))
+		}, 5*time.Second, 100*time.Millisecond).Should(Equal(1))
 
-		// Both events should use the same instance ID.
-		for _, e := range publisher.Events() {
-			Expect(e.InstanceID).To(Equal(duplicateID))
-		}
+		Expect(publisher.Events()[0].InstanceID).To(Equal(duplicateID))
 	})
 })

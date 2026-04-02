@@ -8,7 +8,7 @@ import (
 // InstanceIDIndex is the name of the secondary index on dcm-instance-id label.
 const InstanceIDIndex = "instanceID"
 
-// InstanceIDIndexFunc extracts the dcm-instance-id label from a HostedCluster object
+// InstanceIDIndexFunc extracts the dcm-instance-id label from an unstructured object
 // for use as a SharedIndexInformer secondary index.
 func InstanceIDIndexFunc(obj any) ([]string, error) {
 	uns, ok := obj.(*unstructured.Unstructured)

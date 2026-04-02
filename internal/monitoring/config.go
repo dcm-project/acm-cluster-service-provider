@@ -1,4 +1,4 @@
-// Package monitoring watches HostedCluster resources and publishes status CloudEvents.
+// Package monitoring watches HostedCluster and NodePool resources and publishes status CloudEvents.
 package monitoring
 
 import "time"
