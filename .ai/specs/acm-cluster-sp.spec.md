@@ -2,7 +2,7 @@
 
 > **Status**: Draft
 > **Created**: 2026-02-13
-> **Last Updated**: 2026-04-02 (Etcd required field: DD-008, REQ-ACM-210, AC-ACM-210 — Managed/PersistentVolume/8Gi) | 2026-04-02 (PullSecret strategy change: shared Secret from env var at startup, replaces per-cluster lifecycle — DD-007 revised) | 2026-04-01 (review fix: PullSecret Secret naming `<cluster-name>-pull-secret`, labeling per REQ-ACM-020, label-based lookup for deletion) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management; PullSecret aligned with catalog-manager PR #59 — top-level required field)
+> **Last Updated**: 2026-04-02 (Etcd required field: DD-008, REQ-ACM-210, AC-ACM-210 — Managed/PersistentVolume/8Gi) | 2026-04-02 (PullSecret strategy change: shared Secret from env var at startup, replaces per-cluster lifecycle — DD-007 revised) | 2026-04-01 (NodePool monitoring: REQ-MON-200..240, AC-MON-200..260 — composite status with worst-of logic) | 2026-04-01 (review fix: PullSecret Secret naming `<cluster-name>-pull-secret`, labeling per REQ-ACM-020, label-based lookup for deletion) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management; PullSecret aligned with catalog-manager PR #59 — top-level required field)
 > **Authors**: @gabriel-farache (with Claude Code)
 
 ## 1. Overview
@@ -1134,7 +1134,7 @@ The following table maps old requirement IDs (from the original Topic 5: KubeVir
 
 #### Overview
 
-Background controller that watches HostedCluster resources via `SharedIndexInformer`, detects status transitions, and publishes CloudEvents to NATS. Follows Pattern A (Event-Driven Streaming) from [`service-provider-status-report-implementation.md`](https://github.com/dcm-project/enhancements/blob/main/enhancements/service-provider-status-report-implementation/service-provider-status-report-implementation.md).
+Background controller that watches HostedCluster and NodePool resources via `SharedIndexInformer`, detects status transitions, computes composite status (worst-of HC and NP), and publishes CloudEvents to NATS. Follows Pattern A (Event-Driven Streaming) from [`service-provider-status-report-implementation.md`](https://github.com/dcm-project/enhancements/blob/main/enhancements/service-provider-status-report-implementation/service-provider-status-report-implementation.md).
 
 #### Requirements
 
@@ -1162,6 +1162,13 @@ Background controller that watches HostedCluster resources via `SharedIndexInfor
 | REQ-MON-155 | When status is FAILED, the CloudEvent message MUST include the failure reason when available from HostedCluster conditions | MUST |
 | REQ-MON-160 | On `StatusPublisher.Publish` failure, the monitor MUST retry with configurable interval and max attempts (`SP_NATS_PUBLISH_RETRY_INTERVAL`, `SP_NATS_PUBLISH_RETRY_MAX`). On exhaustion, MUST log and drop the event without blocking subsequent events | MUST |
 | REQ-MON-170 | The SP MUST handle NATS connection failures gracefully. If NATS is unreachable at startup, the monitor SHOULD buffer or drop events and retry connection. NATS availability MUST NOT block SP startup | MUST |
+| REQ-MON-200 | The monitor MUST also watch NodePool resources using the same label filter (`dcm.project/managed-by=dcm` AND `dcm.project/dcm-service-type=cluster`) and the same SharedIndexInformer mechanism | MUST |
+| REQ-MON-210 | On NodePool condition changes, MUST map NodePool conditions to a worker health status. Precedence: `UpdatingVersion=True` or `UpdatingConfig=True` → PROVISIONING, `Ready=False` → UNAVAILABLE, `Ready=True` → READY. NodePools with no conditions are excluded from composite status computation | MUST |
+| REQ-MON-220 | When both HostedCluster and NodePool statuses are available for the same instance, MUST compute a composite status using worst-of logic. Priority (highest to lowest): DELETING > FAILED > UNAVAILABLE > PROVISIONING > PENDING > READY. The composite status is what gets published | MUST |
+| REQ-MON-230 | When the composite status is driven by a NodePool condition (NP status is worse than HC status), the CloudEvent message MUST include `"NodePool: "` prefix for worker-level context | MUST |
+| REQ-MON-240 | NodePool deletion MUST NOT trigger a DELETED instance event. When a NodePool is deleted and the HostedCluster still exists, the composite status MUST be recomputed from HostedCluster status only | MUST |
+
+> **Note (NodePool monitoring):** NodePool conditions (`Ready`, `UpdatingVersion`, `UpdatingConfig`) are monitored alongside HostedCluster conditions. Composite status uses worst-of logic. Agent/VirtualMachine status propagates into NodePool via CAPI — no direct monitoring needed.
 
 > **Note (missing `dcm-instance-id`):** If a HostedCluster matches the informer's label selector (`dcm.project/managed-by=dcm`, `dcm.project/dcm-service-type=cluster`) but lacks the `dcm.project/dcm-instance-id` label, the monitor MUST skip the resource and log a warning. It MUST NOT panic or publish a CloudEvent with an empty `instanceId`.
 
@@ -1293,6 +1300,51 @@ Background controller that watches HostedCluster resources via `SharedIndexInfor
 - **Then** the event is published through the `StatusPublisher` interface
 - **And** the monitor has no direct dependency on a NATS client
 
+##### AC-MON-200: NodePool Ready=False degrades cluster to UNAVAILABLE
+- **Requirements:** REQ-MON-200, REQ-MON-220, REQ-MON-230
+- **Given** HC has `Available=True, Progressing=False` (READY) and NP has `Ready=False`
+- **When** the monitor computes composite status
+- **Then** a CloudEvent is published with `status="UNAVAILABLE"`
+- **And** the message includes `"NodePool:"` prefix
+
+##### AC-MON-210: NodePool update in progress reports PROVISIONING
+- **Requirements:** REQ-MON-200, REQ-MON-210, REQ-MON-230
+- **Given** HC has `Available=True` (READY) and NP has `UpdatingVersion=True`
+- **When** the monitor detects the NP condition change
+- **Then** the composite status is PROVISIONING
+- **And** the message includes `"NodePool:"` prefix
+
+##### AC-MON-220: Both HC and NP healthy reports READY
+- **Requirements:** REQ-MON-220
+- **Given** HC has `Available=True, Progressing=False` and NP has `Ready=True`
+- **When** the monitor computes composite status
+- **Then** composite is READY
+
+##### AC-MON-230: HC failure takes precedence over NP health
+- **Requirements:** REQ-MON-220
+- **Given** HC has `Degraded=True` (FAILED) and NP has `Ready=True` (READY)
+- **When** composite is computed
+- **Then** composite is FAILED
+
+##### AC-MON-240: NodePool deletion with HC present does not publish DELETED
+- **Requirements:** REQ-MON-240
+- **Given** HC with `dcm-instance-id="abc"` exists and is READY
+- **When** NP with same instanceID is deleted
+- **Then** no DELETED event is published
+- **And** composite status is recomputed without the deleted NodePool (falls back to HC status: READY); no new event if composite unchanged
+
+##### AC-MON-250: NodePool with no conditions — HC status prevails
+- **Requirements:** REQ-MON-210, REQ-MON-220
+- **Given** HC is READY and NP exists but has no conditions
+- **When** the monitor computes composite status
+- **Then** composite is READY (NP excluded from computation)
+
+##### AC-MON-260: NodePool startup re-lists alongside HostedClusters
+- **Requirements:** REQ-MON-200, REQ-MON-140
+- **Given** 2 HCs and 2 NPs exist at startup (each pair shares an instanceID)
+- **When** the monitor starts and completes initial sync
+- **Then** a CloudEvent is published for each instance with its composite status
+
 #### Dependencies
 
 - **Topic 1 (DCM Registration)**: provider name for CloudEvent `source` attribute
@@ -1408,5 +1460,5 @@ Error type to HTTP status mapping:
 | REQ-ACM-NNN | 5: ACM Platform Services (Common) | 26 |
 | REQ-KV-NNN | 5a: ACM - KubeVirt | 4 |
 | REQ-BM-NNN | 5b: ACM - BareMetal | 6 |
-| REQ-MON-NNN | 6: Status Monitoring | 22 |
+| REQ-MON-NNN | 6: Status Monitoring | 27 |
 | REQ-XC-* | Cross-cutting (6.1-6.6) | 17 |

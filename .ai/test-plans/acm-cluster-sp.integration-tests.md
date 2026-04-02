@@ -5,8 +5,8 @@
 - **Related Spec:** .ai/specs/acm-cluster-sp.spec.md
 - **Related Requirements:** REQ-REG-xxx, REQ-HTTP-xxx, REQ-HLT-xxx, REQ-API-xxx, REQ-ACM-xxx, REQ-KV-xxx, REQ-BM-xxx, REQ-MON-xxx, REQ-XC-xxx
 - **Created:** 2026-02-17
-- **Last Updated:** 2026-04-02 (Etcd required field: DD-008, REQ-ACM-210 — added Etcd assertions to TC-INT-001/TC-INT-006) | 2026-04-02 (PullSecret strategy change: shared Secret from env var; removed pull_secret from requests; added TC-INT-009; count 29→30) | 2026-04-01 (review fix: Secret naming/labeling in INT TCs) | 2026-04-01 (PullSecret aligned with catalog-manager PR #59 — top-level required field; amended INT TCs + coverage matrix) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management — amended INT TCs + coverage matrix) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; coverage matrix corrections; phantom BM TC references removed)
-- **Scope:** This file covers **integration tests only** (30 test cases). Unit tests are in `acm-cluster-sp.unit-tests.md`.
+- **Last Updated:** 2026-04-02 (Etcd required field: DD-008, REQ-ACM-210 — added Etcd assertions to TC-INT-001/TC-INT-006) | 2026-04-02 (PullSecret strategy change: shared Secret from env var; removed pull_secret from requests; added TC-INT-009; count 29→30) | 2026-04-01 (NodePool monitoring: TC-MON-IT-020..021; count 30→32) | 2026-04-01 (review fix: Secret naming/labeling in INT TCs) | 2026-04-01 (PullSecret aligned with catalog-manager PR #59 — top-level required field; amended INT TCs + coverage matrix) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management — amended INT TCs + coverage matrix) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; coverage matrix corrections; phantom BM TC references removed)
+- **Scope:** This file covers **integration tests only** (32 test cases). Unit tests are in `acm-cluster-sp.unit-tests.md`.
 
 ## Design Principles
 
@@ -346,6 +346,21 @@ These requirements are validated by compilation, code review, or static analysis
 - **And** calling `Publish` does not panic or block indefinitely
 - **And** calling `Close` completes cleanly
 
+#### TC-MON-IT-020: NP READY → not-ready transition → UNAVAILABLE
+- **Requirements:** REQ-MON-200, REQ-MON-220
+- **Type:** Integration | **Priority:** High
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` is READY
+- **And** a NodePool with same instanceID has `Ready=True`
+- **When** the NodePool's `Ready` condition transitions to `False`
+- **Then** the monitor publishes a CloudEvent with composite `status="UNAVAILABLE"`
+
+#### TC-MON-IT-021: NP UNAVAILABLE → READY recovery
+- **Requirements:** REQ-MON-200, REQ-MON-220
+- **Type:** Integration | **Priority:** High
+- **Given** a HostedCluster is READY and a NodePool has `Ready=False` (composite is UNAVAILABLE)
+- **When** the NodePool's `Ready` condition transitions to `True`
+- **Then** the monitor publishes a CloudEvent with composite `status="READY"`
+
 ---
 
 ### 2.14 Integration Tests (TC-INT-xxx)
@@ -649,6 +664,11 @@ Build constraint: `//go:build integration`
 | REQ-MON-150 | TC-MON-UT-007 | Covered |
 | REQ-MON-155 | TC-MON-UT-013, TC-MON-IT-011 | Covered |
 | REQ-MON-160 | TC-MON-UT-010 | Covered |
+| REQ-MON-200 | TC-MON-UT-020, TC-MON-UT-021, TC-MON-UT-028, TC-MON-IT-020, TC-MON-IT-021 | Covered |
+| REQ-MON-210 | TC-NPM-UT-001..007, TC-MON-UT-021, TC-MON-UT-024 | Covered |
+| REQ-MON-220 | TC-CST-UT-001..007, TC-MON-UT-020, TC-MON-UT-022, TC-MON-UT-025, TC-MON-UT-027, TC-MON-IT-020, TC-MON-IT-021 | Covered |
+| REQ-MON-230 | TC-MON-UT-026 | Covered |
+| REQ-MON-240 | TC-MON-UT-023 | Covered |
 
 ### Cross-Cutting Requirements (REQ-XC-xxx)
 
@@ -742,7 +762,7 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Registration | TC-REG-IT-xxx | 4 |
 | HTTP Server | TC-HTTP-IT-xxx | 10 |
 | Health Service | TC-HLT-IT-xxx | 1 |
-| Status Monitoring | TC-MON-IT-xxx | 6 |
+| Status Monitoring | TC-MON-IT-xxx | 8 |
 | Integration | TC-INT-xxx | 9 |
 
 ### Notes

@@ -5,8 +5,8 @@
 - **Related Spec:** .ai/specs/acm-cluster-sp.spec.md
 - **Related Requirements:** REQ-REG-xxx, REQ-HTTP-xxx, REQ-HLT-xxx, REQ-API-xxx, REQ-ACM-xxx, REQ-KV-xxx, REQ-BM-xxx, REQ-MON-xxx, REQ-XC-xxx
 - **Created:** 2026-02-17
-- **Last Updated:** 2026-04-02 (Etcd required field: DD-008, REQ-ACM-210 — new TCs TC-KV-UT-034/TC-BM-UT-018, fixed TC-KV-UT-002/TC-BM-UT-013; count 146→148) | 2026-04-02 (PullSecret strategy change: shared Secret from env var; removed per-cluster TCs, simplified rollback TCs; count 151→146) | 2026-04-01 (review fix: Secret naming/labeling/lookup; count reconciliation — Registration 12→13, HTTP 1→2, Handler:Create 20→21, total 148→151) | 2026-04-01 (PullSecret aligned with catalog-manager PR #59 — top-level required field; reclassified TC-HDL-CRT-UT-021, removed TC-KV-UT-036) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management — new TCs + amended TCs) | 2026-03-31 (label prefix alignment) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; added TC-OPS-UT-016/017 for status_message; removed phantom TC-BM-UT-006/007/009; coverage matrix corrections)
-- **Scope:** This file covers **148 test cases** (144 unit + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
+- **Last Updated:** 2026-04-02 (Etcd required field: DD-008, REQ-ACM-210 — new TCs TC-KV-UT-034/TC-BM-UT-018, fixed TC-KV-UT-002/TC-BM-UT-013; count 146→148) | 2026-04-02 (PullSecret strategy change: shared Secret from env var; removed per-cluster TCs, simplified rollback TCs; count 151→146) | 2026-04-01 (NodePool monitoring: TC-NPM-UT-001..007, TC-CST-UT-001..007, TC-MON-UT-020..029; count 148→172) | 2026-04-01 (review fix: Secret naming/labeling/lookup; count reconciliation — Registration 12→13, HTTP 1→2, Handler:Create 20→21, total 148→151) | 2026-04-01 (PullSecret aligned with catalog-manager PR #59 — top-level required field; reclassified TC-HDL-CRT-UT-021, removed TC-KV-UT-036) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management — new TCs + amended TCs) | 2026-03-31 (label prefix alignment) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; added TC-OPS-UT-016/017 for status_message; removed phantom TC-BM-UT-006/007/009; coverage matrix corrections)
+- **Scope:** This file covers **172 test cases** (168 unit + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
 
 ## Design Principles
 
@@ -1528,6 +1528,97 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 - **When** the informer detects the status change to FAILED
 - **Then** the published CloudEvent's `message` field includes the failure reason "etcd cluster unhealthy"
 
+#### TC-MON-UT-020: NP Ready=False + HC READY → UNAVAILABLE composite
+- **Requirements:** REQ-MON-200, REQ-MON-220
+- **Type:** Unit
+- **Priority:** High
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` has `Available=True, Progressing=False` (READY)
+- **And** a NodePool with same instanceID has `Ready=False`
+- **When** the monitor reconciles both resources
+- **Then** a CloudEvent is published with `status="UNAVAILABLE"`
+
+#### TC-MON-UT-021: NP UpdatingVersion + HC READY → PROVISIONING composite
+- **Requirements:** REQ-MON-200, REQ-MON-210
+- **Type:** Unit
+- **Priority:** High
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` is READY
+- **And** a NodePool with same instanceID has `UpdatingVersion=True`
+- **When** the monitor reconciles both resources
+- **Then** a CloudEvent is published with `status="PROVISIONING"`
+
+#### TC-MON-UT-022: NP + HC both READY → READY composite
+- **Requirements:** REQ-MON-220
+- **Type:** Unit
+- **Priority:** High
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` is READY
+- **And** a NodePool with same instanceID has `Ready=True`
+- **When** the monitor reconciles both resources
+- **Then** a CloudEvent is published with `status="READY"`
+
+#### TC-MON-UT-023: NP deletion with HC present → NOT DELETED
+- **Requirements:** REQ-MON-240
+- **Type:** Unit
+- **Priority:** High
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` is READY
+- **And** a NodePool with same instanceID exists and is READY
+- **When** the NodePool is deleted
+- **Then** no DELETED event is published
+- **And** composite status is recomputed without the deleted NodePool (falls back to HC status: READY); no new event if composite unchanged
+
+#### TC-MON-UT-029: NP message update without status change → fresh message on next publish
+- **Requirements:** REQ-MON-230
+- **Type:** Unit
+- **Priority:** Medium
+- **Given** HC has `Degraded=True` (FAILED) and NP has `Ready=False` with message "0 of 3 machines are ready"
+- **And** composite is FAILED (HC dominates)
+- **When** NP conditions update to `Ready=False` with message "1 of 3 machines are ready" (status unchanged)
+- **And** HC subsequently recovers to READY (composite becomes UNAVAILABLE, NP dominates)
+- **Then** the published CloudEvent message is "NodePool: 1 of 3 machines are ready" (updated, not stale)
+
+#### TC-MON-UT-024: NP no conditions → HC status prevails
+- **Requirements:** REQ-MON-210, REQ-MON-220
+- **Type:** Unit
+- **Priority:** Medium
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` is READY
+- **And** a NodePool with same instanceID exists but has no conditions
+- **When** the monitor reconciles both resources
+- **Then** a CloudEvent is published with `status="READY"` (NP excluded from composite)
+
+#### TC-MON-UT-025: HC FAILED + NP READY → FAILED composite
+- **Requirements:** REQ-MON-220
+- **Type:** Unit
+- **Priority:** High
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` has `Degraded=True` (FAILED)
+- **And** a NodePool with same instanceID has `Ready=True`
+- **When** the monitor reconciles both resources
+- **Then** a CloudEvent is published with `status="FAILED"`
+
+#### TC-MON-UT-026: UNAVAILABLE from NP → message has "NodePool:" prefix
+- **Requirements:** REQ-MON-230
+- **Type:** Unit
+- **Priority:** Medium
+- **Given** a HostedCluster with `dcm.project/dcm-instance-id="my-cluster"` is READY
+- **And** a NodePool with same instanceID has `Ready=False` with message "0 of 3 machines are ready"
+- **When** the monitor reconciles both resources
+- **Then** the published CloudEvent's `message` field starts with `"NodePool: "`
+
+#### TC-MON-UT-027: NP change without composite change → no publish
+- **Requirements:** REQ-MON-220
+- **Type:** Unit
+- **Priority:** Medium
+- **Given** HC is FAILED and NP is UNAVAILABLE (composite is FAILED)
+- **When** NP transitions from UNAVAILABLE to READY
+- **Then** composite remains FAILED (HC still dominates)
+- **And** a new CloudEvent is NOT published (composite unchanged)
+
+#### TC-MON-UT-028: NP startup re-lists alongside HCs
+- **Requirements:** REQ-MON-200
+- **Type:** Unit
+- **Priority:** Medium
+- **Given** 2 HostedClusters and 2 NodePools exist at startup (each pair shares an instanceID)
+- **When** the monitor starts and completes initial sync
+- **Then** CloudEvents are published for each instance with composite status
+
 ### 2.13 Configuration (TC-CFG-UT-xxx)
 
 #### TC-CFG-UT-001: Required config missing causes fail-fast
@@ -1579,6 +1670,134 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 - **When** the HostedCluster is retrieved by label `dcm.project/dcm-instance-id=test-id`
 - **Then** the matching resource is found
 - **And** conflict detection checks both `id` uniqueness (via label) and `metadata.name` uniqueness (via K8s name) independently
+
+---
+
+### 2.15 NodePool Mapper (TC-NPM-UT-xxx)
+
+Tests the `MapNodePoolConditionsToStatus()` function that maps NodePool conditions to a worker health status. Returns `(ClusterStatus, bool)` — `false` when no conditions are present (NP excluded from composite).
+
+**File:** `internal/service/status/nodepool_mapper_unit_test.go`
+
+#### TC-NPM-UT-001: Ready=True → READY
+- **Requirements:** REQ-MON-210
+- **Type:** Unit
+- **Priority:** High
+- **Given** a NodePool has condition `Ready=True`
+- **When** `MapNodePoolConditionsToStatus()` is called
+- **Then** returns `(READY, true)`
+
+#### TC-NPM-UT-002: Ready=False → UNAVAILABLE
+- **Requirements:** REQ-MON-210
+- **Type:** Unit
+- **Priority:** High
+- **Given** a NodePool has condition `Ready=False`
+- **When** `MapNodePoolConditionsToStatus()` is called
+- **Then** returns `(UNAVAILABLE, true)`
+
+#### TC-NPM-UT-003: UpdatingVersion=True → PROVISIONING
+- **Requirements:** REQ-MON-210
+- **Type:** Unit
+- **Priority:** High
+- **Given** a NodePool has condition `UpdatingVersion=True`
+- **When** `MapNodePoolConditionsToStatus()` is called
+- **Then** returns `(PROVISIONING, true)`
+
+#### TC-NPM-UT-004: UpdatingConfig=True → PROVISIONING
+- **Requirements:** REQ-MON-210
+- **Type:** Unit
+- **Priority:** High
+- **Given** a NodePool has condition `UpdatingConfig=True`
+- **When** `MapNodePoolConditionsToStatus()` is called
+- **Then** returns `(PROVISIONING, true)`
+
+#### TC-NPM-UT-005: No conditions → skip
+- **Requirements:** REQ-MON-210
+- **Type:** Unit
+- **Priority:** High
+- **Given** a NodePool has no conditions (empty slice)
+- **When** `MapNodePoolConditionsToStatus()` is called
+- **Then** returns `("", false)`
+
+#### TC-NPM-UT-006: UpdatingVersion + Ready=False → PROVISIONING (precedence)
+- **Requirements:** REQ-MON-210
+- **Type:** Unit
+- **Priority:** Medium
+- **Given** a NodePool has `UpdatingVersion=True` and `Ready=False`
+- **When** `MapNodePoolConditionsToStatus()` is called
+- **Then** returns `(PROVISIONING, true)` — update in progress takes precedence
+
+#### TC-NPM-UT-007: UpdatingVersion + Ready=True → PROVISIONING (precedence)
+- **Requirements:** REQ-MON-210
+- **Type:** Unit
+- **Priority:** Medium
+- **Given** a NodePool has `UpdatingVersion=True` and `Ready=True`
+- **When** `MapNodePoolConditionsToStatus()` is called
+- **Then** returns `(PROVISIONING, true)` — update in progress overrides ready
+
+---
+
+### 2.16 Composite Status (TC-CST-UT-xxx)
+
+Tests `ComputeCompositeStatus()` — worst-of logic combining HC and NP statuses. Uses `StatusPriority` map for severity ordering.
+
+**File:** `internal/service/status/composite_unit_test.go`
+
+#### TC-CST-UT-001: HC READY + NP READY → READY
+- **Requirements:** REQ-MON-220
+- **Type:** Unit
+- **Priority:** High
+- **Given** HC status is READY and NP status is READY
+- **When** `ComputeCompositeStatus()` is called
+- **Then** returns READY
+
+#### TC-CST-UT-002: HC READY + NP UNAVAILABLE → UNAVAILABLE
+- **Requirements:** REQ-MON-220
+- **Type:** Unit
+- **Priority:** High
+- **Given** HC status is READY and NP status is UNAVAILABLE
+- **When** `ComputeCompositeStatus()` is called
+- **Then** returns UNAVAILABLE
+
+#### TC-CST-UT-003: HC FAILED + NP READY → FAILED
+- **Requirements:** REQ-MON-220
+- **Type:** Unit
+- **Priority:** High
+- **Given** HC status is FAILED and NP status is READY
+- **When** `ComputeCompositeStatus()` is called
+- **Then** returns FAILED
+
+#### TC-CST-UT-004: HC READY + NP nil → READY
+- **Requirements:** REQ-MON-220
+- **Type:** Unit
+- **Priority:** High
+- **Given** HC status is READY and NP status is nil (absent)
+- **When** `ComputeCompositeStatus()` is called
+- **Then** returns READY
+
+#### TC-CST-UT-005: HC READY + NP PROVISIONING → PROVISIONING
+- **Requirements:** REQ-MON-220
+- **Type:** Unit
+- **Priority:** High
+- **Given** HC status is READY and NP status is PROVISIONING
+- **When** `ComputeCompositeStatus()` is called
+- **Then** returns PROVISIONING
+
+#### TC-CST-UT-006: HC DELETING + NP UNAVAILABLE → DELETING
+- **Requirements:** REQ-MON-220
+- **Type:** Unit
+- **Priority:** Medium
+- **Given** HC status is DELETING and NP status is UNAVAILABLE
+- **When** `ComputeCompositeStatus()` is called
+- **Then** returns DELETING
+
+#### TC-CST-UT-007: HC PROVISIONING + NP PROVISIONING → PROVISIONING
+- **Requirements:** REQ-MON-220
+- **Type:** Unit
+- **Priority:** Medium
+- **Given** HC status is PROVISIONING and NP status is PROVISIONING
+- **When** `ComputeCompositeStatus()` is called
+- **Then** returns PROVISIONING
 
 ---
 
@@ -1770,6 +1989,11 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-MON-150 | TC-MON-UT-007 | Covered |
 | REQ-MON-155 | TC-MON-UT-013, TC-MON-IT-011 | Covered |
 | REQ-MON-160 | TC-MON-UT-010 | Covered |
+| REQ-MON-200 | TC-MON-UT-020, TC-MON-UT-021, TC-MON-UT-028 | Covered |
+| REQ-MON-210 | TC-NPM-UT-001..007, TC-MON-UT-021, TC-MON-UT-024 | Covered |
+| REQ-MON-220 | TC-CST-UT-001..007, TC-MON-UT-020, TC-MON-UT-022, TC-MON-UT-025, TC-MON-UT-027 | Covered |
+| REQ-MON-230 | TC-MON-UT-026, TC-MON-UT-029 | Covered |
+| REQ-MON-240 | TC-MON-UT-023 | Covered |
 
 ### Cross-Cutting Requirements (REQ-XC-xxx)
 
@@ -1874,9 +2098,11 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Shared Operations | TC-OPS-UT-xxx | 17 |
 | KubeVirt Service | TC-KV-UT-xxx | 19 |
 | BareMetal Service | TC-BM-UT-xxx | 14 |
-| Status Monitoring | TC-MON-UT-xxx | 16 |
+| Status Monitoring | TC-MON-UT-xxx | 26 |
 | Configuration | TC-CFG-UT-xxx | 3 |
 | Cross-Cutting: Identity | TC-XC-ID-UT-xxx | 2 |
+| NodePool Mapper | TC-NPM-UT-xxx | 7 |
+| Composite Status | TC-CST-UT-xxx | 7 |
 
 ### Notes
 
