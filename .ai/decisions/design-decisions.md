@@ -90,18 +90,21 @@ The DCM API exposes `nodes.control_plane.cpu` (integer) and `memory` (string, e.
 Use HyperShift's `resource-request-override.hypershift.openshift.io/<deployment>.<container>` annotation prefix to set resource **requests** on targeted control plane components.
 
 **Targeted components:**
+
 - `kube-apiserver.kube-apiserver` — the API server, largest CPU/memory consumer
 - `etcd.etcd` — the key-value store, second largest consumer
 
 Each targeted component receives the **full** CPU and memory values specified by the caller.
 
 **Pros:**
+
 - Uses HyperShift's official, documented mechanism (`ResourceRequestOverrideAnnotationPrefix` constant in API package)
 - Per-cluster granularity (no shared cluster-wide policy objects required)
 - Simple implementation: set two annotations on the HostedCluster ObjectMeta
 - Works identically for KubeVirt and BareMetal platforms (common behavior)
 
 **Cons:**
+
 - Total CP resource usage from overrides is `2x` the specified values (each of 2 components gets the full amount)
 - Only covers 2 of ~8 CP components; others use HyperShift defaults
 - Annotation key includes deployment/container names that could change between HyperShift versions
@@ -111,6 +114,7 @@ Each targeted component receives the **full** CPU and memory values specified by
 Use the `ClusterSizingConfiguration` CRD (`scheduling/v1alpha1`) to define size-based resource policies.
 
 **Rejected because:**
+
 - Requires pre-existing cluster-wide policy objects on the management cluster
 - Is an operator-level concern, not a per-cluster creation parameter
 - Maps sizes based on node count ranges, which doesn't align with DCM's direct cpu/memory API
@@ -121,6 +125,7 @@ Use the `ClusterSizingConfiguration` CRD (`scheduling/v1alpha1`) to define size-
 Accept the values but do not apply them, similar to `control_plane.count` (REQ-ACM-070) and `control_plane.storage` (REQ-ACM-080).
 
 **Rejected because:**
+
 - REQ-ACM-060 is a MUST requirement, not a SHOULD
 - Unlike count (HA managed by HyperShift) and storage (etcd managed by HyperShift), CPU and memory sizing has direct impact on CP pod scheduling and is user-controllable via annotations
 
@@ -160,3 +165,106 @@ The SP MUST use `hyperv1.ResourceRequestOverrideAnnotationPrefix` (`resource-req
 2. Deployment/container names (`kube-apiserver`, `etcd`) are HyperShift implementation details — if they change across versions, the annotation keys must be updated
 3. If HyperShift introduces a struct field for CP resources in the future, the SP should migrate from annotations to the struct field
 4. Other CP components (kube-controller-manager, kube-scheduler, etc.) are not sized by this mechanism — they retain HyperShift defaults
+
+---
+
+## DD-005: Services — All 4 Control-Plane Services with Default Strategies
+
+**Date:** 2026-04-01
+**Updated:** 2026-04-02
+**Status:** Accepted (revised — Option B chosen over original Option A)
+**Spec References:** REQ-ACM-180, AC-ACM-180
+
+### Problem
+
+The HyperShift HostedCluster CRD marks `Spec.Services` (`[]ServicePublishingStrategyMapping`) as `+required` with no `omitempty` and no kubebuilder default. The SP was not setting this field, which is masked in tests because `controller-runtime/pkg/client/fake` does not enforce CRD validation.
+
+### Options Considered
+
+#### Option A: Set only APIServer with LoadBalancer
+
+Set a single `ServicePublishingStrategyMapping` entry: `APIServer` with `LoadBalancer` strategy.
+
+**Rejected because:**
+
+- The HyperShift CRD expects all 4 control-plane services to be declared, even though the validation rules enforcing this are currently disabled (`-kubebuilder` prefix)
+- Omitting OAuthServer, Konnectivity, and Ignition leaves the HostedCluster incomplete relative to ACM expectations
+- If HyperShift re-enables the validation rules, the SP would break
+
+#### Option B: Set all 4 services with default strategies (CHOSEN)
+
+Set entries for all 4 control-plane services: `APIServer` with `LoadBalancer`, and `OAuthServer`, `Konnectivity`, `Ignition` with `Route`.
+
+**Pros:**
+
+- Matches what ACM/HyperShift expects for a fully-configured HostedCluster
+- Adding 3 extra static entries costs nothing in complexity
+- Eliminates the risk of breakage if HyperShift re-enables CRD validation rules requiring all 4 services
+
+**Cons:**
+
+- Slightly larger configuration surface (but all entries are static defaults with no user-facing knobs)
+
+### Decision
+
+The SP sets **4** `ServicePublishingStrategyMapping` entries on every HostedCluster:
+
+| Service | Strategy |
+|---------|----------|
+| APIServer | LoadBalancer |
+| OAuthServer | Route |
+| Konnectivity | Route |
+| Ignition | Route |
+
+APIServer uses `LoadBalancer` because it is the primary external entry point and LoadBalancer is the most portable strategy. The remaining services use `Route` as the standard publishing mechanism for internal control-plane endpoints.
+
+### Consequences
+
+1. Clusters created by the SP will use LoadBalancer for the APIServer — operators must ensure their infrastructure supports LoadBalancer services
+2. BareMetal/Agent deployments require LoadBalancer infrastructure (e.g., MetalLB) to be pre-configured on the management cluster
+3. OAuthServer, Konnectivity, and Ignition are exposed via Route — an OpenShift ingress controller must be available on the management cluster
+
+---
+
+## DD-006: NodePool Management — InPlace Upgrade Type (v1 Opinionated)
+
+**Date:** 2026-04-01
+**Status:** Accepted
+**Spec References:** REQ-ACM-200, AC-ACM-200
+
+### Problem
+
+The HyperShift NodePool CRD marks `Spec.Management.UpgradeType` as `+required`. The SP was not setting this field, which is masked in tests because `controller-runtime/pkg/client/fake` does not enforce CRD validation.
+
+### Options Considered
+
+#### Option A: InPlace for all platforms (CHOSEN)
+
+Set `UpgradeType` to `InPlace` for both KubeVirt and BareMetal NodePools.
+
+**Pros:**
+
+- Simpler — avoids node churn of Replace upgrades
+- Consistent across platforms
+- Suitable for v1 where upgrade orchestration is not yet a concern
+
+**Cons:**
+
+- InPlace upgrades may cause brief workload disruption on the node being upgraded
+
+#### Option B: Platform-differentiated (Replace for KubeVirt, InPlace for BareMetal)
+
+**Rejected because:**
+
+- Adds unnecessary per-platform logic for v1
+- Replace for KubeVirt adds VM lifecycle complexity with no identified use case
+- Per-platform differentiation is better deferred to a later version with proper upgrade strategy configuration
+
+### Decision
+
+For v1, the SP sets `Spec.Management.UpgradeType` to `InPlace` on every NodePool, for all platforms.
+
+### Consequences
+
+1. If per-platform upgrade strategies are needed in the future, this becomes a configuration-driven decision
+2. Operators should be aware that InPlace upgrades will temporarily affect workloads running on the upgraded node

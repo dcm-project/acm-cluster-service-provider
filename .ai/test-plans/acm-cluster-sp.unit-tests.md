@@ -5,8 +5,8 @@
 - **Related Spec:** .ai/specs/acm-cluster-sp.spec.md
 - **Related Requirements:** REQ-REG-xxx, REQ-HTTP-xxx, REQ-HLT-xxx, REQ-API-xxx, REQ-ACM-xxx, REQ-KV-xxx, REQ-BM-xxx, REQ-MON-xxx, REQ-XC-xxx
 - **Created:** 2026-02-17
-- **Last Updated:** 2026-03-31 (label prefix alignment) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; added TC-OPS-UT-016/017 for status_message; removed phantom TC-BM-UT-006/007/009; coverage matrix corrections)
-- **Scope:** This file covers **unit tests only** (131 unit test cases + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
+- **Last Updated:** 2026-04-01 (HostedCluster required fields: Services DD-005, Management DD-006 — new TCs + amended TCs) | 2026-03-31 (label prefix alignment) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; added TC-OPS-UT-016/017 for status_message; removed phantom TC-BM-UT-006/007/009; coverage matrix corrections)
+- **Scope:** This file covers **unit tests only** (135 unit test cases + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
 
 ## Design Principles
 
@@ -855,13 +855,16 @@ All tests in this section are **table-driven** within a single Go test function.
 Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Client`. Status mapping is NOT retested here (covered by TC-STS-UT-xxx). Each test verifies CRD construction, K8s interactions, and data extraction.
 
 #### TC-KV-UT-001: Create KubeVirt cluster -- HostedCluster + NodePool
-- **Requirements:** REQ-ACM-010, REQ-KV-010, REQ-KV-020, REQ-ACM-020, REQ-ACM-090, REQ-KV-030, REQ-ACM-100, REQ-XC-LBL-010, REQ-XC-LBL-020
+- **Requirements:** REQ-ACM-010, REQ-KV-010, REQ-KV-020, REQ-ACM-020, REQ-ACM-090, REQ-KV-030, REQ-ACM-100, REQ-XC-LBL-010, REQ-XC-LBL-020, REQ-ACM-180, REQ-ACM-200
+- **Decisions:** DD-005, DD-006
 - **Type:** Unit
 - **Priority:** High
 - **Given** a fake K8s client with a ClusterImageSet for OCP "4.15.2" (K8s "1.28") and `SP_CLUSTER_NAMESPACE="clusters"`
 - **When** `Create(ctx, "test-id", cluster)` is called with `platform="kubevirt"`, `version="1.28"`, `metadata.name="my-cluster"`, `workers={count:2, cpu:4, memory:"16GB", storage:"120GB"}`
 - **Then** a HostedCluster named "my-cluster" is created in namespace "clusters" with `platform.type=KubeVirt`
+- **And** the HostedCluster has `Spec.Services` with exactly 4 entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`
 - **And** a NodePool is created in namespace "clusters" with `replicas=2`
+- **And** the NodePool has `Spec.Management.UpgradeType=InPlace`
 - **And** NodePool worker VM template has resources matching cpu=4, memory=16GB equivalent, storage=120GB equivalent
 - **And** both carry labels `dcm.project/managed-by=dcm`, `dcm.project/dcm-instance-id=test-id`, `dcm.project/dcm-service-type=cluster`
 
@@ -1033,6 +1036,24 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **When** `Create()` is called with `provider_hints.acm.platform=""`
 - **Then** the HostedCluster is created with `platform.type=KubeVirt` (empty string treated as absent)
 
+#### TC-KV-UT-030: HostedCluster has Services=[APIServer/LB, OAuthServer/Route, Konnectivity/Route, Ignition/Route]
+- **Requirements:** REQ-ACM-180
+- **Decisions:** DD-005
+- **Type:** Unit
+- **Priority:** High
+- **Given** a fake K8s client with a ClusterImageSet
+- **When** `Create()` is called with `platform="kubevirt"`
+- **Then** the HostedCluster has `Spec.Services` with exactly 4 entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`
+
+#### TC-KV-UT-033: NodePool has Management.UpgradeType=InPlace
+- **Requirements:** REQ-ACM-200
+- **Decisions:** DD-006
+- **Type:** Unit
+- **Priority:** High
+- **Given** a fake K8s client with a ClusterImageSet
+- **When** `Create()` is called with `platform="kubevirt"`
+- **Then** the NodePool has `Spec.Management.UpgradeType=InPlace`
+
 #### TC-OPS-UT-014: Invalid page_token returns INVALID_ARGUMENT error
 - **Requirements:** REQ-API-290 (service-layer enforcement)
 - **Type:** Unit
@@ -1162,13 +1183,16 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 Tests the BareMetal `ClusterService` implementation. Status mapping is NOT retested (shared TC-STS-UT-xxx). CRD construction focuses on Agent-platform-specific fields.
 
 #### TC-BM-UT-001: Create BareMetal cluster -- HostedCluster + NodePool with InfraEnv
-- **Requirements:** REQ-ACM-010, REQ-BM-010, REQ-BM-020, REQ-ACM-020, REQ-BM-030, REQ-BM-040, REQ-ACM-090, REQ-XC-LBL-010
+- **Requirements:** REQ-ACM-010, REQ-BM-010, REQ-BM-020, REQ-ACM-020, REQ-BM-030, REQ-BM-040, REQ-ACM-090, REQ-XC-LBL-010, REQ-ACM-180, REQ-ACM-200
+- **Decisions:** DD-005, DD-006
 - **Type:** Unit
 - **Priority:** High
 - **Given** a fake K8s client with a ClusterImageSet
 - **When** `Create()` is called with `platform="baremetal"`, `infra_env="my-infra"`, `workers={count:3}`
 - **Then** a HostedCluster is created with `platform.type=Agent`
+- **And** the HostedCluster has `Spec.Services` with exactly 4 entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`
 - **And** a NodePool is created with `replicas=3`, `platform.type=Agent`, and InfraEnv reference set to `"my-infra"`
+- **And** the NodePool has `Spec.Management.UpgradeType=InPlace`
 - **And** both carry DCM labels
 
 #### TC-BM-UT-002: BareMetal with agent labels
@@ -1255,6 +1279,26 @@ Tests the BareMetal `ClusterService` implementation. Status mapping is NOT retes
 - **Then** the HostedCluster has annotation `resource-request-override.hypershift.openshift.io/kube-apiserver.kube-apiserver` with value `cpu=4,memory=16G`
 - **And** the HostedCluster has annotation `resource-request-override.hypershift.openshift.io/etcd.etcd` with value `cpu=4,memory=16G`
 - **Note:** Confirms shared CP resource override code works for BareMetal (TC-KV-UT-003 is the primary test)
+
+#### TC-BM-UT-015: HostedCluster has Services=[APIServer/LB, OAuthServer/Route, Konnectivity/Route, Ignition/Route]
+- **Requirements:** REQ-ACM-180
+- **Decisions:** DD-005
+- **Type:** Unit
+- **Priority:** High
+- **Given** a fake K8s client with a ClusterImageSet
+- **When** `Create()` is called with `platform="baremetal"`, `infra_env="my-infra"`
+- **Then** the HostedCluster has `Spec.Services` with exactly 4 entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`
+- **Note:** Confirms shared Services code works for BareMetal (TC-KV-UT-030 is the primary test)
+
+#### TC-BM-UT-017: NodePool has Management.UpgradeType=InPlace
+- **Requirements:** REQ-ACM-200
+- **Decisions:** DD-006
+- **Type:** Unit
+- **Priority:** High
+- **Given** a fake K8s client with a ClusterImageSet
+- **When** `Create()` is called with `platform="baremetal"`, `infra_env="my-infra"`
+- **Then** the NodePool has `Spec.Management.UpgradeType=InPlace`
+- **Note:** Confirms shared Management code works for BareMetal (TC-KV-UT-033 is the primary test)
 
 #### TC-BM-UT-011: Create BareMetal with no base_domain and no SP_BASE_DOMAIN config
 - **Requirements:** REQ-API-380
@@ -1619,6 +1663,8 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-ACM-150 | TC-KV-UT-008 | Covered |
 | REQ-ACM-160 | TC-STS-UT-001..012, TC-OPS-UT-001 | Covered (shared ops confirm delegation to shared mapper) |
 | REQ-ACM-170 | TC-KV-UT-017, TC-KV-UT-028, TC-BM-UT-008 | Covered |
+| REQ-ACM-180 | TC-KV-UT-001, TC-KV-UT-030, TC-BM-UT-001, TC-BM-UT-015 | Covered |
+| REQ-ACM-200 | TC-KV-UT-001, TC-KV-UT-033, TC-BM-UT-001, TC-BM-UT-017 | Covered |
 
 ### KubeVirt Requirements (REQ-KV-xxx)
 
@@ -1717,6 +1763,8 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Memory/storage format conversion | TC-KV-UT-008 | N/A for BareMetal (informational per REQ-BM-060) |
 | CP resource override annotations (DEC-004) | TC-KV-UT-003 | TC-BM-UT-014 confirms shared code |
 | List ordering (`metadata.name` ascending) | TC-OPS-UT-012 | Shared code; no platform-specific sort |
+| Services field (DD-005) | TC-KV-UT-030 | TC-BM-UT-015 confirms shared code |
+| NodePool Management.UpgradeType (DD-006) | TC-KV-UT-033 | TC-BM-UT-017 confirms shared code |
 
 ### Spec ACs Merged into Fewer Test Cases
 
@@ -1743,12 +1791,12 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 
 | Category | Count |
 |---|---|
-| **Total unit test cases** | **136** |
-| High priority | 63 |
+| **Total unit test cases** | **140** |
+| High priority | 67 |
 | Medium priority | 59 |
 | Low priority | 15 |
 | Structural (no behavioral test) | 10 requirements |
-| Total requirements covered (across both unit and integration) | 166 (all REQ-xxx IDs) |
+| Total requirements covered (across both unit and integration) | 168 (all REQ-xxx IDs) |
 | Coverage gaps | **2 deferred** (TC-CFG-UT-003 pending investigation, REQ-HLT-010/REQ-HLT-120 integration-covered only) |
 
 ### Test Cases by Component
@@ -1765,8 +1813,8 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Error Mapping | TC-ERR-UT-xxx | 3 |
 | Status Mapping (shared) | TC-STS-UT-xxx | 12 |
 | Shared Operations | TC-OPS-UT-xxx | 16 |
-| KubeVirt Service | TC-KV-UT-xxx | 16 |
-| BareMetal Service | TC-BM-UT-xxx | 11 |
+| KubeVirt Service | TC-KV-UT-xxx | 18 |
+| BareMetal Service | TC-BM-UT-xxx | 13 |
 | Status Monitoring | TC-MON-UT-xxx | 16 |
 | Configuration | TC-CFG-UT-xxx | 3 |
 | Cross-Cutting: Identity | TC-XC-ID-UT-xxx | 2 |
