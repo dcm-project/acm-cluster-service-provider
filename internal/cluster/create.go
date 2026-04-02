@@ -12,7 +12,9 @@ import (
 	"github.com/dcm-project/acm-cluster-service-provider/internal/service"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
 	hyperv1 "github.com/openshift/hypershift/api/hypershift/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -52,6 +54,25 @@ func CreateCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 
 	hc := pb.BuildHostedCluster(req, baseDomain, releaseImage, labels)
 	applyControlPlaneResourceOverrides(hc, req)
+
+	if cfg.PullSecret != "" {
+		secretName := req.Spec.Metadata.Name + "-pull-secret"
+		pullSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      secretName,
+				Namespace: cfg.ClusterNamespace,
+			},
+			Data: map[string][]byte{
+				".dockerconfigjson": []byte(cfg.PullSecret),
+			},
+			Type: corev1.SecretTypeDockerConfigJson,
+		}
+		if err := c.Create(ctx, pullSecret); err != nil && !k8serrors.IsAlreadyExists(err) {
+			return nil, service.NewInternalError("failed to create pull secret", err)
+		}
+		hc.Spec.PullSecret = corev1.LocalObjectReference{Name: secretName}
+	}
+
 	if err := c.Create(ctx, hc); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
 			return nil, service.NewAlreadyExistsError(fmt.Sprintf("cluster with name %q already exists", req.Spec.Metadata.Name))
@@ -86,8 +107,23 @@ func CreateCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 // applyControlPlaneResourceOverrides sets HyperShift resource request override
 // annotations for kube-apiserver and etcd (REQ-ACM-060, REQ-ACM-061).
 func applyControlPlaneResourceOverrides(hc *hyperv1.HostedCluster, req v1alpha1.Cluster) {
+	if req.Spec.Nodes == nil || req.Spec.Nodes.ControlPlane == nil {
+		return
+	}
 	cp := req.Spec.Nodes.ControlPlane
-	value := fmt.Sprintf("cpu=%d,memory=%s", cp.Cpu, strings.TrimSuffix(cp.Memory, "B"))
+	if cp.Cpu == nil && cp.Memory == nil {
+		return
+	}
+
+	var cpu int
+	if cp.Cpu != nil {
+		cpu = *cp.Cpu
+	}
+	var memory string
+	if cp.Memory != nil {
+		memory = strings.TrimSuffix(*cp.Memory, "B")
+	}
+	value := fmt.Sprintf("cpu=%d,memory=%s", cpu, memory)
 
 	if hc.Annotations == nil {
 		hc.Annotations = make(map[string]string)

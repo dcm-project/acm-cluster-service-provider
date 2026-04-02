@@ -33,7 +33,7 @@ var _ = Describe("BareMetal Service", func() {
 		It("TC-BM-UT-001: creates HostedCluster + NodePool with Agent platform, InfraEnv, labels, and replicas", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.Workers.Count = 3
+			req.Spec.Nodes.Workers.Count = util.Ptr(3)
 
 			result, err := svc.Create(ctx, "bm-id", req)
 
@@ -134,9 +134,9 @@ var _ = Describe("BareMetal Service", func() {
 		It("TC-BM-UT-005: worker resources are informational — no resource constraints on NodePool", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.Workers.Cpu = 8
-			req.Spec.Nodes.Workers.Memory = "32GB"
-			req.Spec.Nodes.Workers.Storage = "500GB"
+			req.Spec.Nodes.Workers.Cpu = util.Ptr(8)
+			req.Spec.Nodes.Workers.Memory = util.Ptr("32GB")
+			req.Spec.Nodes.Workers.Storage = util.Ptr("500GB")
 
 			result, err := svc.Create(ctx, "bm-id", req)
 
@@ -230,8 +230,8 @@ var _ = Describe("BareMetal Service", func() {
 		It("TC-BM-UT-013: control_plane.count and storage are ignored", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.ControlPlane.Count = v1alpha1.N5
-			req.Spec.Nodes.ControlPlane.Storage = "500GB"
+			req.Spec.Nodes.ControlPlane.Count = util.Ptr(v1alpha1.N5)
+			req.Spec.Nodes.ControlPlane.Storage = util.Ptr("500GB")
 
 			result, err := svc.Create(ctx, "bm-id", req)
 			Expect(err).NotTo(HaveOccurred())
@@ -248,8 +248,8 @@ var _ = Describe("BareMetal Service", func() {
 		It("TC-BM-UT-014: control_plane CPU and memory map to resource request override annotations", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.ControlPlane.Cpu = 4
-			req.Spec.Nodes.ControlPlane.Memory = "16GB"
+			req.Spec.Nodes.ControlPlane.Cpu = util.Ptr(4)
+			req.Spec.Nodes.ControlPlane.Memory = util.Ptr("16GB")
 
 			result, err := svc.Create(ctx, "bm-id", req)
 			Expect(err).NotTo(HaveOccurred())

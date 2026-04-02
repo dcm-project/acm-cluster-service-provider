@@ -66,8 +66,6 @@ func (b *builder) BuildHostedCluster(req v1alpha1.Cluster, baseDomain, releaseIm
 }
 
 func (b *builder) BuildNodePool(req v1alpha1.Cluster, releaseImage string, labels map[string]string) *hyperv1.NodePool {
-	replicas := int32(req.Spec.Nodes.Workers.Count)
-
 	matchLabels := map[string]string{
 		b.config.InfraEnvLabelKey: b.infraEnv,
 	}
@@ -78,7 +76,7 @@ func (b *builder) BuildNodePool(req v1alpha1.Cluster, releaseImage string, label
 		}
 	}
 
-	return &hyperv1.NodePool{
+	np := &hyperv1.NodePool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      req.Spec.Metadata.Name,
 			Namespace: b.config.ClusterNamespace,
@@ -86,7 +84,6 @@ func (b *builder) BuildNodePool(req v1alpha1.Cluster, releaseImage string, label
 		},
 		Spec: hyperv1.NodePoolSpec{
 			ClusterName: req.Spec.Metadata.Name,
-			Replicas:    &replicas,
 			Release: hyperv1.Release{
 				Image: releaseImage,
 			},
@@ -100,4 +97,11 @@ func (b *builder) BuildNodePool(req v1alpha1.Cluster, releaseImage string, label
 			},
 		},
 	}
+
+	if req.Spec.Nodes != nil && req.Spec.Nodes.Workers != nil && req.Spec.Nodes.Workers.Count != nil {
+		replicas := int32(*req.Spec.Nodes.Workers.Count)
+		np.Spec.Replicas = &replicas
+	}
+
+	return np
 }

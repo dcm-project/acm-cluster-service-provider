@@ -210,10 +210,10 @@ type ClusterMetadata struct {
 // ClusterNodes Node configuration for the cluster
 type ClusterNodes struct {
 	// ControlPlane Control plane node specification
-	ControlPlane ControlPlaneSpec `json:"control_plane"`
+	ControlPlane *ControlPlaneSpec `json:"control_plane,omitempty"`
 
 	// Workers Worker node specification
-	Workers WorkerSpec `json:"workers"`
+	Workers *WorkerSpec `json:"workers,omitempty"`
 }
 
 // ClusterSpec Service-type-specific input specification for a cluster
@@ -222,7 +222,7 @@ type ClusterSpec struct {
 	Metadata ClusterMetadata `json:"metadata"`
 
 	// Nodes Node configuration for the cluster
-	Nodes ClusterNodes `json:"nodes"`
+	Nodes *ClusterNodes `json:"nodes,omitempty"`
 
 	// ProviderHints Provider-specific configuration hints
 	ProviderHints *ProviderHints `json:"provider_hints,omitempty"`
@@ -240,16 +240,16 @@ type ClusterSpecServiceType string
 // ControlPlaneSpec Control plane node specification
 type ControlPlaneSpec struct {
 	// Count Number of control plane nodes
-	Count ControlPlaneSpecCount `json:"count"`
+	Count *ControlPlaneSpecCount `json:"count,omitempty"`
 
 	// Cpu Number of CPU cores per control plane node
-	Cpu int `json:"cpu"`
+	Cpu *int `json:"cpu,omitempty"`
 
 	// Memory Memory per control plane node (e.g., "16GB", "32GB")
-	Memory string `json:"memory"`
+	Memory *string `json:"memory,omitempty"`
 
 	// Storage Storage per control plane node (e.g., "120GB", "500GB")
-	Storage string `json:"storage"`
+	Storage *string `json:"storage,omitempty"`
 }
 
 // ControlPlaneSpecCount Number of control plane nodes
@@ -307,16 +307,16 @@ type ProviderHints struct {
 // WorkerSpec Worker node specification
 type WorkerSpec struct {
 	// Count Number of worker nodes
-	Count int `json:"count"`
+	Count *int `json:"count,omitempty"`
 
 	// Cpu Number of CPU cores per worker node
-	Cpu int `json:"cpu"`
+	Cpu *int `json:"cpu,omitempty"`
 
 	// Memory Memory per worker node (e.g., "16GB", "32GB")
-	Memory string `json:"memory"`
+	Memory *string `json:"memory,omitempty"`
 
 	// Storage Storage per worker node (e.g., "120GB", "500GB")
-	Storage string `json:"storage"`
+	Storage *string `json:"storage,omitempty"`
 }
 
 // ClusterIdPath defines model for ClusterIdPath.

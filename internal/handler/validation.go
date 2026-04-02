@@ -20,23 +20,26 @@ func validateCreateRequest(body *oapigen.Cluster) error {
 	if body.Spec.Version == "" {
 		return fmt.Errorf("version is required")
 	}
-	if body.Spec.Nodes.Workers.Count < 1 {
-		return fmt.Errorf("nodes.workers.count must be >= 1")
-	}
-	if body.Spec.Nodes.ControlPlane.Cpu < 1 {
-		return fmt.Errorf("nodes.control_plane is required")
-	}
-	if body.Spec.Nodes.Workers.Memory != "" && !memoryFormatRe.MatchString(body.Spec.Nodes.Workers.Memory) {
-		return fmt.Errorf("nodes.workers.memory must match format: [1-9][0-9]*(MB|GB|TB)")
-	}
-	if body.Spec.Nodes.Workers.Storage != "" && !memoryFormatRe.MatchString(body.Spec.Nodes.Workers.Storage) {
-		return fmt.Errorf("nodes.workers.storage must match format: [1-9][0-9]*(MB|GB|TB)")
-	}
-	if body.Spec.Nodes.ControlPlane.Memory != "" && !memoryFormatRe.MatchString(body.Spec.Nodes.ControlPlane.Memory) {
-		return fmt.Errorf("nodes.control_plane.memory must match format: [1-9][0-9]*(MB|GB|TB)")
-	}
-	if body.Spec.Nodes.ControlPlane.Storage != "" && !memoryFormatRe.MatchString(body.Spec.Nodes.ControlPlane.Storage) {
-		return fmt.Errorf("nodes.control_plane.storage must match format: [1-9][0-9]*(MB|GB|TB)")
+	if body.Spec.Nodes != nil {
+		if w := body.Spec.Nodes.Workers; w != nil {
+			if w.Count != nil && *w.Count < 1 {
+				return fmt.Errorf("nodes.workers.count must be >= 1")
+			}
+			if w.Memory != nil && !memoryFormatRe.MatchString(*w.Memory) {
+				return fmt.Errorf("nodes.workers.memory must match format: [1-9][0-9]*(MB|GB|TB)")
+			}
+			if w.Storage != nil && !memoryFormatRe.MatchString(*w.Storage) {
+				return fmt.Errorf("nodes.workers.storage must match format: [1-9][0-9]*(MB|GB|TB)")
+			}
+		}
+		if cp := body.Spec.Nodes.ControlPlane; cp != nil {
+			if cp.Memory != nil && !memoryFormatRe.MatchString(*cp.Memory) {
+				return fmt.Errorf("nodes.control_plane.memory must match format: [1-9][0-9]*(MB|GB|TB)")
+			}
+			if cp.Storage != nil && !memoryFormatRe.MatchString(*cp.Storage) {
+				return fmt.Errorf("nodes.control_plane.storage must match format: [1-9][0-9]*(MB|GB|TB)")
+			}
+		}
 	}
 	return nil
 }

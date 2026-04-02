@@ -340,7 +340,6 @@ components:
       required:
         - service_type
         - version
-        - nodes
         - metadata
       properties:
         service_type:
@@ -365,9 +364,6 @@ components:
     ClusterNodes:
       type: object
       description: Node configuration for the cluster
-      required:
-        - control_plane
-        - workers
       properties:
         control_plane:
           $ref: '#/components/schemas/ControlPlaneSpec'
@@ -377,11 +373,6 @@ components:
     ControlPlaneSpec:
       type: object
       description: Control plane node specification
-      required:
-        - count
-        - cpu
-        - memory
-        - storage
       properties:
         count:
           type: integer
@@ -405,11 +396,6 @@ components:
     WorkerSpec:
       type: object
       description: Worker node specification
-      required:
-        - count
-        - cpu
-        - memory
-        - storage
       properties:
         count:
           type: integer

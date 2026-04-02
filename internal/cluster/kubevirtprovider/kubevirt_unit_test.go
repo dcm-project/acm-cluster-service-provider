@@ -33,7 +33,7 @@ var _ = Describe("KubeVirt Service", func() {
 		It("TC-KV-UT-001: creates HostedCluster + NodePool with correct platform, labels, and replicas", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.Workers.Count = 2
+			req.Spec.Nodes.Workers.Count = util.Ptr(2)
 
 			result, err := svc.Create(ctx, "test-id", req)
 
@@ -70,8 +70,8 @@ var _ = Describe("KubeVirt Service", func() {
 		It("TC-KV-UT-002: control_plane.count and storage are ignored", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.ControlPlane.Count = v1alpha1.N5
-			req.Spec.Nodes.ControlPlane.Storage = "500GB"
+			req.Spec.Nodes.ControlPlane.Count = util.Ptr(v1alpha1.N5)
+			req.Spec.Nodes.ControlPlane.Storage = util.Ptr("500GB")
 
 			result, err := svc.Create(ctx, "test-id", req)
 			Expect(err).NotTo(HaveOccurred())
@@ -88,8 +88,8 @@ var _ = Describe("KubeVirt Service", func() {
 		It("TC-KV-UT-003: control_plane CPU and memory map to resource request override annotations", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.ControlPlane.Cpu = 4
-			req.Spec.Nodes.ControlPlane.Memory = "16GB"
+			req.Spec.Nodes.ControlPlane.Cpu = util.Ptr(4)
+			req.Spec.Nodes.ControlPlane.Memory = util.Ptr("16GB")
 
 			result, err := svc.Create(ctx, "test-id", req)
 			Expect(err).NotTo(HaveOccurred())
@@ -216,8 +216,8 @@ var _ = Describe("KubeVirt Service", func() {
 		It("TC-KV-UT-008: memory/storage format conversion (DCM to K8s)", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.Workers.Memory = "16GB"
-			req.Spec.Nodes.Workers.Storage = "120GB"
+			req.Spec.Nodes.Workers.Memory = util.Ptr("16GB")
+			req.Spec.Nodes.Workers.Storage = util.Ptr("120GB")
 
 			result, err := svc.Create(ctx, "test-id", req)
 			Expect(err).NotTo(HaveOccurred())
@@ -235,7 +235,7 @@ var _ = Describe("KubeVirt Service", func() {
 		It("TC-KV-UT-009: workers storage maps to root disk size", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.Workers.Storage = "120GB"
+			req.Spec.Nodes.Workers.Storage = util.Ptr("120GB")
 
 			result, err := svc.Create(ctx, "test-id", req)
 			Expect(err).NotTo(HaveOccurred())
