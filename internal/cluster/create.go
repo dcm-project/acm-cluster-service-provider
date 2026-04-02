@@ -89,15 +89,17 @@ func CreateCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 		return nil, service.NewInternalError("failed to create cluster resources", err)
 	}
 
-	np := pb.BuildNodePool(req, releaseImage, labels)
-	if err := c.Create(ctx, np); err != nil {
-		if delErr := c.Delete(ctx, hc); delErr != nil {
-			return nil, service.NewInternalError(
-				"failed to create node pool and rollback of hosted cluster failed",
-				fmt.Errorf("create: %w, rollback: %v", err, delErr),
-			)
+	if req.Spec.Nodes != nil {
+		np := pb.BuildNodePool(req, releaseImage, labels)
+		if err := c.Create(ctx, np); err != nil {
+			if delErr := c.Delete(ctx, hc); delErr != nil {
+				return nil, service.NewInternalError(
+					"failed to create node pool and rollback of hosted cluster failed",
+					fmt.Errorf("create: %w, rollback: %v", err, delErr),
+				)
+			}
+			return nil, service.NewInternalError("failed to create cluster resources", err)
 		}
-		return nil, service.NewInternalError("failed to create cluster resources", err)
 	}
 
 	now := time.Now()
