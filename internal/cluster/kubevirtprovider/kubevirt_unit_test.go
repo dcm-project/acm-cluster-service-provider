@@ -47,7 +47,7 @@ var _ = Describe("KubeVirt Service", func() {
 
 			// Verify HostedCluster was created
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 			hc := hcList.Items[0]
 			Expect(hc.Spec.Platform.Type).To(Equal(hyperv1.KubevirtPlatform))
@@ -57,7 +57,7 @@ var _ = Describe("KubeVirt Service", func() {
 
 			// Verify NodePool was created
 			var npList hyperv1.NodePoolList
-			Expect(k8s.List(ctx, &npList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &npList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(npList.Items).To(HaveLen(1))
 			np := npList.Items[0]
 			Expect(np.Spec.Replicas).NotTo(BeNil())
@@ -78,7 +78,7 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 			hc := hcList.Items[0]
 			Expect(hc.Spec.ControllerAvailabilityPolicy).To(BeZero())
@@ -95,7 +95,7 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 			hc := hcList.Items[0]
 
@@ -157,7 +157,7 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 			Expect(hcList.Items[0].Spec.Release.Image).To(Equal("quay.io/ocp-release:4.15.2-x86_64"))
 		})
@@ -179,7 +179,7 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 			Expect(hcList.Items[0].Spec.DNS.BaseDomain).To(Equal("example.com"))
 
@@ -192,7 +192,7 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(result2).NotTo(BeNil())
 
 			var hcList2 hyperv1.HostedClusterList
-			Expect(k8s2.List(ctx, &hcList2, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s2.List(ctx, &hcList2, client.InNamespace("test-cluster-2"))).To(Succeed())
 			Expect(hcList2.Items).To(HaveLen(1))
 			Expect(hcList2.Items[0].Spec.DNS.BaseDomain).To(Equal("cluster.local"))
 		})
@@ -207,7 +207,7 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 			Expect(hcList.Items[0].Spec.Platform.Type).To(Equal(hyperv1.KubevirtPlatform))
 		})
@@ -223,7 +223,7 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var npList hyperv1.NodePoolList
-			Expect(k8s.List(ctx, &npList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &npList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(npList.Items).To(HaveLen(1))
 			np := npList.Items[0]
 			Expect(np.Spec.Platform.Kubevirt).NotTo(BeNil())
@@ -241,7 +241,7 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var npList hyperv1.NodePoolList
-			Expect(k8s.List(ctx, &npList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &npList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(npList.Items).To(HaveLen(1))
 			np := npList.Items[0]
 			Expect(np.Spec.Platform.Kubevirt).NotTo(BeNil())
@@ -264,7 +264,7 @@ var _ = Describe("KubeVirt Service", func() {
 		})
 
 		It("TC-KV-UT-015: duplicate metadata.name returns AlreadyExists with name conflict detail", func() {
-			existing := buildHostedCluster("my-cluster", testNamespace)
+			existing := buildHostedCluster("my-cluster", "my-cluster")
 			svc, _ := newTestService(cfg, existing)
 			req := validCreateCluster()
 			req.Spec.Metadata.Name = "my-cluster"
@@ -315,7 +315,7 @@ var _ = Describe("KubeVirt Service", func() {
 
 			// Verify orphan HC was cleaned up
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(BeEmpty())
 		})
 
@@ -372,7 +372,7 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 			Expect(hcList.Items[0].Spec.Platform.Type).To(Equal(hyperv1.KubevirtPlatform))
 		})
@@ -389,14 +389,14 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("my-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 			hc := hcList.Items[0]
 			Expect(hc.Name).To(Equal("my-cluster"))
 			Expect(hc.Labels).To(HaveKeyWithValue("dcm.project/dcm-instance-id", "dcm-id"))
 
 			var npList hyperv1.NodePoolList
-			Expect(k8s.List(ctx, &npList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &npList, client.InNamespace("my-cluster"))).To(Succeed())
 			Expect(npList.Items).To(HaveLen(1))
 			Expect(npList.Items[0].Labels).To(HaveKeyWithValue("dcm.project/dcm-instance-id", "dcm-id"))
 		})
@@ -411,7 +411,7 @@ var _ = Describe("KubeVirt Service", func() {
 			// Verify the HC can be found by label
 			var hcList hyperv1.HostedClusterList
 			Expect(k8s.List(ctx, &hcList,
-				client.InNamespace(testNamespace),
+				client.InNamespace("test-cluster"),
 				client.MatchingLabels{"dcm.project/dcm-instance-id": "test-id"},
 			)).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))

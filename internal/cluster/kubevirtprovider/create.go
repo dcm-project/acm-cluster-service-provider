@@ -23,7 +23,7 @@ func (s *Service) BuildHostedCluster(req v1alpha1.Cluster, baseDomain, releaseIm
 	return &hyperv1.HostedCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      req.Spec.Metadata.Name,
-			Namespace: s.config.ClusterNamespace,
+			Namespace: req.Spec.Metadata.Name,
 			Labels:    labels,
 		},
 		Spec: hyperv1.HostedClusterSpec{
@@ -53,7 +53,7 @@ func (s *Service) BuildNodePool(req v1alpha1.Cluster, releaseImage string, label
 	np := &hyperv1.NodePool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      req.Spec.Metadata.Name,
-			Namespace: s.config.ClusterNamespace,
+			Namespace: req.Spec.Metadata.Name,
 			Labels:    labels,
 		},
 		Spec: hyperv1.NodePoolSpec{

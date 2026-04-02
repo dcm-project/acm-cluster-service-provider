@@ -45,7 +45,7 @@ func (b *builder) BuildHostedCluster(req v1alpha1.Cluster, baseDomain, releaseIm
 	return &hyperv1.HostedCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      req.Spec.Metadata.Name,
-			Namespace: b.config.ClusterNamespace,
+			Namespace: req.Spec.Metadata.Name,
 			Labels:    labels,
 		},
 		Spec: hyperv1.HostedClusterSpec{
@@ -88,7 +88,7 @@ func (b *builder) BuildNodePool(req v1alpha1.Cluster, releaseImage string, label
 	np := &hyperv1.NodePool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      req.Spec.Metadata.Name,
-			Namespace: b.config.ClusterNamespace,
+			Namespace: req.Spec.Metadata.Name,
 			Labels:    labels,
 		},
 		Spec: hyperv1.NodePoolSpec{

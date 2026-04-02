@@ -48,7 +48,7 @@ func CreateCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 
 	// Duplicate check: if findByInstanceID succeeds, cluster already exists.
 	// NotFoundError is the expected case (no duplicate).
-	if _, err := findByInstanceID(ctx, c, cfg.ClusterNamespace, id); err == nil {
+	if _, err := findByInstanceID(ctx, c, id); err == nil {
 		return nil, service.NewAlreadyExistsError("cluster with this ID already exists")
 	} else {
 		var domainErr *service.DomainError
@@ -61,7 +61,21 @@ func CreateCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 
 	labels := DCMLabels(id)
 
+	clusterNamespace := req.Spec.Metadata.Name
+
+	// Create the cluster namespace.
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   clusterNamespace,
+			Labels: labels,
+		},
+	}
+	if err := c.Create(ctx, ns); err != nil && !k8serrors.IsAlreadyExists(err) {
+		return nil, service.NewInternalError("failed to create cluster namespace", err)
+	}
+
 	hc := pb.BuildHostedCluster(req, baseDomain, releaseImage, labels)
+	hc.Namespace = clusterNamespace
 	applyControlPlaneResourceOverrides(hc, req)
 
 	if cfg.PullSecret != "" {
@@ -69,7 +83,7 @@ func CreateCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 		pullSecret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      secretName,
-				Namespace: cfg.ClusterNamespace,
+				Namespace: clusterNamespace,
 			},
 			Data: map[string][]byte{
 				".dockerconfigjson": []byte(cfg.PullSecret),
@@ -91,6 +105,7 @@ func CreateCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 
 	if req.Spec.Nodes != nil {
 		np := pb.BuildNodePool(req, releaseImage, labels)
+		np.Namespace = clusterNamespace
 		if err := c.Create(ctx, np); err != nil {
 			if delErr := c.Delete(ctx, hc); delErr != nil {
 				return nil, service.NewInternalError(

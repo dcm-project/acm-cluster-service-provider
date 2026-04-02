@@ -42,7 +42,7 @@ var _ = Describe("BareMetal Service", func() {
 
 			// Verify HostedCluster
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 			hc := hcList.Items[0]
 			Expect(hc.Spec.Platform.Type).To(Equal(hyperv1.AgentPlatform))
@@ -54,7 +54,7 @@ var _ = Describe("BareMetal Service", func() {
 
 			// Verify NodePool
 			var npList hyperv1.NodePoolList
-			Expect(k8s.List(ctx, &npList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &npList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(npList.Items).To(HaveLen(1))
 			np := npList.Items[0]
 			Expect(np.Spec.Platform.Type).To(Equal(hyperv1.AgentPlatform))
@@ -82,7 +82,7 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var npList hyperv1.NodePoolList
-			Expect(k8s.List(ctx, &npList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &npList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(npList.Items).To(HaveLen(1))
 			np := npList.Items[0]
 			Expect(np.Spec.Platform.Agent).NotTo(BeNil())
@@ -121,7 +121,7 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var npList hyperv1.NodePoolList
-			Expect(k8s.List(ctx, &npList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &npList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(npList.Items).To(HaveLen(1))
 			np := npList.Items[0]
 			Expect(np.Spec.Platform.Agent).NotTo(BeNil())
@@ -144,7 +144,7 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var npList hyperv1.NodePoolList
-			Expect(k8s.List(ctx, &npList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &npList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(npList.Items).To(HaveLen(1))
 			np := npList.Items[0]
 			Expect(np.Spec.Replicas).NotTo(BeNil())
@@ -172,7 +172,7 @@ var _ = Describe("BareMetal Service", func() {
 
 			// Verify orphan HC was cleaned up
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(BeEmpty())
 		})
 
@@ -189,7 +189,7 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 			Expect(hcList.Items[0].Spec.DNS.BaseDomain).To(Equal("example.com"))
 
@@ -202,7 +202,7 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(result2).NotTo(BeNil())
 
 			var hcList2 hyperv1.HostedClusterList
-			Expect(k8s2.List(ctx, &hcList2, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s2.List(ctx, &hcList2, client.InNamespace("test-cluster-2"))).To(Succeed())
 			Expect(hcList2.Items).To(HaveLen(1))
 			Expect(hcList2.Items[0].Spec.DNS.BaseDomain).To(Equal("cluster.local"))
 		})
@@ -238,7 +238,7 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 			hc := hcList.Items[0]
 			Expect(hc.Spec.ControllerAvailabilityPolicy).To(BeZero())
@@ -255,7 +255,7 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 			hc := hcList.Items[0]
 
@@ -276,7 +276,7 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(result).NotTo(BeNil())
 
 			var hcList hyperv1.HostedClusterList
-			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(k8s.List(ctx, &hcList, client.InNamespace("test-cluster"))).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
 			Expect(hcList.Items[0].Spec.Release.Image).To(Equal("quay.io/ocp-release:4.15.2-x86_64"))
 		})
