@@ -18,14 +18,10 @@ import (
 	"github.com/dcm-project/acm-cluster-service-provider/internal/health"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/monitoring"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/registration"
-<<<<<<< HEAD
 	spmclient "github.com/dcm-project/service-provider-manager/pkg/client/provider"
-=======
-	spmclient "github.com/dcm-project/service-provider-manager/pkg/client"
 	hyperv1 "github.com/openshift/hypershift/api/hypershift/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
->>>>>>> b48fc11 (fix: register HyperShift and core types in k8s client scheme)
 	"k8s.io/client-go/dynamic"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
