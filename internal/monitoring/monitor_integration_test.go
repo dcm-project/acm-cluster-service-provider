@@ -7,6 +7,7 @@ import (
 
 	v1alpha1 "github.com/dcm-project/acm-cluster-service-provider/api/v1alpha1"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/monitoring"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +53,7 @@ var _ = Describe("Status Monitor — Integration Tests", func() {
 		// Simulate a watch disconnect by updating a resource.
 		// After reconnect, the informer should re-list and resume.
 		updated := buildUnstructuredHostedCluster("cluster-it-6", instanceID, failedConditions())
-		_, err := client.Resource(hostedClusterGVR()).Namespace(testNamespace).Update(ctx, updated, metav1.UpdateOptions{})
+		_, err := client.Resource(util.HostedClusterGVR).Namespace(testNamespace).Update(ctx, updated, metav1.UpdateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		// The monitor should detect the change after reconnecting.
@@ -156,7 +157,7 @@ var _ = Describe("Status Monitor — Integration Tests", func() {
 
 		publisher.Reset()
 		updated := buildUnstructuredHostedCluster("cluster-it-9", instanceID, failedConditions())
-		_, err := client.Resource(hostedClusterGVR()).Namespace(testNamespace).Update(ctx, updated, metav1.UpdateOptions{})
+		_, err := client.Resource(util.HostedClusterGVR).Namespace(testNamespace).Update(ctx, updated, metav1.UpdateOptions{})
 		Expect(err).NotTo(HaveOccurred())
 
 		Eventually(func() int {
@@ -217,5 +218,88 @@ var _ = Describe("Status Monitor — Integration Tests", func() {
 		Expect(event.InstanceID).To(Equal(instanceID))
 		Expect(event.Status).To(Equal(v1alpha1.ClusterStatusFAILED))
 		Expect(event.Message).To(ContainSubstring(failureMsg))
+	})
+
+	// ── TC-MON-IT-020: NP READY → not-ready transition → UNAVAILABLE ──
+
+	It("TC-MON-IT-020: NP READY → not-ready transition → UNAVAILABLE", func() {
+		instanceID := "inst-it-020"
+		hc := buildUnstructuredHostedCluster("cluster-it-20", instanceID, readyConditions())
+		np := buildUnstructuredNodePool("cluster-it-20", instanceID, npReadyConditions())
+		client := newDynamicFakeClient(hc, np)
+		cfg := defaultMonitorConfig()
+		monitor := monitoring.New(client, cfg, publisher, slog.Default())
+
+		go func() {
+			defer GinkgoRecover()
+			_ = monitor.Start(ctx)
+		}()
+
+		// Wait for initial composite READY.
+		Eventually(func() []monitoring.StatusEvent {
+			return publisher.Events()
+		}, 5*time.Second, 100*time.Millisecond).ShouldNot(BeEmpty())
+
+		publisher.Reset()
+
+		// Transition NP to not-ready.
+		updatedNP := buildUnstructuredNodePool("cluster-it-20", instanceID, npNotReadyConditions())
+		_, err := client.Resource(util.NodePoolGVR).Namespace(testNamespace).Update(ctx, updatedNP, metav1.UpdateOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		// Composite should become UNAVAILABLE.
+		Eventually(func() []monitoring.StatusEvent {
+			return publisher.Events()
+		}, 5*time.Second, 100*time.Millisecond).Should(ContainElement(
+			monitoring.StatusEvent{
+				InstanceID: instanceID,
+				Status:     v1alpha1.ClusterStatusUNAVAILABLE,
+				Message:    "NodePool: 0 of 3 machines are ready",
+			},
+		))
+	})
+
+	// ── TC-MON-IT-021: NP UNAVAILABLE → READY recovery ──
+
+	It("TC-MON-IT-021: NP UNAVAILABLE → READY recovery", func() {
+		instanceID := "inst-it-021"
+		hc := buildUnstructuredHostedCluster("cluster-it-21", instanceID, readyConditions())
+		np := buildUnstructuredNodePool("cluster-it-21", instanceID, npNotReadyConditions())
+		client := newDynamicFakeClient(hc, np)
+		cfg := defaultMonitorConfig()
+		monitor := monitoring.New(client, cfg, publisher, slog.Default())
+
+		go func() {
+			defer GinkgoRecover()
+			_ = monitor.Start(ctx)
+		}()
+
+		// Wait for initial composite UNAVAILABLE.
+		Eventually(func() bool {
+			for _, e := range publisher.Events() {
+				if e.InstanceID == instanceID && e.Status == v1alpha1.ClusterStatusUNAVAILABLE {
+					return true
+				}
+			}
+			return false
+		}, 5*time.Second, 100*time.Millisecond).Should(BeTrue())
+
+		publisher.Reset()
+
+		// Recover NP to ready.
+		updatedNP := buildUnstructuredNodePool("cluster-it-21", instanceID, npReadyConditions())
+		_, err := client.Resource(util.NodePoolGVR).Namespace(testNamespace).Update(ctx, updatedNP, metav1.UpdateOptions{})
+		Expect(err).NotTo(HaveOccurred())
+
+		// Composite should become READY.
+		Eventually(func() []monitoring.StatusEvent {
+			return publisher.Events()
+		}, 5*time.Second, 100*time.Millisecond).Should(ContainElement(
+			monitoring.StatusEvent{
+				InstanceID: instanceID,
+				Status:     v1alpha1.ClusterStatusREADY,
+				Message:    "",
+			},
+		))
 	})
 })
