@@ -5,7 +5,7 @@
 - **Related Spec:** .ai/specs/acm-cluster-sp.spec.md
 - **Related Requirements:** REQ-REG-xxx, REQ-HTTP-xxx, REQ-HLT-xxx, REQ-API-xxx, REQ-ACM-xxx, REQ-KV-xxx, REQ-BM-xxx, REQ-MON-xxx, REQ-XC-xxx
 - **Created:** 2026-02-17
-- **Last Updated:** 2026-04-02 (PullSecret strategy change: shared Secret from env var; removed pull_secret from requests; added TC-INT-009; count 29→30) | 2026-04-01 (review fix: Secret naming/labeling in INT TCs) | 2026-04-01 (PullSecret aligned with catalog-manager PR #59 — top-level required field; amended INT TCs + coverage matrix) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management — amended INT TCs + coverage matrix) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; coverage matrix corrections; phantom BM TC references removed)
+- **Last Updated:** 2026-04-02 (Etcd required field: DD-008, REQ-ACM-210 — added Etcd assertions to TC-INT-001/TC-INT-006) | 2026-04-02 (PullSecret strategy change: shared Secret from env var; removed pull_secret from requests; added TC-INT-009; count 29→30) | 2026-04-01 (review fix: Secret naming/labeling in INT TCs) | 2026-04-01 (PullSecret aligned with catalog-manager PR #59 — top-level required field; amended INT TCs + coverage matrix) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management — amended INT TCs + coverage matrix) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; coverage matrix corrections; phantom BM TC references removed)
 - **Scope:** This file covers **integration tests only** (30 test cases). Unit tests are in `acm-cluster-sp.unit-tests.md`.
 
 ## Design Principles
@@ -355,8 +355,8 @@ Full-stack integration tests using `controller-runtime/envtest` (real etcd + kub
 Build constraint: `//go:build integration`
 
 #### TC-INT-001: Create and Get KubeVirt cluster round-trip
-- **Requirements:** REQ-API-060, REQ-API-100, REQ-API-110, REQ-ACM-010, REQ-KV-010, REQ-KV-020, REQ-ACM-180, REQ-ACM-191, REQ-ACM-200
-- **Decisions:** DD-005, DD-006, DD-007
+- **Requirements:** REQ-API-060, REQ-API-100, REQ-API-110, REQ-ACM-010, REQ-KV-010, REQ-KV-020, REQ-ACM-180, REQ-ACM-191, REQ-ACM-200, REQ-ACM-210
+- **Decisions:** DD-005, DD-006, DD-007, DD-008
 - **Type:** Integration
 - **Priority:** High
 - **Given** envtest is running with HyperShift CRDs installed, a ClusterImageSet for OCP "4.17.0" (K8s "1.30") created, and a shared PullSecret Secret `<SP_NAME>-pull-secret` exists in the namespace
@@ -364,6 +364,7 @@ Build constraint: `//go:build integration`
 - **Then** response is 201 with server-generated `id`, `path`, `status=PENDING`
 - **And** the HostedCluster in envtest has `Spec.Services` with 4 entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`
 - **And** `Spec.PullSecret.Name` equals `<SP_NAME>-pull-secret`
+- **And** `Spec.Etcd.ManagementType` is `Managed` with `Storage.Type=PersistentVolume`
 - **And** the NodePool has `Spec.Management.UpgradeType=InPlace`
 - **When** the HostedCluster conditions are manually updated to `Available=True`, `Progressing=False` in envtest
 - **And** `GET /api/v1alpha1/clusters/{id}` is called
@@ -411,8 +412,8 @@ Build constraint: `//go:build integration`
 - **And** the body contains `type`, `title`, `status` fields
 
 #### TC-INT-006: Create BareMetal cluster round-trip
-- **Requirements:** REQ-ACM-010, REQ-BM-010, REQ-BM-020, REQ-BM-040, REQ-ACM-180, REQ-ACM-191, REQ-ACM-200
-- **Decisions:** DD-005, DD-006, DD-007
+- **Requirements:** REQ-ACM-010, REQ-BM-010, REQ-BM-020, REQ-BM-040, REQ-ACM-180, REQ-ACM-191, REQ-ACM-200, REQ-ACM-210
+- **Decisions:** DD-005, DD-006, DD-007, DD-008
 - **Type:** Integration
 - **Priority:** Medium
 - **Given** envtest is running with HyperShift CRDs, a ClusterImageSet, and a shared PullSecret Secret `<SP_NAME>-pull-secret`
@@ -421,6 +422,7 @@ Build constraint: `//go:build integration`
 - **And** a HostedCluster with `platform.type=Agent` exists in envtest
 - **And** the HostedCluster has `Spec.Services` with 4 entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`
 - **And** `Spec.PullSecret.Name` equals `<SP_NAME>-pull-secret`
+- **And** `Spec.Etcd.ManagementType` is `Managed` with `Storage.Type=PersistentVolume`
 - **And** a NodePool with InfraEnv reference exists
 - **And** the NodePool has `Spec.Management.UpgradeType=InPlace`
 
@@ -599,6 +601,7 @@ Build constraint: `//go:build integration`
 | REQ-ACM-191 | TC-KV-UT-032, TC-BM-UT-016, TC-INT-001, TC-INT-006 | Covered |
 | REQ-ACM-195 | TC-CFG-UT-001, TC-INT-009 | Covered |
 | REQ-ACM-200 | TC-KV-UT-001, TC-KV-UT-033, TC-BM-UT-001, TC-BM-UT-017, TC-INT-001, TC-INT-006 | Covered |
+| REQ-ACM-210 | TC-KV-UT-001, TC-KV-UT-034, TC-BM-UT-001, TC-BM-UT-018, TC-INT-001, TC-INT-006 | Covered |
 
 ### KubeVirt Requirements (REQ-KV-xxx)
 
@@ -697,6 +700,7 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Services field (DD-005) | TC-KV-UT-030 | TC-BM-UT-015 confirms shared code |
 | PullSecret Secret reference (DD-007) | TC-KV-UT-032 | TC-BM-UT-016 confirms shared code |
 | NodePool Management.UpgradeType (DD-006) | TC-KV-UT-033 | TC-BM-UT-017 confirms shared code |
+| Etcd Managed/PersistentVolume/8Gi (DD-008) | TC-KV-UT-034 | TC-BM-UT-018 confirms shared code |
 
 ### Spec ACs Merged into Fewer Test Cases
 

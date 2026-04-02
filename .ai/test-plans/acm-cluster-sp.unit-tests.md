@@ -5,8 +5,8 @@
 - **Related Spec:** .ai/specs/acm-cluster-sp.spec.md
 - **Related Requirements:** REQ-REG-xxx, REQ-HTTP-xxx, REQ-HLT-xxx, REQ-API-xxx, REQ-ACM-xxx, REQ-KV-xxx, REQ-BM-xxx, REQ-MON-xxx, REQ-XC-xxx
 - **Created:** 2026-02-17
-- **Last Updated:** 2026-04-02 (PullSecret strategy change: shared Secret from env var; removed per-cluster TCs, simplified rollback TCs; count 151→146) | 2026-04-01 (review fix: Secret naming/labeling/lookup; count reconciliation — Registration 12→13, HTTP 1→2, Handler:Create 20→21, total 148→151) | 2026-04-01 (PullSecret aligned with catalog-manager PR #59 — top-level required field; reclassified TC-HDL-CRT-UT-021, removed TC-KV-UT-036) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management — new TCs + amended TCs) | 2026-03-31 (label prefix alignment) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; added TC-OPS-UT-016/017 for status_message; removed phantom TC-BM-UT-006/007/009; coverage matrix corrections)
-- **Scope:** This file covers **146 test cases** (142 unit + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
+- **Last Updated:** 2026-04-02 (Etcd required field: DD-008, REQ-ACM-210 — new TCs TC-KV-UT-034/TC-BM-UT-018, fixed TC-KV-UT-002/TC-BM-UT-013; count 146→148) | 2026-04-02 (PullSecret strategy change: shared Secret from env var; removed per-cluster TCs, simplified rollback TCs; count 151→146) | 2026-04-01 (review fix: Secret naming/labeling/lookup; count reconciliation — Registration 12→13, HTTP 1→2, Handler:Create 20→21, total 148→151) | 2026-04-01 (PullSecret aligned with catalog-manager PR #59 — top-level required field; reclassified TC-HDL-CRT-UT-021, removed TC-KV-UT-036) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management — new TCs + amended TCs) | 2026-03-31 (label prefix alignment) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; added TC-OPS-UT-016/017 for status_message; removed phantom TC-BM-UT-006/007/009; coverage matrix corrections)
+- **Scope:** This file covers **148 test cases** (144 unit + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
 
 ## Design Principles
 
@@ -855,8 +855,8 @@ All tests in this section are **table-driven** within a single Go test function.
 Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Client`. Status mapping is NOT retested here (covered by TC-STS-UT-xxx). Each test verifies CRD construction, K8s interactions, and data extraction.
 
 #### TC-KV-UT-001: Create KubeVirt cluster -- HostedCluster + NodePool
-- **Requirements:** REQ-ACM-010, REQ-KV-010, REQ-KV-020, REQ-ACM-020, REQ-ACM-090, REQ-KV-030, REQ-ACM-100, REQ-XC-LBL-010, REQ-XC-LBL-020, REQ-ACM-180, REQ-ACM-200
-- **Decisions:** DD-005, DD-006
+- **Requirements:** REQ-ACM-010, REQ-KV-010, REQ-KV-020, REQ-ACM-020, REQ-ACM-090, REQ-KV-030, REQ-ACM-100, REQ-XC-LBL-010, REQ-XC-LBL-020, REQ-ACM-180, REQ-ACM-200, REQ-ACM-210
+- **Decisions:** DD-005, DD-006, DD-008
 - **Type:** Unit
 - **Priority:** High
 - **Given** a fake K8s client with a ClusterImageSet for OCP "4.15.2" (K8s "1.28") and `SP_CLUSTER_NAMESPACE="clusters"`
@@ -875,7 +875,7 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Given** a fake K8s client with a ClusterImageSet
 - **When** `Create()` is called with `control_plane.count=5, control_plane.storage="500GB"`
 - **Then** the HostedCluster does not contain an explicit control plane replica count
-- **And** etcd storage config is not set (HyperShift manages it)
+- **And** `Spec.Etcd.Managed.Storage.Type` is `PersistentVolume` (caller's `control_plane.storage="500GB"` is not mapped to etcd storage)
 
 #### TC-KV-UT-003: control_plane CPU and memory map to resource request override annotations
 - **Requirements:** REQ-ACM-060, REQ-ACM-061
@@ -1064,6 +1064,16 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **When** `Create()` is called with `platform="kubevirt"`
 - **Then** the NodePool has `Spec.Management.UpgradeType=InPlace`
 
+#### TC-KV-UT-034: HostedCluster has Etcd=Managed/PersistentVolume
+- **Requirements:** REQ-ACM-210
+- **Decisions:** DD-008
+- **Type:** Unit
+- **Priority:** High
+- **Given** a fake K8s client with a ClusterImageSet
+- **When** `Create()` is called with `platform="kubevirt"`
+- **Then** `Spec.Etcd.ManagementType` is `Managed`
+- **And** `Spec.Etcd.Managed.Storage.Type` is `PersistentVolume`
+
 #### TC-OPS-UT-014: Invalid page_token returns INVALID_ARGUMENT error
 - **Requirements:** REQ-API-290 (service-layer enforcement)
 - **Type:** Unit
@@ -1205,8 +1215,8 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 Tests the BareMetal `ClusterService` implementation. Status mapping is NOT retested (shared TC-STS-UT-xxx). CRD construction focuses on Agent-platform-specific fields.
 
 #### TC-BM-UT-001: Create BareMetal cluster -- HostedCluster + NodePool with InfraEnv
-- **Requirements:** REQ-ACM-010, REQ-BM-010, REQ-BM-020, REQ-ACM-020, REQ-BM-030, REQ-BM-040, REQ-ACM-090, REQ-XC-LBL-010, REQ-ACM-180, REQ-ACM-200
-- **Decisions:** DD-005, DD-006
+- **Requirements:** REQ-ACM-010, REQ-BM-010, REQ-BM-020, REQ-ACM-020, REQ-BM-030, REQ-BM-040, REQ-ACM-090, REQ-XC-LBL-010, REQ-ACM-180, REQ-ACM-200, REQ-ACM-210
+- **Decisions:** DD-005, DD-006, DD-008
 - **Type:** Unit
 - **Priority:** High
 - **Given** a fake K8s client with a ClusterImageSet
@@ -1290,7 +1300,7 @@ Tests the BareMetal `ClusterService` implementation. Status mapping is NOT retes
 - **Given** a fake K8s client with a ClusterImageSet
 - **When** `Create()` is called with `control_plane.count=5, control_plane.storage="500GB"`
 - **Then** the HostedCluster does not set `ControllerAvailabilityPolicy`
-- **And** the HostedCluster does not set `Etcd.Managed` config
+- **And** `Spec.Etcd.Managed.Storage.Type` is `PersistentVolume` (caller's `control_plane.storage="500GB"` is not mapped to etcd storage)
 
 #### TC-BM-UT-014: control_plane CPU and memory map to resource request override annotations
 - **Requirements:** REQ-ACM-060, REQ-ACM-061
@@ -1332,6 +1342,17 @@ Tests the BareMetal `ClusterService` implementation. Status mapping is NOT retes
 - **When** `Create()` is called with `platform="baremetal"`, `infra_env="my-infra"`
 - **Then** the NodePool has `Spec.Management.UpgradeType=InPlace`
 - **Note:** Confirms shared Management code works for BareMetal (TC-KV-UT-033 is the primary test)
+
+#### TC-BM-UT-018: HostedCluster has Etcd=Managed/PersistentVolume
+- **Requirements:** REQ-ACM-210
+- **Decisions:** DD-008
+- **Type:** Unit
+- **Priority:** High
+- **Given** a fake K8s client with a ClusterImageSet
+- **When** `Create()` is called with `platform="baremetal"`, `infra_env="my-infra"`
+- **Then** `Spec.Etcd.ManagementType` is `Managed`
+- **And** `Spec.Etcd.Managed.Storage.Type` is `PersistentVolume`
+- **Note:** Confirms shared Etcd code works for BareMetal (TC-KV-UT-034 is the primary test)
 
 #### TC-BM-UT-011: Create BareMetal with no base_domain and no SP_BASE_DOMAIN config
 - **Requirements:** REQ-API-380
@@ -1701,6 +1722,7 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-ACM-191 | TC-KV-UT-032, TC-BM-UT-016, TC-INT-001, TC-INT-006 | Covered |
 | REQ-ACM-195 | TC-CFG-UT-001, TC-INT-009 | Covered |
 | REQ-ACM-200 | TC-KV-UT-001, TC-KV-UT-033, TC-BM-UT-001, TC-BM-UT-017, TC-INT-001, TC-INT-006 | Covered |
+| REQ-ACM-210 | TC-KV-UT-001, TC-KV-UT-034, TC-BM-UT-001, TC-BM-UT-018, TC-INT-001, TC-INT-006 | Covered |
 
 ### KubeVirt Requirements (REQ-KV-xxx)
 
@@ -1801,6 +1823,7 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Services field (DD-005) | TC-KV-UT-030 | TC-BM-UT-015 confirms shared code |
 | PullSecret Secret reference (DD-007) | TC-KV-UT-032 | TC-BM-UT-016 confirms shared code |
 | NodePool Management.UpgradeType (DD-006) | TC-KV-UT-033 | TC-BM-UT-017 confirms shared code |
+| Etcd Managed/PersistentVolume/8Gi (DD-008) | TC-KV-UT-034 | TC-BM-UT-018 confirms shared code |
 
 ### Spec ACs Merged into Fewer Test Cases
 

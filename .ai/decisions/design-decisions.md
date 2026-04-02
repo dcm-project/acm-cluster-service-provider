@@ -365,3 +365,48 @@ The shared PullSecret Secret carries labels `dcm.project/managed-by=dcm` and `dc
 7. `SP_PULL_SECRET` is a required env var; missing value causes startup failure
 8. The SP no longer aligns with catalog-manager PR #59 for `pull_secret` as an API field — the SP uses an env var instead
 
+---
+
+## DD-008: Etcd — Managed with PersistentVolume Storage (v1 Opinionated)
+
+**Date:** 2026-04-02
+**Status:** Accepted
+**Spec References:** REQ-ACM-210, AC-ACM-210
+
+### Problem
+
+The HyperShift HostedCluster CRD marks `Spec.Etcd` (`EtcdSpec`) as `+required` with no `omitempty`. The field is a non-pointer struct, so Go's `encoding/json` always serializes its zero value (`{"managementType": ""}`) even when not explicitly set. The CRD has a `+kubebuilder:default` that provides managed etcd configuration, but this default only applies when the field is **absent** from JSON — since Go serializes the zero value, the field is always present and the default is bypassed. The zero-value `managementType: ""` then fails `+kubebuilder:validation:Enum=Managed;Unmanaged`, causing the API server to reject the HostedCluster create.
+
+This gap is masked in tests because `controller-runtime/pkg/client/fake` does not enforce CRD schema validation or defaulting.
+
+### Options Considered
+
+#### Option A: Managed etcd, PersistentVolume — mirror CRD default (CHOSEN)
+
+Set `Spec.Etcd` to `{ManagementType: Managed, Managed: {Storage: {Type: PersistentVolume}}}`. The `PersistentVolume.Size` is left unset, allowing HyperShift's CRD default to apply.
+
+**Pros:**
+
+- Satisfies the CRD's required enum validation for `ManagementType` and `Storage.Type`
+- PersistentVolume is the only supported storage type (`+kubebuilder:validation:Enum=PersistentVolume`)
+- Size is deferred to HyperShift's CRD default — no hardcoded value to maintain
+- No caller-facing configuration needed (opinionated v1)
+
+**Cons:**
+
+- None identified — the CRD default handles sizing
+
+### Decision
+
+For v1, the SP sets `Spec.Etcd` with `ManagementType=Managed` and `Storage.Type=PersistentVolume` on every HostedCluster. The `PersistentVolume.Size` is not set by the SP — HyperShift's CRD default applies. This is independent of the caller's `control_plane.storage` value (which remains ignored per REQ-ACM-080).
+
+### Relationship to REQ-ACM-080
+
+REQ-ACM-080 says `control_plane.storage` is accepted but IGNORED — this means the caller's storage hint is not mapped to etcd. DD-008 is a separate concern: the CRD **requires** `Spec.Etcd` to be populated regardless of caller input.
+
+### Consequences
+
+1. Etcd storage size is determined by HyperShift's CRD default — the SP does not hardcode a size
+2. If HyperShift adds more storage types, the SP's hardcoded `PersistentVolume` type may need updating
+3. The `+immutable` tag on `Spec.Etcd` means the value cannot be changed after creation
+
