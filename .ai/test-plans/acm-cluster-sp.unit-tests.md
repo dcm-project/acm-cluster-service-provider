@@ -6,7 +6,7 @@
 - **Related Requirements:** REQ-REG-xxx, REQ-HTTP-xxx, REQ-HLT-xxx, REQ-API-xxx, REQ-ACM-xxx, REQ-KV-xxx, REQ-BM-xxx, REQ-MON-xxx, REQ-XC-xxx
 - **Created:** 2026-02-17
 - **Last Updated:** 2026-04-02 (PullSecret strategy change: shared Secret from env var; removed per-cluster TCs, simplified rollback TCs; count 151→146) | 2026-04-01 (review fix: Secret naming/labeling/lookup; count reconciliation — Registration 12→13, HTTP 1→2, Handler:Create 20→21, total 148→151) | 2026-04-01 (PullSecret aligned with catalog-manager PR #59 — top-level required field; reclassified TC-HDL-CRT-UT-021, removed TC-KV-UT-036) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management — new TCs + amended TCs) | 2026-03-31 (label prefix alignment) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; added TC-OPS-UT-016/017 for status_message; removed phantom TC-BM-UT-006/007/009; coverage matrix corrections)
-- **Scope:** This file covers **unit tests only** (142 unit test cases + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
+- **Scope:** This file covers **146 test cases** (142 unit + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
 
 ## Design Principles
 
@@ -1571,11 +1571,11 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-REG-020 | TC-REG-UT-001 | Covered |
 | REQ-REG-030 | TC-REG-IT-004 | Covered |
 | REQ-REG-031 | TC-REG-IT-004 | Covered |
-| REQ-REG-040 | TC-REG-UT-003, TC-REG-UT-004, TC-REG-UT-009, TC-REG-UT-010 | Covered |
+| REQ-REG-040 | TC-REG-UT-003, TC-REG-UT-004, TC-REG-UT-009, TC-REG-UT-010, TC-REG-IT-006 | Covered |
 | REQ-REG-050 | TC-REG-UT-003, TC-REG-UT-009 | Covered |
 | REQ-REG-051 | TC-REG-UT-003, TC-REG-UT-004, TC-REG-UT-009, TC-REG-IT-005 | Covered |
 | REQ-REG-060 | TC-REG-UT-002 | Covered |
-| REQ-REG-070 | TC-REG-UT-011 | Covered |
+| REQ-REG-070 | TC-REG-UT-011, TC-REG-IT-007 | Covered |
 | REQ-REG-080 | TC-REG-UT-001 | Covered |
 | REQ-REG-090 | TC-REG-UT-001, TC-REG-UT-007 | Covered |
 | REQ-REG-091 | TC-REG-UT-012, TC-REG-UT-013 | Covered |
@@ -1696,11 +1696,11 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-ACM-150 | TC-KV-UT-008 | Covered |
 | REQ-ACM-160 | TC-STS-UT-001..012, TC-OPS-UT-001 | Covered (shared ops confirm delegation to shared mapper) |
 | REQ-ACM-170 | TC-KV-UT-017, TC-KV-UT-028, TC-BM-UT-008 | Covered |
-| REQ-ACM-180 | TC-KV-UT-001, TC-KV-UT-030, TC-BM-UT-001, TC-BM-UT-015 | Covered |
-| REQ-ACM-190 | TC-OPS-UT-018 | Covered |
-| REQ-ACM-191 | TC-KV-UT-032, TC-BM-UT-016 | Covered |
-| REQ-ACM-195 | TC-CFG-UT-001 | Covered |
-| REQ-ACM-200 | TC-KV-UT-001, TC-KV-UT-033, TC-BM-UT-001, TC-BM-UT-017 | Covered |
+| REQ-ACM-180 | TC-KV-UT-001, TC-KV-UT-030, TC-BM-UT-001, TC-BM-UT-015, TC-INT-001, TC-INT-006 | Covered |
+| REQ-ACM-190 | TC-OPS-UT-018, TC-INT-009 | Covered |
+| REQ-ACM-191 | TC-KV-UT-032, TC-BM-UT-016, TC-INT-001, TC-INT-006 | Covered |
+| REQ-ACM-195 | TC-CFG-UT-001, TC-INT-009 | Covered |
+| REQ-ACM-200 | TC-KV-UT-001, TC-KV-UT-033, TC-BM-UT-001, TC-BM-UT-017, TC-INT-001, TC-INT-006 | Covered |
 
 ### KubeVirt Requirements (REQ-KV-xxx)
 
@@ -1729,7 +1729,7 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-MON-010 | TC-MON-UT-001 | Covered |
 | REQ-MON-020 | TC-MON-UT-003, TC-MON-UT-008 | Covered |
 | REQ-MON-030 | TC-MON-UT-001, TC-MON-UT-011 | Covered |
-| REQ-MON-035 | TC-MON-UT-012 | Covered |
+| REQ-MON-035 | TC-MON-UT-012, TC-MON-IT-010 | Covered |
 | REQ-MON-040 | TC-MON-UT-001, TC-MON-UT-009, TC-MON-UT-011 | Covered |
 | REQ-MON-050 | TC-MON-UT-001 | Covered |
 | REQ-MON-060 | TC-MON-UT-001 | Covered |
@@ -1743,7 +1743,6 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-MON-126 | TC-MON-IT-008 | Covered |
 | REQ-MON-130 | TC-MON-UT-002 | Covered |
 | REQ-MON-135 | TC-MON-IT-009 | Covered |
-| REQ-MON-035 | TC-MON-IT-010 | Covered |
 | REQ-MON-140 | TC-MON-UT-005, TC-MON-IT-010 | Covered |
 | REQ-MON-170 | TC-MON-IT-012 | Covered |
 | REQ-MON-150 | TC-MON-UT-007 | Covered |
@@ -1802,7 +1801,6 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Services field (DD-005) | TC-KV-UT-030 | TC-BM-UT-015 confirms shared code |
 | PullSecret Secret reference (DD-007) | TC-KV-UT-032 | TC-BM-UT-016 confirms shared code |
 | NodePool Management.UpgradeType (DD-006) | TC-KV-UT-033 | TC-BM-UT-017 confirms shared code |
-| PullSecret rollback (DD-007) | TC-KV-UT-034, TC-KV-UT-035 | TC-BM-UT-018 confirms shared code |
 
 ### Spec ACs Merged into Fewer Test Cases
 
@@ -1829,7 +1827,7 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 
 | Category | Count |
 |---|---|
-| **Total unit test cases** | **146** |
+| **Total test cases defined** | **146** (142 unit + 4 reclassified as integration/middleware) |
 | High priority | 71 |
 | Medium priority | 60 |
 | Low priority | 15 |

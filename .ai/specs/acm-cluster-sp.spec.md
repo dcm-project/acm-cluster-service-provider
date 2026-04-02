@@ -828,8 +828,8 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 | REQ-ACM-180 | The SP MUST set `Spec.Services` on every HostedCluster to 4 entries: `APIServer` with `LoadBalancer`, and `OAuthServer`, `Konnectivity`, `Ignition` with `Route` strategy (DD-005) | MUST |
 | REQ-ACM-190 | At startup, the SP MUST create (or update if existing) a K8s Secret named `<SP_NAME>-pull-secret` of type `kubernetes.io/dockerconfigjson` from the base64-decoded `SP_PULL_SECRET` env var in `SP_CLUSTER_NAMESPACE`. The Secret carries labels `dcm.project/managed-by=dcm` and `dcm.project/dcm-service-type=cluster` (DD-007) | MUST |
 | REQ-ACM-191 | The HostedCluster's `Spec.PullSecret.Name` MUST reference the shared PullSecret Secret (`<SP_NAME>-pull-secret`) created at startup (DD-007) | MUST |
-| REQ-ACM-200 | The SP MUST set `Spec.Management.UpgradeType` to `InPlace` on every NodePool, for all platforms (DD-006) | MUST |
 | REQ-ACM-195 | The SP MUST fail to start if `SP_PULL_SECRET` env var is not set or empty, with an error naming the missing variable (DD-007) | MUST |
+| REQ-ACM-200 | The SP MUST set `Spec.Management.UpgradeType` to `InPlace` on every NodePool, for all platforms (DD-006) | MUST |
 
 #### Common Configuration
 
@@ -1392,11 +1392,11 @@ Error type to HTTP status mapping:
 
 | Prefix | Topic | Count |
 |--------|-------|-------|
-| REQ-REG-NNN | 1: DCM Registration | 13 |
-| REQ-HTTP-NNN | 2: HTTP Server | 12 |
+| REQ-REG-NNN | 1: DCM Registration | 14 |
+| REQ-HTTP-NNN | 2: HTTP Server | 11 |
 | REQ-HLT-NNN | 3: Health Service | 12 |
-| REQ-API-NNN | 4: OpenAPI Endpoints | 49 |
-| REQ-ACM-NNN | 5: ACM Platform Services (Common) | 25 |
+| REQ-API-NNN | 4: OpenAPI Endpoints | 51 |
+| REQ-ACM-NNN | 5: ACM Platform Services (Common) | 26 |
 | REQ-KV-NNN | 5a: ACM - KubeVirt | 4 |
 | REQ-BM-NNN | 5b: ACM - BareMetal | 6 |
 | REQ-MON-NNN | 6: Status Monitoring | 22 |

@@ -100,7 +100,7 @@ Bounded retries prevent blocking the event pipeline. Dropped events are recovera
 ## TD-007: Console URI Construction Pattern
 
 **Spec References:** REQ-API-390
-**Test Cases:** TC-KV-UT-019, TC-KV-UT-010, TC-KV-UT-027, TC-BM-UT-007
+**Test Cases:** TC-OPS-UT-006, TC-OPS-UT-001, TC-OPS-UT-013
 
 ### Decision
 
