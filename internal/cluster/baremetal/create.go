@@ -96,6 +96,9 @@ func (b *builder) BuildNodePool(req v1alpha1.Cluster, releaseImage string, label
 			Release: hyperv1.Release{
 				Image: releaseImage,
 			},
+			Management: hyperv1.NodePoolManagement{
+				UpgradeType: hyperv1.UpgradeTypeInPlace,
+			},
 			Platform: hyperv1.NodePoolPlatform{
 				Type: hyperv1.AgentPlatform,
 				Agent: &hyperv1.AgentNodePoolPlatform{
