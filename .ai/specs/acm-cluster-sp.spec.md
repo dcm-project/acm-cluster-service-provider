@@ -2,7 +2,7 @@
 
 > **Status**: Draft
 > **Created**: 2026-02-13
-> **Last Updated**: 2026-04-02 (PullSecret strategy change: shared Secret from env var at startup, replaces per-cluster lifecycle — DD-007 revised) | 2026-04-01 (review fix: PullSecret Secret naming `<cluster-name>-pull-secret`, labeling per REQ-ACM-020, label-based lookup for deletion) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management; PullSecret aligned with catalog-manager PR #59 — top-level required field)
+> **Last Updated**: 2026-04-02 (Etcd required field: DD-008, REQ-ACM-210, AC-ACM-210 — Managed/PersistentVolume/8Gi) | 2026-04-02 (PullSecret strategy change: shared Secret from env var at startup, replaces per-cluster lifecycle — DD-007 revised) | 2026-04-01 (review fix: PullSecret Secret naming `<cluster-name>-pull-secret`, labeling per REQ-ACM-020, label-based lookup for deletion) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management; PullSecret aligned with catalog-manager PR #59 — top-level required field)
 > **Authors**: @gabriel-farache (with Claude Code)
 
 ## 1. Overview
@@ -36,6 +36,7 @@ The ACM Cluster Service Provider is a REST API that manages OpenShift cluster li
 | DD-005 | Design | **Services — All 4 control-plane services with default strategies.** SP sets 4 `ServicePublishingStrategyMapping` entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`. | CRD `Spec.Services` is `+required`; ACM expects all 4 services declared; adding them costs nothing. | `.ai/decisions/design-decisions.md` |
 | DD-006 | Design | **NodePool Management — InPlace upgrade type (v1 opinionated).** SP sets `Spec.Management.UpgradeType=InPlace` for all platforms. | CRD `Spec.Management.UpgradeType` is `+required`; InPlace is simpler and avoids node churn. | `.ai/decisions/design-decisions.md` |
 | DD-007 | Design | **PullSecret — Shared Secret from env var, created at startup.** SP creates a single shared PullSecret Secret (`<SP_NAME>-pull-secret`) at startup from `SP_PULL_SECRET` env var. All HostedClusters reference it. No per-cluster Secret lifecycle. | CRD `Spec.PullSecret` is `+required`; shared Secret eliminates per-cluster complexity; env var aligns with operational deployment patterns. | `.ai/decisions/design-decisions.md` |
+| DD-008 | Design | **Etcd — Managed with PersistentVolume storage (v1 opinionated).** SP sets `Spec.Etcd` to `{ManagementType: Managed, Managed: {Storage: {Type: PersistentVolume}}}` on every HostedCluster. Size is deferred to HyperShift's CRD default. | CRD `Spec.Etcd` is `+required` non-pointer with no `omitempty`; Go zero value bypasses CRD defaults and fails enum validation. | `.ai/decisions/design-decisions.md` |
 | IMPL-001 | Implementation | **ReadOnly field stripping removed from handler:** Trusts OpenAPI validation middleware (`VisitAsRequest()`) to reject readOnly properties in requests. | Single point of defense at the middleware boundary; handler does not re-validate. | `.ai/decisions/implementation-decisions.md` |
 
 ## 2. Scope
@@ -830,6 +831,7 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 | REQ-ACM-191 | The HostedCluster's `Spec.PullSecret.Name` MUST reference the shared PullSecret Secret (`<SP_NAME>-pull-secret`) created at startup (DD-007) | MUST |
 | REQ-ACM-195 | The SP MUST fail to start if `SP_PULL_SECRET` env var is not set or empty, with an error naming the missing variable (DD-007) | MUST |
 | REQ-ACM-200 | The SP MUST set `Spec.Management.UpgradeType` to `InPlace` on every NodePool, for all platforms (DD-006) | MUST |
+| REQ-ACM-210 | The SP MUST set `Spec.Etcd` on every HostedCluster to `{ManagementType: Managed, Managed: {Storage: {Type: PersistentVolume}}}` (DD-008). `PersistentVolume.Size` is not set — HyperShift's CRD default applies. This is independent of the caller's `control_plane.storage` value (which is ignored per REQ-ACM-080) | MUST |
 
 #### Common Configuration
 
@@ -995,6 +997,13 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 - **Given** a cluster is being created (any platform)
 - **When** the NodePool CR is constructed
 - **Then** `Spec.Management.UpgradeType` is set to `InPlace`
+
+##### AC-ACM-210: HostedCluster has Etcd set to Managed with PersistentVolume
+- **Requirements:** REQ-ACM-210
+- **Given** a cluster is being created (any platform)
+- **When** the HostedCluster CR is constructed
+- **Then** `Spec.Etcd.ManagementType` is `Managed`
+- **And** `Spec.Etcd.Managed.Storage.Type` is `PersistentVolume`
 
 ---
 

@@ -33,3 +33,5 @@ Thumbs.db
 !.ai/specs/
 !.ai/test-plans/
 !.ai/decisions/
+
+.claude/
