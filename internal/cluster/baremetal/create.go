@@ -62,6 +62,14 @@ func (b *builder) BuildHostedCluster(req v1alpha1.Cluster, baseDomain, releaseIm
 				BaseDomain: baseDomain,
 			},
 			Services: cluster.DefaultServicePublishingStrategies,
+			Etcd: hyperv1.EtcdSpec{
+				ManagementType: hyperv1.Managed,
+				Managed: &hyperv1.ManagedEtcdSpec{
+					Storage: hyperv1.ManagedEtcdStorageSpec{
+						Type: hyperv1.PersistentVolumeEtcdStorage,
+					},
+				},
+			},
 		},
 	}
 }

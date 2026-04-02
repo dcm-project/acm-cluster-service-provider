@@ -242,7 +242,6 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(hcList.Items).To(HaveLen(1))
 			hc := hcList.Items[0]
 			Expect(hc.Spec.ControllerAvailabilityPolicy).To(BeZero())
-			Expect(hc.Spec.Etcd.Managed).To(BeNil())
 		})
 
 		It("TC-BM-UT-014: control_plane CPU and memory map to resource request override annotations", func() {
