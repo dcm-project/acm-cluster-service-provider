@@ -6,14 +6,12 @@ import "k8s.io/apimachinery/pkg/runtime/schema"
 const (
 	HiveGroup   = "hive.openshift.io"
 	HiveVersion = "v1"
-)
 
-const (
 	HypershiftGroup   = "hypershift.openshift.io"
 	HypershiftVersion = "v1beta1"
 )
 
-// Pre-built GVKs for unstructured lookups.
+// Pre-built GVKs and GVRs for unstructured / dynamic client lookups.
 var (
 	HostedClusterGVK = schema.GroupVersionKind{
 		Group: HypershiftGroup, Version: HypershiftVersion, Kind: "HostedCluster",
@@ -21,6 +19,20 @@ var (
 	HostedClusterListGVK = schema.GroupVersionKind{
 		Group: HypershiftGroup, Version: HypershiftVersion, Kind: "HostedClusterList",
 	}
+	HostedClusterGVR = schema.GroupVersionResource{
+		Group: HypershiftGroup, Version: HypershiftVersion, Resource: "hostedclusters",
+	}
+
+	NodePoolGVK = schema.GroupVersionKind{
+		Group: HypershiftGroup, Version: HypershiftVersion, Kind: "NodePool",
+	}
+	NodePoolListGVK = schema.GroupVersionKind{
+		Group: HypershiftGroup, Version: HypershiftVersion, Kind: "NodePoolList",
+	}
+	NodePoolGVR = schema.GroupVersionResource{
+		Group: HypershiftGroup, Version: HypershiftVersion, Resource: "nodepools",
+	}
+
 	ClusterImageSetGVK = schema.GroupVersionKind{
 		Group: HiveGroup, Version: HiveVersion, Kind: "ClusterImageSet",
 	}
