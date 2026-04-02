@@ -5,7 +5,7 @@
 - **Related Spec:** .ai/specs/acm-cluster-sp.spec.md
 - **Related Requirements:** REQ-REG-xxx, REQ-HTTP-xxx, REQ-HLT-xxx, REQ-API-xxx, REQ-ACM-xxx, REQ-KV-xxx, REQ-BM-xxx, REQ-MON-xxx, REQ-XC-xxx
 - **Created:** 2026-02-17
-- **Last Updated:** 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; coverage matrix corrections; phantom BM TC references removed)
+- **Last Updated:** 2026-04-01 (HostedCluster required fields: Services DD-005, Management DD-006 — amended INT TCs + coverage matrix) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; coverage matrix corrections; phantom BM TC references removed)
 - **Scope:** This file covers **integration tests only** (31 test cases). Unit tests are in `acm-cluster-sp.unit-tests.md`.
 
 ## Design Principles
@@ -355,12 +355,15 @@ Full-stack integration tests using `controller-runtime/envtest` (real etcd + kub
 Build constraint: `//go:build integration`
 
 #### TC-INT-001: Create and Get KubeVirt cluster round-trip
-- **Requirements:** REQ-API-060, REQ-API-100, REQ-API-110, REQ-ACM-010, REQ-KV-010, REQ-KV-020
+- **Requirements:** REQ-API-060, REQ-API-100, REQ-API-110, REQ-ACM-010, REQ-KV-010, REQ-KV-020, REQ-ACM-180, REQ-ACM-200
+- **Decisions:** DD-005, DD-006
 - **Type:** Integration
 - **Priority:** High
 - **Given** envtest is running with HyperShift CRDs installed and a ClusterImageSet for OCP "4.17.0" (K8s "1.30") created
 - **When** `POST /api/v1alpha1/clusters` with valid KubeVirt cluster body
 - **Then** response is 201 with server-generated `id`, `path`, `status=PENDING`
+- **And** the HostedCluster in envtest has `Spec.Services` with 4 entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`
+- **And** the NodePool has `Spec.Management.UpgradeType=InPlace`
 - **When** the HostedCluster conditions are manually updated to `Available=True`, `Progressing=False` in envtest
 - **And** `GET /api/v1alpha1/clusters/{id}` is called
 - **Then** response is 200 with `status=READY`
@@ -407,14 +410,17 @@ Build constraint: `//go:build integration`
 - **And** the body contains `type`, `title`, `status` fields
 
 #### TC-INT-006: Create BareMetal cluster round-trip
-- **Requirements:** REQ-ACM-010, REQ-BM-010, REQ-BM-020, REQ-BM-040
+- **Requirements:** REQ-ACM-010, REQ-BM-010, REQ-BM-020, REQ-BM-040, REQ-ACM-180, REQ-ACM-200
+- **Decisions:** DD-005, DD-006
 - **Type:** Integration
 - **Priority:** Medium
 - **Given** envtest is running with HyperShift CRDs and a ClusterImageSet
-- **When** `POST /api/v1alpha1/clusters` with BareMetal platform, infra_env, and agent_labels
+- **When** `POST /api/v1alpha1/clusters` with BareMetal platform, infra_env, agent_labels
 - **Then** response is 201
 - **And** a HostedCluster with `platform.type=Agent` exists in envtest
+- **And** the HostedCluster has `Spec.Services` with 4 entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`
 - **And** a NodePool with InfraEnv reference exists
+- **And** the NodePool has `Spec.Management.UpgradeType=InPlace`
 
 #### TC-INT-007: Route prefix enforcement
 - **Requirements:** REQ-HTTP-020
@@ -573,7 +579,9 @@ Build constraint: `//go:build integration`
 | REQ-ACM-140 | TC-OPS-UT-004, TC-OPS-UT-008, TC-INT-002 | Covered (shared delete via TC-OPS-UT-004) |
 | REQ-ACM-150 | TC-KV-UT-008 | Covered |
 | REQ-ACM-160 | TC-STS-UT-001..012, TC-OPS-UT-001 | Covered (shared ops confirm delegation to shared mapper) |
-| REQ-ACM-170 | TC-KV-UT-017, TC-BM-UT-008 | Covered |
+| REQ-ACM-170 | TC-KV-UT-017, TC-KV-UT-028, TC-BM-UT-008 | Covered |
+| REQ-ACM-180 | TC-KV-UT-001, TC-KV-UT-030, TC-BM-UT-001, TC-BM-UT-015, TC-INT-001, TC-INT-006 | Covered |
+| REQ-ACM-200 | TC-KV-UT-001, TC-KV-UT-033, TC-BM-UT-001, TC-BM-UT-017, TC-INT-001, TC-INT-006 | Covered |
 
 ### KubeVirt Requirements (REQ-KV-xxx)
 
@@ -670,6 +678,8 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | `base_domain` handling (config default + request override) | TC-KV-UT-006 | TC-BM-UT-010 (new) |
 | Memory/storage format conversion | TC-KV-UT-008 | N/A for BareMetal (informational per REQ-BM-060) |
 | List ordering (`metadata.name` ascending) | TC-OPS-UT-012 | Shared code; no platform-specific sort |
+| Services field (DD-005) | TC-KV-UT-030 | TC-BM-UT-015 confirms shared code |
+| NodePool Management.UpgradeType (DD-006) | TC-KV-UT-033 | TC-BM-UT-017 confirms shared code |
 
 ### Spec ACs Merged into Fewer Test Cases
 
@@ -701,7 +711,7 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Medium priority | 12 |
 | Low priority | 7 |
 | Structural (no behavioral test) | 10 requirements |
-| Total requirements covered (across both unit and integration) | 165 (all REQ-xxx IDs) |
+| Total requirements covered (across both unit and integration) | 167 (all REQ-xxx IDs) |
 | Coverage gaps | **2 deferred** (TC-CFG-UT-003 pending investigation, REQ-HLT-010/REQ-HLT-120 integration-covered only) |
 
 ### Test Cases by Component

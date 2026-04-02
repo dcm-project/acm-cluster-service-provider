@@ -2,7 +2,7 @@
 
 > **Status**: Draft
 > **Created**: 2026-02-13
-> **Last Updated**: 2026-03-31 (label prefix alignment)
+> **Last Updated**: 2026-04-01 (HostedCluster required fields: Services DD-005, Management DD-006)
 > **Authors**: @gabriel-farache (with Claude Code)
 
 ## 1. Overview
@@ -33,6 +33,8 @@ The ACM Cluster Service Provider is a REST API that manages OpenShift cluster li
 | DD-002 | Design | **Health status values:** `"healthy"` / `"unhealthy"` instead of `"pass"` from the enhancement. | Aligns with AEP conventions and provides clearer semantics. | `.ai/decisions/design-decisions.md` |
 | DD-003 | Design | **Provider name as unique identifier:** `SP_NAME` used for CloudEvents subjects and DCM correlation. Provider ID from registry not persisted. | Persisting the ID adds complexity with no identified use case. | `.ai/decisions/design-decisions.md` |
 | DD-004 | Design | **CP resources mapped via annotation overrides targeting kube-apiserver and etcd.** Each component gets full specified values (total = 2x stated values). | Annotations are HyperShift's official per-cluster resource override mechanism. | `.ai/decisions/design-decisions.md` |
+| DD-005 | Design | **Services — All 4 control-plane services with default strategies.** SP sets 4 `ServicePublishingStrategyMapping` entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`. | CRD `Spec.Services` is `+required`; ACM expects all 4 services declared; adding them costs nothing. | `.ai/decisions/design-decisions.md` |
+| DD-006 | Design | **NodePool Management — InPlace upgrade type (v1 opinionated).** SP sets `Spec.Management.UpgradeType=InPlace` for all platforms. | CRD `Spec.Management.UpgradeType` is `+required`; InPlace is simpler and avoids node churn. | `.ai/decisions/design-decisions.md` |
 | IMPL-001 | Implementation | **ReadOnly field stripping removed from handler:** Trusts OpenAPI validation middleware (`VisitAsRequest()`) to reject readOnly properties in requests. | Single point of defense at the middleware boundary; handler does not re-validate. | `.ai/decisions/implementation-decisions.md` |
 
 ## 2. Scope
@@ -821,6 +823,8 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 | REQ-ACM-150 | Memory/storage values from DCM format (`"16GB"`) MUST be converted to K8s resource quantity format | MUST |
 | REQ-ACM-160 | When multiple HostedCluster conditions are true simultaneously, status MUST be resolved using the following precedence (highest to lowest): `deletionTimestamp != nil` → DELETING, `Degraded=True` → FAILED, `Available=True + Progressing=False` → READY, `Progressing=True + Available=False` → PROVISIONING, `Available=False + Progressing=False` → UNAVAILABLE, `Progressing=Unknown` → PENDING. The highest-precedence matching condition wins. | MUST |
 | REQ-ACM-170 | On partial create failure (HostedCluster created but NodePool creation fails), the SP MUST delete the orphaned HostedCluster before returning the error | MUST |
+| REQ-ACM-180 | The SP MUST set `Spec.Services` on every HostedCluster to 4 entries: `APIServer` with `LoadBalancer`, and `OAuthServer`, `Konnectivity`, `Ignition` with `Route` strategy (DD-005) | MUST |
+| REQ-ACM-200 | The SP MUST set `Spec.Management.UpgradeType` to `InPlace` on every NodePool, for all platforms (DD-006) | MUST |
 
 #### Common Configuration
 
@@ -954,6 +958,18 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 - **And** NodePool creation fails
 - **When** the error is detected
 - **Then** the orphaned HostedCluster is deleted before the error is returned
+
+##### AC-ACM-180: HostedCluster has Services set
+- **Requirements:** REQ-ACM-180
+- **Given** a cluster is being created (any platform)
+- **When** the HostedCluster CR is constructed
+- **Then** `Spec.Services` contains exactly 4 `ServicePublishingStrategyMapping` entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`
+
+##### AC-ACM-200: NodePool has InPlace upgrade type
+- **Requirements:** REQ-ACM-200
+- **Given** a cluster is being created (any platform)
+- **When** the NodePool CR is constructed
+- **Then** `Spec.Management.UpgradeType` is set to `InPlace`
 
 ---
 
@@ -1354,7 +1370,7 @@ Error type to HTTP status mapping:
 | REQ-HTTP-NNN | 2: HTTP Server | 12 |
 | REQ-HLT-NNN | 3: Health Service | 12 |
 | REQ-API-NNN | 4: OpenAPI Endpoints | 49 |
-| REQ-ACM-NNN | 5: ACM Platform Services (Common) | 19 |
+| REQ-ACM-NNN | 5: ACM Platform Services (Common) | 21 |
 | REQ-KV-NNN | 5a: ACM - KubeVirt | 4 |
 | REQ-BM-NNN | 5b: ACM - BareMetal | 6 |
 | REQ-MON-NNN | 6: Status Monitoring | 22 |
