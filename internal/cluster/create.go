@@ -18,6 +18,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// DefaultServicePublishingStrategies defines the standard service publishing
+// strategies for HostedCluster control plane services.
+var DefaultServicePublishingStrategies = []hyperv1.ServicePublishingStrategyMapping{
+	{Service: hyperv1.OAuthServer, ServicePublishingStrategy: hyperv1.ServicePublishingStrategy{Type: hyperv1.Route}},
+	{Service: hyperv1.OIDC, ServicePublishingStrategy: hyperv1.ServicePublishingStrategy{Type: hyperv1.Route}},
+	{Service: hyperv1.Konnectivity, ServicePublishingStrategy: hyperv1.ServicePublishingStrategy{Type: hyperv1.Route}},
+	{Service: hyperv1.Ignition, ServicePublishingStrategy: hyperv1.ServicePublishingStrategy{Type: hyperv1.Route}},
+}
+
 // PlatformBuilder builds platform-specific HostedCluster and NodePool resources.
 type PlatformBuilder interface {
 	BuildHostedCluster(req v1alpha1.Cluster, baseDomain, releaseImage string, labels map[string]string) *hyperv1.HostedCluster

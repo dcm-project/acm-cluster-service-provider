@@ -61,6 +61,7 @@ func (b *builder) BuildHostedCluster(req v1alpha1.Cluster, baseDomain, releaseIm
 			DNS: hyperv1.DNSSpec{
 				BaseDomain: baseDomain,
 			},
+			Services: cluster.DefaultServicePublishingStrategies,
 		},
 	}
 }
