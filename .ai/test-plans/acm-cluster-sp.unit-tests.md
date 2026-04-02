@@ -5,8 +5,8 @@
 - **Related Spec:** .ai/specs/acm-cluster-sp.spec.md
 - **Related Requirements:** REQ-REG-xxx, REQ-HTTP-xxx, REQ-HLT-xxx, REQ-API-xxx, REQ-ACM-xxx, REQ-KV-xxx, REQ-BM-xxx, REQ-MON-xxx, REQ-XC-xxx
 - **Created:** 2026-02-17
-- **Last Updated:** 2026-04-01 (HostedCluster required fields: Services DD-005, Management DD-006 — new TCs + amended TCs) | 2026-03-31 (label prefix alignment) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; added TC-OPS-UT-016/017 for status_message; removed phantom TC-BM-UT-006/007/009; coverage matrix corrections)
-- **Scope:** This file covers **unit tests only** (135 unit test cases + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
+- **Last Updated:** 2026-04-02 (PullSecret strategy change: shared Secret from env var; removed per-cluster TCs, simplified rollback TCs; count 151→146) | 2026-04-01 (review fix: Secret naming/labeling/lookup; count reconciliation — Registration 12→13, HTTP 1→2, Handler:Create 20→21, total 148→151) | 2026-04-01 (PullSecret aligned with catalog-manager PR #59 — top-level required field; reclassified TC-HDL-CRT-UT-021, removed TC-KV-UT-036) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management — new TCs + amended TCs) | 2026-03-31 (label prefix alignment) | 2026-03-26 (TC-KV-UT → TC-OPS-UT rename for shared ops; added TC-OPS-UT-016/017 for status_message; removed phantom TC-BM-UT-006/007/009; coverage matrix corrections)
+- **Scope:** This file covers **unit tests only** (142 unit test cases + 4 reclassified as integration/middleware). Integration tests are in `acm-cluster-sp.integration-tests.md`.
 
 ## Design Principles
 
@@ -980,7 +980,8 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Priority:** High
 - **Given** a fake K8s client with a HostedCluster with `dcm.project/dcm-instance-id=test-id`
 - **When** `Delete(ctx, "test-id")` is called
-- **Then** the HostedCluster is deleted from the fake client
+- **Then** the NodePools are deleted
+- **And** the HostedCluster is deleted
 
 #### TC-KV-UT-014: Duplicate ID conflict
 - **Requirements:** REQ-API-102 (service-layer enforcement)
@@ -1024,9 +1025,9 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Priority:** Medium
 - **Given** a fake K8s client that succeeds on HostedCluster creation, fails on NodePool creation, AND fails on HostedCluster deletion (rollback)
 - **When** `Create(ctx, "test-id", cluster)` is called
-- **Then** an error is returned to the caller containing both the NodePool creation failure and the rollback failure
+- **Then** an error is returned to the caller containing the NodePool creation failure and the rollback failure (HC deletion)
 - **And** the error is logged with sufficient detail for diagnosis
-- **Note:** Tests the double-failure scenario where cleanup during partial create also fails
+- **Note:** Tests the multi-failure scenario where cleanup during partial create also fails
 
 #### TC-KV-UT-029: Empty platform string defaults to KubeVirt
 - **Requirements:** Spec note: empty platform string behavior
@@ -1044,6 +1045,15 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Given** a fake K8s client with a ClusterImageSet
 - **When** `Create()` is called with `platform="kubevirt"`
 - **Then** the HostedCluster has `Spec.Services` with exactly 4 entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`
+
+#### TC-KV-UT-032: HostedCluster.Spec.PullSecret.Name references shared Secret
+- **Requirements:** REQ-ACM-191
+- **Decisions:** DD-007
+- **Type:** Unit
+- **Priority:** High
+- **Given** a fake K8s client with a ClusterImageSet
+- **When** `Create()` is called
+- **Then** the HostedCluster's `Spec.PullSecret.Name` equals `<SP_NAME>-pull-secret`
 
 #### TC-KV-UT-033: NodePool has Management.UpgradeType=InPlace
 - **Requirements:** REQ-ACM-200
@@ -1176,6 +1186,18 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
   1. Call GetCluster for a cluster with Available=False (Message="cluster components not ready"), Progressing=False
 - **Expected:** Cluster status is UNAVAILABLE, StatusMessage equals "cluster components not ready"
 
+#### TC-OPS-UT-018: Startup creates shared PullSecret Secret from SP_PULL_SECRET
+- **Requirements:** REQ-ACM-190
+- **Decisions:** DD-007
+- **Type:** Unit
+- **Priority:** High
+- **Given** `SP_PULL_SECRET` env var is set with base64-encoded `.dockerconfigjson` content
+- **And** a fake K8s client with no existing `<SP_NAME>-pull-secret` Secret
+- **When** the startup initialization runs
+- **Then** a Secret named `<SP_NAME>-pull-secret` of type `kubernetes.io/dockerconfigjson` is created in `SP_CLUSTER_NAMESPACE`
+- **And** the Secret contains the base64-decoded content in the `.dockerconfigjson` key
+- **And** the Secret carries labels `dcm.project/managed-by=dcm`, `dcm.project/dcm-service-type=cluster`
+
 ---
 
 ### 2.11 BareMetal Service (TC-BM-UT-xxx)
@@ -1238,6 +1260,7 @@ Tests the BareMetal `ClusterService` implementation. Status mapping is NOT retes
 - **Then** the SP deletes the orphaned HostedCluster
 - **And** an error is returned to the caller
 - **And** no HostedCluster remains in the fake client
+- **Note:** Confirms shared rollback code works for BareMetal (TC-KV-UT-017 is the primary test)
 
 #### TC-BM-UT-010: Create BareMetal with base_domain override and config fallback
 - **Requirements:** REQ-API-380
@@ -1289,6 +1312,16 @@ Tests the BareMetal `ClusterService` implementation. Status mapping is NOT retes
 - **When** `Create()` is called with `platform="baremetal"`, `infra_env="my-infra"`
 - **Then** the HostedCluster has `Spec.Services` with exactly 4 entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`
 - **Note:** Confirms shared Services code works for BareMetal (TC-KV-UT-030 is the primary test)
+
+#### TC-BM-UT-016: HostedCluster.Spec.PullSecret.Name references shared Secret
+- **Requirements:** REQ-ACM-191
+- **Decisions:** DD-007
+- **Type:** Unit
+- **Priority:** High
+- **Given** a fake K8s client with a ClusterImageSet
+- **When** `Create()` is called with `platform="baremetal"`, `infra_env="my-infra"`
+- **Then** `HostedCluster.Spec.PullSecret.Name` equals `<SP_NAME>-pull-secret`
+- **Note:** Confirms shared PullSecret reference works for BareMetal (TC-KV-UT-032 is the primary test)
 
 #### TC-BM-UT-017: NodePool has Management.UpgradeType=InPlace
 - **Requirements:** REQ-ACM-200
@@ -1480,7 +1513,7 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 - **Requirements:** REQ-XC-CFG-020
 - **Type:** Unit
 - **Priority:** High
-- **Given** each required variable is unset in turn: `DCM_REGISTRATION_URL`, `SP_ENDPOINT`, `SP_NATS_URL`, `SP_CLUSTER_NAMESPACE`
+- **Given** each required variable is unset in turn: `DCM_REGISTRATION_URL`, `SP_ENDPOINT`, `SP_NATS_URL`, `SP_CLUSTER_NAMESPACE`, `SP_PULL_SECRET`
 - **When** the configuration loader runs
 - **Then** an error is returned immediately with a clear message naming the missing variable
 
@@ -1664,6 +1697,9 @@ Tests the informer-based status monitor with a fake K8s client and mock `StatusP
 | REQ-ACM-160 | TC-STS-UT-001..012, TC-OPS-UT-001 | Covered (shared ops confirm delegation to shared mapper) |
 | REQ-ACM-170 | TC-KV-UT-017, TC-KV-UT-028, TC-BM-UT-008 | Covered |
 | REQ-ACM-180 | TC-KV-UT-001, TC-KV-UT-030, TC-BM-UT-001, TC-BM-UT-015 | Covered |
+| REQ-ACM-190 | TC-OPS-UT-018 | Covered |
+| REQ-ACM-191 | TC-KV-UT-032, TC-BM-UT-016 | Covered |
+| REQ-ACM-195 | TC-CFG-UT-001 | Covered |
 | REQ-ACM-200 | TC-KV-UT-001, TC-KV-UT-033, TC-BM-UT-001, TC-BM-UT-017 | Covered |
 
 ### KubeVirt Requirements (REQ-KV-xxx)
@@ -1764,7 +1800,9 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | CP resource override annotations (DEC-004) | TC-KV-UT-003 | TC-BM-UT-014 confirms shared code |
 | List ordering (`metadata.name` ascending) | TC-OPS-UT-012 | Shared code; no platform-specific sort |
 | Services field (DD-005) | TC-KV-UT-030 | TC-BM-UT-015 confirms shared code |
+| PullSecret Secret reference (DD-007) | TC-KV-UT-032 | TC-BM-UT-016 confirms shared code |
 | NodePool Management.UpgradeType (DD-006) | TC-KV-UT-033 | TC-BM-UT-017 confirms shared code |
+| PullSecret rollback (DD-007) | TC-KV-UT-034, TC-KV-UT-035 | TC-BM-UT-018 confirms shared code |
 
 ### Spec ACs Merged into Fewer Test Cases
 
@@ -1791,20 +1829,20 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 
 | Category | Count |
 |---|---|
-| **Total unit test cases** | **140** |
-| High priority | 67 |
-| Medium priority | 59 |
+| **Total unit test cases** | **146** |
+| High priority | 71 |
+| Medium priority | 60 |
 | Low priority | 15 |
 | Structural (no behavioral test) | 10 requirements |
-| Total requirements covered (across both unit and integration) | 168 (all REQ-xxx IDs) |
+| Total requirements covered (across both unit and integration) | 171 (all REQ-xxx IDs) |
 | Coverage gaps | **2 deferred** (TC-CFG-UT-003 pending investigation, REQ-HLT-010/REQ-HLT-120 integration-covered only) |
 
 ### Test Cases by Component
 
 | Component | Test Case Prefix | Count |
 |---|---|---|
-| Registration | TC-REG-UT-xxx | 12 |
-| HTTP Server | TC-HTTP-UT-xxx | 1 |
+| Registration | TC-REG-UT-xxx | 13 |
+| HTTP Server | TC-HTTP-UT-xxx | 2 |
 | Health Service | TC-HLT-UT-xxx | 7 |
 | Handler: Create | TC-HDL-CRT-UT-xxx | 19 |
 | Handler: Get | TC-HDL-GET-UT-xxx | 5 |
@@ -1812,9 +1850,9 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Handler: Delete | TC-HDL-DEL-UT-xxx | 6 |
 | Error Mapping | TC-ERR-UT-xxx | 3 |
 | Status Mapping (shared) | TC-STS-UT-xxx | 12 |
-| Shared Operations | TC-OPS-UT-xxx | 16 |
-| KubeVirt Service | TC-KV-UT-xxx | 18 |
-| BareMetal Service | TC-BM-UT-xxx | 13 |
+| Shared Operations | TC-OPS-UT-xxx | 17 |
+| KubeVirt Service | TC-KV-UT-xxx | 19 |
+| BareMetal Service | TC-BM-UT-xxx | 14 |
 | Status Monitoring | TC-MON-UT-xxx | 16 |
 | Configuration | TC-CFG-UT-xxx | 3 |
 | Cross-Cutting: Identity | TC-XC-ID-UT-xxx | 2 |
