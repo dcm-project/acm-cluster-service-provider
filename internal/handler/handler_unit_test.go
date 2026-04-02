@@ -3,6 +3,8 @@ package handler_test
 import (
 	"context"
 	"fmt"
+	"io"
+	"log/slog"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -27,7 +29,7 @@ var _ = Describe("CreateCluster Handler", func() {
 
 	BeforeEach(func() {
 		mock = &mockClusterService{}
-		h = handler.New(mock, nil)
+		h = handler.New(mock, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		ctx = context.Background()
 	})
 
@@ -313,7 +315,7 @@ var _ = Describe("GetCluster Handler", func() {
 
 	BeforeEach(func() {
 		mock = &mockClusterService{}
-		h = handler.New(mock, nil)
+		h = handler.New(mock, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		ctx = context.Background()
 	})
 
@@ -413,7 +415,7 @@ var _ = Describe("ListClusters Handler", func() {
 
 	BeforeEach(func() {
 		mock = &mockClusterService{}
-		h = handler.New(mock, nil)
+		h = handler.New(mock, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		ctx = context.Background()
 	})
 
@@ -593,7 +595,7 @@ var _ = Describe("DeleteCluster Handler", func() {
 
 	BeforeEach(func() {
 		mock = &mockClusterService{}
-		h = handler.New(mock, nil)
+		h = handler.New(mock, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 		ctx = context.Background()
 	})
 

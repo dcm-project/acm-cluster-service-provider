@@ -86,7 +86,7 @@ var _ = Describe("Health HTTP Endpoint", func() {
 	// REQ-HLT-010, REQ-HLT-020
 	// ---------------------------------------------------------------
 	It("returns 200 with all required health fields (TC-HLT-IT-007)", func() {
-		addr, cancel, errCh := startHealthServer(hdlr.New(nil, &mockHealthChecker{}))
+		addr, cancel, errCh := startHealthServer(hdlr.New(nil, &mockHealthChecker{}, slog.New(slog.NewTextHandler(io.Discard, nil))))
 		defer func() {
 			cancel()
 			Eventually(errCh).WithTimeout(10 * time.Second).Should(Receive())
