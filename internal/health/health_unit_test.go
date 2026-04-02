@@ -24,7 +24,7 @@ import (
 var (
 	hostedClusterGVK     = util.HostedClusterGVK
 	hostedClusterListGVK = util.HostedClusterListGVK
-	kubevirtVMIGVK = schema.GroupVersionKind{
+	kubevirtVMIGVK       = schema.GroupVersionKind{
 		Group: "kubevirt.io", Version: "v1", Kind: "VirtualMachineInstance",
 	}
 	kubevirtVMIListGVK = schema.GroupVersionKind{
