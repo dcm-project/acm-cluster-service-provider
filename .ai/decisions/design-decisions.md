@@ -268,3 +268,100 @@ For v1, the SP sets `Spec.Management.UpgradeType` to `InPlace` on every NodePool
 
 1. If per-platform upgrade strategies are needed in the future, this becomes a configuration-driven decision
 2. Operators should be aware that InPlace upgrades will temporarily affect workloads running on the upgraded node
+
+---
+
+## DD-007: PullSecret — Shared Secret from Env Var, Created at Startup
+
+**Date:** 2026-04-01 (revised 2026-04-02)
+**Status:** Accepted (supersedes original per-cluster design)
+**Spec References:** REQ-ACM-190, REQ-ACM-191, REQ-ACM-195
+
+### Problem
+
+The HyperShift HostedCluster CRD marks `Spec.PullSecret` (`corev1.LocalObjectReference`) as `+required`. The SP needs a mechanism to supply pull secret content and manage the lifecycle of the resulting K8s Secret.
+
+### Options Considered
+
+#### Option A: Name reference to pre-existing Secret
+
+The caller provides the name of a Secret that already exists in the cluster namespace. The SP references it in `Spec.PullSecret`.
+
+**Rejected because:**
+
+- Shifts lifecycle management to the caller
+- Requires out-of-band Secret creation before cluster creation
+- Breaks the self-contained API contract
+
+#### Option B: Required top-level field in POST body, SP manages per-cluster lifecycle (PREVIOUSLY CHOSEN, NOW SUPERSEDED)
+
+The pull secret is supplied as base64-encoded `.dockerconfigjson` content in the `pull_secret` field of the POST request body (a required top-level property of `ClusterSpec`, alongside `version` and `nodes`). The SP creates, references, and cleans up a per-cluster K8s Secret.
+
+**Superseded because:**
+
+- Every cluster carrying its own Secret adds unnecessary complexity
+- Requires Secret creation/deletion/rollback in every cluster lifecycle path
+- Pull secret content is typically the same across all clusters in a deployment
+- Larger request body for every POST
+
+#### Option C: Shared Secret from env var, created at startup (CHOSEN)
+
+The pull secret content is provided via the `SP_PULL_SECRET` env var (base64-encoded `.dockerconfigjson`). The SP creates a single shared Secret named `<SP_NAME>-pull-secret` at startup. All HostedClusters reference this shared Secret.
+
+**Pros:**
+
+- Simplest lifecycle: Secret created once at startup, never per-cluster
+- No Secret creation/deletion/rollback in create/delete paths
+- No `pull_secret` field in the API body — smaller, cleaner API
+- Aligns with operational patterns where pull secrets are deployment-level config
+- Env var follows existing `SP_` prefix convention
+
+**Cons:**
+
+- All clusters share the same pull secret (no per-cluster override)
+- Rotating the pull secret requires SP restart (or future reconciliation loop)
+
+### Decision
+
+**Option C** — `SP_PULL_SECRET` env var provides base64-encoded `.dockerconfigjson` content. At startup, the SP base64-decodes the value, creates (or updates) a K8s Secret named `<SP_NAME>-pull-secret` of type `kubernetes.io/dockerconfigjson` in `SP_CLUSTER_NAMESPACE`. All HostedClusters set `Spec.PullSecret.Name = "<SP_NAME>-pull-secret"`.
+
+### Resource Lifecycle
+
+```
+STARTUP:
+  1. Decode SP_PULL_SECRET env var (fail-fast if missing)
+  2. Create/update <SP_NAME>-pull-secret Secret in SP_CLUSTER_NAMESPACE
+
+CREATE (happy path):
+  1. HostedCluster (references <SP_NAME>-pull-secret)
+  2. NodePool
+
+ROLLBACK (reverse order):
+  NP fails  -> delete HC
+  HC fails  -> return error (nothing to clean up)
+
+DELETE:
+  1. NodePool
+  2. HostedCluster
+  (shared Secret is NOT deleted)
+```
+
+### Naming Convention
+
+The shared PullSecret Secret is named `<SP_NAME>-pull-secret` (e.g., `acm-cluster-sp-pull-secret`), where `<SP_NAME>` is the SP's configured provider name (`SP_NAME` env var). This scopes the Secret to the SP instance, avoiding collisions if multiple SPs share a namespace.
+
+### Labeling
+
+The shared PullSecret Secret carries labels `dcm.project/managed-by=dcm` and `dcm.project/dcm-service-type=cluster`. Note: `dcm.project/dcm-instance-id` is NOT set on the shared Secret because it is not associated with a specific cluster instance.
+
+### Consequences
+
+1. The create flow is 2-step: HC → NP (no per-cluster Secret creation)
+2. The delete flow is 2-step: NP → HC (no per-cluster Secret deletion)
+3. Rollback sequence no longer involves Secret cleanup
+4. REQ-ACM-010, REQ-ACM-140, and REQ-ACM-170 are simplified (Secret removed from lifecycle)
+5. REQ-API-400 is removed (no `pull_secret` field in POST body)
+6. REQ-ACM-192 and REQ-ACM-193 are removed (no per-cluster Secret lifecycle)
+7. `SP_PULL_SECRET` is a required env var; missing value causes startup failure
+8. The SP no longer aligns with catalog-manager PR #59 for `pull_secret` as an API field — the SP uses an env var instead
+

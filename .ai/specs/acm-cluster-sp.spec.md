@@ -2,7 +2,7 @@
 
 > **Status**: Draft
 > **Created**: 2026-02-13
-> **Last Updated**: 2026-04-01 (HostedCluster required fields: Services DD-005, Management DD-006)
+> **Last Updated**: 2026-04-02 (PullSecret strategy change: shared Secret from env var at startup, replaces per-cluster lifecycle — DD-007 revised) | 2026-04-01 (review fix: PullSecret Secret naming `<cluster-name>-pull-secret`, labeling per REQ-ACM-020, label-based lookup for deletion) | 2026-04-01 (HostedCluster required fields: Services, PullSecret, Management; PullSecret aligned with catalog-manager PR #59 — top-level required field)
 > **Authors**: @gabriel-farache (with Claude Code)
 
 ## 1. Overview
@@ -35,6 +35,7 @@ The ACM Cluster Service Provider is a REST API that manages OpenShift cluster li
 | DD-004 | Design | **CP resources mapped via annotation overrides targeting kube-apiserver and etcd.** Each component gets full specified values (total = 2x stated values). | Annotations are HyperShift's official per-cluster resource override mechanism. | `.ai/decisions/design-decisions.md` |
 | DD-005 | Design | **Services — All 4 control-plane services with default strategies.** SP sets 4 `ServicePublishingStrategyMapping` entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`. | CRD `Spec.Services` is `+required`; ACM expects all 4 services declared; adding them costs nothing. | `.ai/decisions/design-decisions.md` |
 | DD-006 | Design | **NodePool Management — InPlace upgrade type (v1 opinionated).** SP sets `Spec.Management.UpgradeType=InPlace` for all platforms. | CRD `Spec.Management.UpgradeType` is `+required`; InPlace is simpler and avoids node churn. | `.ai/decisions/design-decisions.md` |
+| DD-007 | Design | **PullSecret — Shared Secret from env var, created at startup.** SP creates a single shared PullSecret Secret (`<SP_NAME>-pull-secret`) at startup from `SP_PULL_SECRET` env var. All HostedClusters reference it. No per-cluster Secret lifecycle. | CRD `Spec.PullSecret` is `+required`; shared Secret eliminates per-cluster complexity; env var aligns with operational deployment patterns. | `.ai/decisions/design-decisions.md` |
 | IMPL-001 | Implementation | **ReadOnly field stripping removed from handler:** Trusts OpenAPI validation middleware (`VisitAsRequest()`) to reject readOnly properties in requests. | Single point of defense at the middleware boundary; handler does not re-validate. | `.ai/decisions/implementation-decisions.md` |
 
 ## 2. Scope
@@ -537,6 +538,7 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 | REQ-API-175 | `metadata.name` MUST match `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` (1-63 chars). This is enforced by the OpenAPI schema pattern and validation middleware | MUST |
 | REQ-API-380 | A base domain MUST be available for cluster creation. It is resolved from `provider_hints.acm.base_domain` (request-level) or `SP_BASE_DOMAIN` (config-level, fallback). If neither is provided, the operation MUST fail with an error indicating base domain is required | MUST |
 
+
 > **Note:** On reads, the base domain for `console_uri` construction (REQ-API-390) is sourced from the HostedCluster's `spec.dns.baseDomain` field, not from configuration.
 
 #### Requirements - GET /api/v1alpha1/clusters/\{clusterId\}
@@ -802,7 +804,7 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 
 | ID | Requirement | Priority |
 |----|-------------|----------|
-| REQ-ACM-010 | MUST create a HostedCluster CR and an associated NodePool CR for the given platform type | MUST |
+| REQ-ACM-010 | MUST create resources in order: HostedCluster CR → NodePool CR for the given platform type | MUST |
 | REQ-ACM-020 | All created K8s resources MUST carry labels: `dcm.project/managed-by=dcm`, `dcm.project/dcm-instance-id=<id>`, `dcm.project/dcm-service-type=cluster` | MUST |
 | REQ-ACM-030 | `version` (a K8s minor version) MUST be translated to the corresponding OCP version using the internal compatibility matrix, then validated against available ClusterImageSet resources on the ACM Hub (DD-001) | MUST |
 | REQ-ACM-031 | If the caller-provided K8s version has no entry in the SP's compatibility matrix, the operation MUST fail (handler returns 422) with an error indicating the version is not supported | MUST |
@@ -819,12 +821,15 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 | REQ-ACM-110 | For reads, MUST query HostedCluster CRs from K8s and map conditions to DCM status (see Status Mapping Table) | MUST |
 | REQ-ACM-120 | When status is READY, MUST extract `api_endpoint` from HostedCluster status | MUST |
 | REQ-ACM-130 | When status is READY, MUST extract kubeconfig from the associated K8s Secret, base64-encode it | MUST |
-| REQ-ACM-140 | For deletion, MUST explicitly delete associated NodePool CRs (by `dcm.project/dcm-instance-id` label), then delete the HostedCluster CR. NodePool NotFound is treated as success (HyperShift may have already cascaded). | MUST |
+| REQ-ACM-140 | For deletion, MUST explicitly delete associated NodePool CRs (by `dcm.project/dcm-instance-id` label), then delete the HostedCluster CR. NodePool NotFound is treated as success (HyperShift may have already cascaded or external deletion). | MUST |
 | REQ-ACM-150 | Memory/storage values from DCM format (`"16GB"`) MUST be converted to K8s resource quantity format | MUST |
 | REQ-ACM-160 | When multiple HostedCluster conditions are true simultaneously, status MUST be resolved using the following precedence (highest to lowest): `deletionTimestamp != nil` → DELETING, `Degraded=True` → FAILED, `Available=True + Progressing=False` → READY, `Progressing=True + Available=False` → PROVISIONING, `Available=False + Progressing=False` → UNAVAILABLE, `Progressing=Unknown` → PENDING. The highest-precedence matching condition wins. | MUST |
 | REQ-ACM-170 | On partial create failure (HostedCluster created but NodePool creation fails), the SP MUST delete the orphaned HostedCluster before returning the error | MUST |
 | REQ-ACM-180 | The SP MUST set `Spec.Services` on every HostedCluster to 4 entries: `APIServer` with `LoadBalancer`, and `OAuthServer`, `Konnectivity`, `Ignition` with `Route` strategy (DD-005) | MUST |
+| REQ-ACM-190 | At startup, the SP MUST create (or update if existing) a K8s Secret named `<SP_NAME>-pull-secret` of type `kubernetes.io/dockerconfigjson` from the base64-decoded `SP_PULL_SECRET` env var in `SP_CLUSTER_NAMESPACE`. The Secret carries labels `dcm.project/managed-by=dcm` and `dcm.project/dcm-service-type=cluster` (DD-007) | MUST |
+| REQ-ACM-191 | The HostedCluster's `Spec.PullSecret.Name` MUST reference the shared PullSecret Secret (`<SP_NAME>-pull-secret`) created at startup (DD-007) | MUST |
 | REQ-ACM-200 | The SP MUST set `Spec.Management.UpgradeType` to `InPlace` on every NodePool, for all platforms (DD-006) | MUST |
+| REQ-ACM-195 | The SP MUST fail to start if `SP_PULL_SECRET` env var is not set or empty, with an error naming the missing variable (DD-007) | MUST |
 
 #### Common Configuration
 
@@ -835,6 +840,7 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 | `SP_CONSOLE_URI_PATTERN` | string | `https://console-openshift-console.apps.{name}.{base_domain}` | Template for constructing `console_uri`. Supports `{name}` and `{base_domain}` substitutions |
 | `SP_VERSION_MATRIX_PATH` | string | _(empty — use built-in defaults)_ | Path to a JSON/YAML file containing the OCP↔K8s version compatibility matrix. When empty, the SP uses the built-in default matrix |
 | `SP_BASE_DOMAIN` | string | _(empty)_ | Default base DNS domain for clusters; overridden by `provider_hints.acm.base_domain` per request |
+| `SP_PULL_SECRET` | string | _(required)_ | Base64-encoded `.dockerconfigjson` content for the shared PullSecret Secret. The SP creates (or updates) a Secret named `<SP_NAME>-pull-secret` at startup. MUST be provided; the SP MUST fail at startup with a clear error message if not set |
 
 #### Common Acceptance Criteria
 
@@ -848,7 +854,7 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 - **Requirements:** REQ-ACM-010
 - **Given** the ACM Hub is reachable and a ClusterImageSet for the requested version exists
 - **When** CreateCluster is called with valid parameters
-- **Then** a HostedCluster CR is created with the appropriate platform type
+- **Then** a HostedCluster CR is created with the appropriate platform type, referencing the shared PullSecret Secret
 - **And** a NodePool CR is created and associated with the HostedCluster
 
 ##### AC-ACM-020: DCM labels applied to all resources
@@ -957,13 +963,32 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 - **Given** a HostedCluster was created successfully
 - **And** NodePool creation fails
 - **When** the error is detected
-- **Then** the orphaned HostedCluster is deleted before the error is returned
+- **Then** the orphaned HostedCluster is deleted
+- **And** the error is returned to the caller
 
 ##### AC-ACM-180: HostedCluster has Services set
 - **Requirements:** REQ-ACM-180
 - **Given** a cluster is being created (any platform)
 - **When** the HostedCluster CR is constructed
 - **Then** `Spec.Services` contains exactly 4 `ServicePublishingStrategyMapping` entries: `APIServer/LoadBalancer`, `OAuthServer/Route`, `Konnectivity/Route`, `Ignition/Route`
+
+##### AC-ACM-190: Shared PullSecret Secret created at startup from env var
+- **Requirements:** REQ-ACM-190
+- **Given** `SP_PULL_SECRET` env var contains base64-encoded `.dockerconfigjson` content
+- **When** the SP starts up
+- **Then** a Secret named `<SP_NAME>-pull-secret` of type `kubernetes.io/dockerconfigjson` is created (or updated if existing) in `SP_CLUSTER_NAMESPACE` with the base64-decoded content in the `.dockerconfigjson` key
+- **And** the Secret carries labels `dcm.project/managed-by=dcm`, `dcm.project/dcm-service-type=cluster`
+
+##### AC-ACM-191: HostedCluster PullSecret references shared Secret
+- **Requirements:** REQ-ACM-191
+- **When** the HostedCluster CR is constructed
+- **Then** `HostedCluster.Spec.PullSecret.Name` equals `<SP_NAME>-pull-secret`
+
+##### AC-ACM-195: SP fails to start without SP_PULL_SECRET
+- **Requirements:** REQ-ACM-195, REQ-XC-CFG-020
+- **Given** the `SP_PULL_SECRET` env var is not set (or is empty)
+- **When** the SP starts up
+- **Then** the SP fails with a clear error message naming `SP_PULL_SECRET`
 
 ##### AC-ACM-200: NodePool has InPlace upgrade type
 - **Requirements:** REQ-ACM-200
@@ -1361,6 +1386,7 @@ Error type to HTTP status mapping:
 | `SP_STATUS_RESYNC_INTERVAL` | 6 | duration | `10m` | No |
 | `SP_NATS_PUBLISH_RETRY_MAX` | 6 | int | `3` | No |
 | `SP_NATS_PUBLISH_RETRY_INTERVAL` | 6 | duration | `2s` | No |
+| `SP_PULL_SECRET` | 5 | string | - | Yes |
 
 ## 8. Requirement ID Index
 
@@ -1370,7 +1396,7 @@ Error type to HTTP status mapping:
 | REQ-HTTP-NNN | 2: HTTP Server | 12 |
 | REQ-HLT-NNN | 3: Health Service | 12 |
 | REQ-API-NNN | 4: OpenAPI Endpoints | 49 |
-| REQ-ACM-NNN | 5: ACM Platform Services (Common) | 21 |
+| REQ-ACM-NNN | 5: ACM Platform Services (Common) | 25 |
 | REQ-KV-NNN | 5a: ACM - KubeVirt | 4 |
 | REQ-BM-NNN | 5b: ACM - BareMetal | 6 |
 | REQ-MON-NNN | 6: Status Monitoring | 22 |
