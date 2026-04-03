@@ -199,17 +199,8 @@ setup_agent_service() {
     validate_storage_class
     detect_rhcos_iso
 
-    local ocp_version
-    local release_image="${OCP_RELEASE_IMAGE:-}"
-
-    if [[ -z "${release_image}" ]]; then
-        # OCP_VERSION is already available from detect_rhcos_iso's ClusterVersion call
-        ocp_version="${OCP_VERSION}"
-        release_image="quay.io/openshift-release-dev/ocp-release:${ocp_version}-${CLUSTER_ARCH}"
-    else
-        ocp_version="${release_image##*:}"
-        ocp_version="${ocp_version%%-*}"
-    fi
+    # OCP_VERSION is already set by detect_rhcos_iso; always use it for naming
+    local release_image="${OCP_RELEASE_IMAGE:-quay.io/openshift-release-dev/ocp-release:${OCP_VERSION}-${CLUSTER_ARCH}}"
 
     info "Using release image: ${release_image}"
 
@@ -239,12 +230,12 @@ ${pvc_img}
 "
 
     local arch_suffix="${CLUSTER_ARCH//_/-}"
-    info "Creating ClusterImageSet for OCP ${ocp_version}..."
+    info "Creating ClusterImageSet for OCP ${OCP_VERSION}..."
     apply_manifest "
 apiVersion: hive.openshift.io/v1
 kind: ClusterImageSet
 metadata:
-  name: img${ocp_version}-${arch_suffix}
+  name: img${OCP_VERSION}-${arch_suffix}
 spec:
   releaseImage: ${release_image}
 "
