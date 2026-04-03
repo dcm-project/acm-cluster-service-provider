@@ -62,15 +62,15 @@ get_default_channel() {
 
 wait_for_csv() {
     local namespace="$1"
-    local operator_prefix="$2"
+    local subscription_name="$2"
     local elapsed=0
     local interval=10
 
-    info "Waiting for CSV with prefix '${operator_prefix}' in namespace '${namespace}' (timeout: ${CSV_TIMEOUT}s)..."
+    info "Waiting for subscription '${subscription_name}' CSV in namespace '${namespace}' (timeout: ${CSV_TIMEOUT}s)..."
 
     while [[ ${elapsed} -lt ${CSV_TIMEOUT} ]]; do
         local csv_name
-        csv_name=$(oc get csv -n "${namespace}" -o jsonpath='{.items[?(@.metadata.name)].metadata.name}' 2>/dev/null | tr ' ' '\n' | grep "^${operator_prefix}" | head -1)
+        csv_name=$(oc get subscription -n "${namespace}" "${subscription_name}" -o jsonpath='{.status.currentCSV}' 2>/dev/null || true)
 
         if [[ -n "${csv_name}" ]]; then
             local phase
@@ -86,14 +86,14 @@ wait_for_csv() {
             fi
             warn "  CSV '${csv_name}' phase: ${phase:-Unknown} (${elapsed}s elapsed)"
         else
-            warn "  No CSV found yet with prefix '${operator_prefix}' (${elapsed}s elapsed)"
+            warn "  No CSV resolved yet for subscription '${subscription_name}' (${elapsed}s elapsed)"
         fi
 
         sleep "${interval}"
         elapsed=$((elapsed + interval))
     done
 
-    die "Timed out after ${CSV_TIMEOUT}s waiting for CSV '${operator_prefix}' to reach Succeeded"
+    die "Timed out after ${CSV_TIMEOUT}s waiting for subscription '${subscription_name}' CSV to reach Succeeded"
 }
 
 wait_for_resource() {
