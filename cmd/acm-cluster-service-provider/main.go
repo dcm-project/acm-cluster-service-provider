@@ -98,7 +98,7 @@ func run(logger *slog.Logger) error {
 
 	startTime := time.Now()
 	checker := health.NewChecker(k8sClient, cfg.Health, version, startTime)
-	strictHandler := handler.New(clusterService, checker)
+	strictHandler := handler.New(clusterService, checker, logger)
 	h := oapigen.NewStrictHandler(strictHandler, nil)
 	srv := apiserver.New(cfg, logger, h).WithOnReady(func(ctx context.Context) {
 		registrar.Start(ctx)

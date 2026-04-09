@@ -3,6 +3,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 
 	oapigen "github.com/dcm-project/acm-cluster-service-provider/internal/api/server"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/service"
@@ -17,13 +18,15 @@ var _ oapigen.StrictServerInterface = (*Handler)(nil)
 type Handler struct {
 	clusterService service.ClusterService
 	healthChecker  service.HealthChecker
+	logger         *slog.Logger
 }
 
 // New creates a Handler with the given dependencies.
-func New(clusterService service.ClusterService, healthChecker service.HealthChecker) *Handler {
+func New(clusterService service.ClusterService, healthChecker service.HealthChecker, logger *slog.Logger) *Handler {
 	return &Handler{
 		clusterService: clusterService,
 		healthChecker:  healthChecker,
+		logger:         logger,
 	}
 }
 
@@ -58,6 +61,7 @@ func (h *Handler) CreateCluster(ctx context.Context, req oapigen.CreateClusterRe
 	// Delegate to service.
 	result, err := h.clusterService.Create(ctx, id, svcCluster)
 	if err != nil {
+		h.logServiceError("CreateCluster", err)
 		return mapCreateError(err), nil
 	}
 
@@ -73,6 +77,7 @@ func (h *Handler) CreateCluster(ctx context.Context, req oapigen.CreateClusterRe
 func (h *Handler) GetCluster(ctx context.Context, req oapigen.GetClusterRequestObject) (oapigen.GetClusterResponseObject, error) {
 	result, err := h.clusterService.Get(ctx, req.ClusterId)
 	if err != nil {
+		h.logServiceError("GetCluster", err)
 		return mapGetError(err), nil
 	}
 
@@ -103,6 +108,7 @@ func (h *Handler) ListClusters(ctx context.Context, req oapigen.ListClustersRequ
 	// Delegate to service.
 	result, err := h.clusterService.List(ctx, int(pageSize), pageToken)
 	if err != nil {
+		h.logServiceError("ListClusters", err)
 		return mapListError(err), nil
 	}
 
@@ -118,9 +124,21 @@ func (h *Handler) ListClusters(ctx context.Context, req oapigen.ListClustersRequ
 func (h *Handler) DeleteCluster(ctx context.Context, req oapigen.DeleteClusterRequestObject) (oapigen.DeleteClusterResponseObject, error) {
 	err := h.clusterService.Delete(ctx, req.ClusterId)
 	if err != nil {
+		h.logServiceError("DeleteCluster", err)
 		return mapDeleteError(err), nil
 	}
 	return oapigen.DeleteCluster204Response{}, nil
+}
+
+func (h *Handler) logServiceError(op string, err error) {
+	errType, status, _, detail := MapDomainError(err)
+	h.logger.Warn("service error",
+		"operation", op,
+		"status", status,
+		"error_type", errType,
+		"detail", detail,
+		"error", err.Error(),
+	)
 }
 
 // Per-operation error mappers.

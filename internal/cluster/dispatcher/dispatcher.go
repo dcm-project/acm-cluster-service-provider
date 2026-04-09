@@ -4,6 +4,7 @@ package dispatcher
 
 import (
 	"context"
+	"fmt"
 
 	v1alpha1 "github.com/dcm-project/acm-cluster-service-provider/api/v1alpha1"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/cluster"
@@ -47,9 +48,9 @@ func New(c client.Client, cfg config.ClusterConfig, enabledPlatforms []string) *
 }
 
 func (s *Service) Create(ctx context.Context, id string, req v1alpha1.Cluster) (*v1alpha1.Cluster, error) {
-	svc := s.serviceForPlatform(req)
+	platform, svc := s.serviceForPlatform(req)
 	if svc == nil {
-		return nil, service.NewUnprocessableEntityError("unsupported platform")
+		return nil, service.NewUnprocessableEntityError(fmt.Sprintf("unsupported platform %q", platform))
 	}
 	return svc.Create(ctx, id, req)
 }
@@ -72,12 +73,12 @@ type platformCreator interface {
 	Create(ctx context.Context, id string, cluster v1alpha1.Cluster) (*v1alpha1.Cluster, error)
 }
 
-func (s *Service) serviceForPlatform(req v1alpha1.Cluster) platformCreator {
+func (s *Service) serviceForPlatform(req v1alpha1.Cluster) (v1alpha1.ACMProviderHintsPlatform, platformCreator) {
 	platform := v1alpha1.Kubevirt // default per OpenAPI spec
 	if req.Spec.ProviderHints != nil &&
 		req.Spec.ProviderHints.Acm != nil &&
 		req.Spec.ProviderHints.Acm.Platform != nil {
 		platform = *req.Spec.ProviderHints.Acm.Platform
 	}
-	return s.services[platform]
+	return platform, s.services[platform]
 }
