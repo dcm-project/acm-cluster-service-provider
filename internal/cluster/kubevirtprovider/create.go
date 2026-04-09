@@ -75,6 +75,8 @@ func (s *Service) BuildNodePool(req v1alpha1.Cluster, releaseImage string, label
 		if w.Count != nil {
 			replicas := int32(*w.Count)
 			np.Spec.Replicas = &replicas
+		} else {
+			np.Spec.Replicas = util.Ptr(int32(1))
 		}
 
 		kvPlatform := &hyperv1.KubevirtNodePoolPlatform{}

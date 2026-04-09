@@ -7,6 +7,7 @@ import (
 	"github.com/dcm-project/acm-cluster-service-provider/internal/cluster"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/service"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
 	hyperv1 "github.com/openshift/hypershift/api/hypershift/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -113,6 +114,8 @@ func (b *builder) BuildNodePool(req v1alpha1.Cluster, releaseImage string, label
 	if req.Spec.Nodes != nil && req.Spec.Nodes.Workers != nil && req.Spec.Nodes.Workers.Count != nil {
 		replicas := int32(*req.Spec.Nodes.Workers.Count)
 		np.Spec.Replicas = &replicas
+	} else {
+		np.Spec.Replicas = util.Ptr(int32(1))
 	}
 
 	return np
