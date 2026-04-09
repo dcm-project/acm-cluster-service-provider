@@ -398,13 +398,8 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **When** `CreateCluster` is called with `service_type="compute"`
 - **Then** returns 400 with `type="INVALID_ARGUMENT"`
 
-#### TC-HDL-CRT-UT-005: Missing workers
-- **Requirements:** REQ-API-080
-- **Type:** Unit
-- **Priority:** High
-- **Given** no mock interaction needed
-- **When** `CreateCluster` is called with `nodes.control_plane` present but `nodes.workers = nil` (pointer type)
-- **Then** returns 400 with `type="INVALID_ARGUMENT"`
+#### ~~TC-HDL-CRT-UT-005: Missing workers~~ — REMOVED
+- **Reason:** `nodes.workers` is now OPTIONAL per updated REQ-API-080; SP defaults to 1 replica when omitted
 
 #### TC-HDL-CRT-UT-006: Invalid memory format
 - **Requirements:** REQ-API-170
@@ -473,13 +468,8 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Then** returns 500 with `type="INTERNAL"`
 - **And** response body does NOT contain K8s-specific error text
 
-#### TC-HDL-CRT-UT-013: Missing nodes object entirely
-- **Requirements:** REQ-API-070, REQ-API-150
-- **Type:** Unit
-- **Priority:** Medium
-- **Given** no mock interaction needed
-- **When** `CreateCluster` is called with version, service_type, metadata but `nodes = nil` (pointer type)
-- **Then** returns 400 with `type="INVALID_ARGUMENT"`
+#### ~~TC-HDL-CRT-UT-013: Missing nodes object entirely~~ — REMOVED
+- **Reason:** `nodes` is now OPTIONAL per updated REQ-API-070; SP defaults to 1 worker replica when omitted
 
 #### TC-HDL-CRT-UT-014: Workers count below minimum
 - **Requirements:** REQ-API-080
@@ -1899,8 +1889,8 @@ Tests `ComputeCompositeStatus()` — worst-of logic combining HC and NP statuses
 | REQ-API-040 | TC-ERR-UT-001 | Covered |
 | REQ-API-050 | TC-HDL-CRT-UT-012, TC-ERR-UT-002, TC-OPS-UT-007, TC-OPS-UT-008, TC-OPS-UT-009 | Covered (shared ops cover both platforms) |
 | REQ-API-060 | TC-HDL-CRT-UT-001, TC-INT-001 | Covered |
-| REQ-API-070 | TC-HDL-CRT-UT-011, TC-HDL-CRT-UT-013 | Covered |
-| REQ-API-080 | TC-HDL-CRT-UT-005, TC-HDL-CRT-UT-014 | Covered |
+| REQ-API-070 | TC-HDL-CRT-UT-011 | Covered (nodes now optional — TC-HDL-CRT-UT-013 removed) |
+| REQ-API-080 | TC-HDL-CRT-UT-014 | Covered (workers now optional — TC-HDL-CRT-UT-005 removed) |
 | REQ-API-090 | TC-HDL-CRT-UT-004, TC-HDL-CRT-UT-016 | Covered |
 | REQ-API-100 | TC-HDL-CRT-UT-001, TC-HDL-CRT-UT-002, TC-HDL-CRT-UT-015, TC-HDL-CRT-UT-019 | Covered |
 | REQ-API-101 | TC-HDL-CRT-UT-003 | Structural (IMPL-001: enforced by OpenAPI middleware) |
@@ -1910,7 +1900,7 @@ Tests `ComputeCompositeStatus()` — worst-of logic combining HC and NP statuses
 | REQ-API-110 | TC-HDL-CRT-UT-001, TC-INT-001 | Covered |
 | REQ-API-130 | TC-HDL-CRT-UT-009 | Covered |
 | REQ-API-140 | TC-HDL-CRT-UT-010 | Covered |
-| REQ-API-150 | TC-HDL-CRT-UT-011, TC-HDL-CRT-UT-013, TC-HDL-CRT-UT-015, TC-HDL-CRT-UT-016 | Covered |
+| REQ-API-150 | TC-HDL-CRT-UT-011, TC-HDL-CRT-UT-015, TC-HDL-CRT-UT-016 | Covered (TC-HDL-CRT-UT-013 removed — nodes now optional) |
 | REQ-API-160 | TC-HDL-CRT-UT-003 | Structural (IMPL-001: enforced by OpenAPI middleware) |
 | REQ-API-165 | TC-OPS-UT-001 | Covered (update_time from lastTransitionTime) |
 | REQ-API-166 | TC-OPS-UT-016 | Covered (status_message from Degraded condition) |

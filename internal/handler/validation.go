@@ -20,28 +20,25 @@ func validateCreateRequest(body *oapigen.Cluster) error {
 	if body.Spec.Version == "" {
 		return fmt.Errorf("version is required")
 	}
-	if body.Spec.Nodes == nil {
-		return fmt.Errorf("nodes is required")
-	}
-	if body.Spec.Nodes.Workers == nil {
-		return fmt.Errorf("nodes.workers is required")
-	}
-	w := body.Spec.Nodes.Workers
-	if w.Count != nil && *w.Count < 1 {
-		return fmt.Errorf("nodes.workers.count must be >= 1")
-	}
-	if w.Memory != nil && !memoryFormatRe.MatchString(*w.Memory) {
-		return fmt.Errorf("nodes.workers.memory must match format: [1-9][0-9]*(MB|GB|TB)")
-	}
-	if w.Storage != nil && !memoryFormatRe.MatchString(*w.Storage) {
-		return fmt.Errorf("nodes.workers.storage must match format: [1-9][0-9]*(MB|GB|TB)")
-	}
-	if cp := body.Spec.Nodes.ControlPlane; cp != nil {
-		if cp.Memory != nil && !memoryFormatRe.MatchString(*cp.Memory) {
-			return fmt.Errorf("nodes.control_plane.memory must match format: [1-9][0-9]*(MB|GB|TB)")
+	if body.Spec.Nodes != nil {
+		if w := body.Spec.Nodes.Workers; w != nil {
+			if w.Count != nil && *w.Count < 1 {
+				return fmt.Errorf("nodes.workers.count must be >= 1")
+			}
+			if w.Memory != nil && !memoryFormatRe.MatchString(*w.Memory) {
+				return fmt.Errorf("nodes.workers.memory must match format: [1-9][0-9]*(MB|GB|TB)")
+			}
+			if w.Storage != nil && !memoryFormatRe.MatchString(*w.Storage) {
+				return fmt.Errorf("nodes.workers.storage must match format: [1-9][0-9]*(MB|GB|TB)")
+			}
 		}
-		if cp.Storage != nil && !memoryFormatRe.MatchString(*cp.Storage) {
-			return fmt.Errorf("nodes.control_plane.storage must match format: [1-9][0-9]*(MB|GB|TB)")
+		if cp := body.Spec.Nodes.ControlPlane; cp != nil {
+			if cp.Memory != nil && !memoryFormatRe.MatchString(*cp.Memory) {
+				return fmt.Errorf("nodes.control_plane.memory must match format: [1-9][0-9]*(MB|GB|TB)")
+			}
+			if cp.Storage != nil && !memoryFormatRe.MatchString(*cp.Storage) {
+				return fmt.Errorf("nodes.control_plane.storage must match format: [1-9][0-9]*(MB|GB|TB)")
+			}
 		}
 	}
 	return nil
