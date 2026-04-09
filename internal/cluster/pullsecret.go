@@ -3,6 +3,7 @@ package cluster
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 
@@ -19,6 +20,16 @@ func EnsurePullSecret(ctx context.Context, c client.Client, cfg config.ClusterCo
 	decoded, err := base64.StdEncoding.DecodeString(cfg.PullSecret)
 	if err != nil {
 		return fmt.Errorf("decoding SP_PULL_SECRET: %w", err)
+	}
+
+	var dockerCfg struct {
+		Auths map[string]json.RawMessage `json:"auths"`
+	}
+	if err := json.Unmarshal(decoded, &dockerCfg); err != nil {
+		return fmt.Errorf("parsing SP_PULL_SECRET as .dockerconfigjson: %w", err)
+	}
+	if len(dockerCfg.Auths) == 0 {
+		return fmt.Errorf("SP_PULL_SECRET .dockerconfigjson is missing required 'auths' entries")
 	}
 
 	labels := map[string]string{
@@ -47,7 +58,12 @@ func EnsurePullSecret(ctx context.Context, c client.Client, cfg config.ClusterCo
 			return fmt.Errorf("getting existing pull secret: %w", err)
 		}
 		existing.Data = secret.Data
-		existing.Labels = labels
+		if existing.Labels == nil {
+			existing.Labels = make(map[string]string)
+		}
+		for k, v := range labels {
+			existing.Labels[k] = v
+		}
 		if existing.Type != corev1.SecretTypeDockerConfigJson {
 			logger.Warn("existing pull secret has unexpected type",
 				"name", existing.Name, "namespace", existing.Namespace,

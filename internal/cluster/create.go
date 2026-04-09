@@ -102,19 +102,18 @@ func applyControlPlaneResourceOverrides(hc *hyperv1.HostedCluster, req v1alpha1.
 		return
 	}
 	cp := req.Spec.Nodes.ControlPlane
-	if cp.Cpu == nil && cp.Memory == nil {
+
+	var parts []string
+	if cp.Cpu != nil {
+		parts = append(parts, fmt.Sprintf("cpu=%d", *cp.Cpu))
+	}
+	if cp.Memory != nil {
+		parts = append(parts, fmt.Sprintf("memory=%s", strings.TrimSuffix(*cp.Memory, "B")))
+	}
+	if len(parts) == 0 {
 		return
 	}
-
-	var cpu int
-	if cp.Cpu != nil {
-		cpu = *cp.Cpu
-	}
-	var memory string
-	if cp.Memory != nil {
-		memory = strings.TrimSuffix(*cp.Memory, "B")
-	}
-	value := fmt.Sprintf("cpu=%d,memory=%s", cpu, memory)
+	value := strings.Join(parts, ",")
 
 	if hc.Annotations == nil {
 		hc.Annotations = make(map[string]string)
