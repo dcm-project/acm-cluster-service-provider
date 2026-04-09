@@ -519,8 +519,8 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | REQ-API-060 | MUST accept a JSON body conforming to the `Cluster` schema | MUST |
-| REQ-API-070 | `version` MUST be present (required field); `nodes.control_plane` is OPTIONAL — when omitted, HyperShift defaults are used for control plane resources | MUST |
-| REQ-API-080 | `nodes.workers` MUST be present and have `count >= 1`; if omitted, MUST return 400 with `type=INVALID_ARGUMENT` and a message indicating workers are required | MUST |
+| REQ-API-070 | `version` MUST be present (required field); `nodes` is OPTIONAL — when omitted, SP defaults to 1 worker replica and HyperShift applies platform defaults for CPU, memory, and storage. `nodes.control_plane` is OPTIONAL — when omitted, HyperShift defaults are used for control plane resources | MUST |
+| REQ-API-080 | `nodes.workers` is OPTIONAL; when omitted, SP defaults to 1 replica and HyperShift applies platform defaults. When provided, `count` (if present) MUST be `>= 1`; `memory` and `storage` (if present) MUST match `[1-9][0-9]*(MB\|GB\|TB)`. Invalid values MUST return 400 with `type=INVALID_ARGUMENT` | MUST |
 | REQ-API-090 | The SP MUST validate that `service_type == "cluster"` and return 400 with `type=INVALID_ARGUMENT` if not | MUST |
 | REQ-API-100 | `id` MUST be the cluster resource identifier. If a client-specified `id` is provided via `?id=` query parameter, it MUST be used; if `?id=` is present but empty, it MUST be treated as absent (generate UUID). Otherwise the SP MUST generate a UUID. `path` MUST be set to `"clusters/<id>"`. The `dcm.project/dcm-instance-id` K8s label MUST be set to `id`. `metadata.name` MUST be used as the K8s HostedCluster resource name | MUST |
 | REQ-API-101 | `id` MUST be readOnly. If `id` appears in the request body, it MUST be ignored (IMPL-001) | MUST |
@@ -615,10 +615,10 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 - **When** `POST /api/v1alpha1/clusters` with `service_type="compute"`
 - **Then** response is 400 with `type="INVALID_ARGUMENT"`
 
-##### AC-API-040: Create with missing workers
-- **Requirements:** REQ-API-080
-- **When** `POST /api/v1alpha1/clusters` with body containing `nodes.control_plane` but no `nodes.workers`
-- **Then** response is 400 with `type="INVALID_ARGUMENT"` and detail indicating workers are required
+##### AC-API-040: Create with missing nodes/workers
+- **Requirements:** REQ-API-070, REQ-API-080
+- **When** `POST /api/v1alpha1/clusters` with body omitting `nodes` or `nodes.workers`
+- **Then** response is 201; SP defaults to 1 worker replica and HyperShift applies platform defaults
 
 ##### AC-API-050: Create with unsupported platform
 - **Requirements:** REQ-API-130

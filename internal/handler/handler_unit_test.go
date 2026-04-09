@@ -279,38 +279,6 @@ var _ = Describe("CreateCluster Handler", func() {
 		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
 	})
 
-	It("returns 400 when nodes object is missing (TC-HDL-CRT-UT-013)", func() {
-		body := validClusterBody()
-		body.Spec.Nodes = nil
-
-		req := oapigen.CreateClusterRequestObject{
-			Body: &body,
-		}
-
-		resp, err := h.CreateCluster(ctx, req)
-		Expect(err).NotTo(HaveOccurred())
-
-		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
-		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
-	})
-
-	It("returns 400 when workers are missing (TC-HDL-CRT-UT-005)", func() {
-		body := validClusterBody()
-		body.Spec.Nodes.Workers = nil
-
-		req := oapigen.CreateClusterRequestObject{
-			Body: &body,
-		}
-
-		resp, err := h.CreateCluster(ctx, req)
-		Expect(err).NotTo(HaveOccurred())
-
-		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
-		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
-	})
-
 	It("treats empty ?id= as absent and generates UUID (TC-HDL-CRT-UT-019)", func() {
 		body := validClusterBody()
 		req := oapigen.CreateClusterRequestObject{
