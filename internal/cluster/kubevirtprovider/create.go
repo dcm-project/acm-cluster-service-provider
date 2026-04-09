@@ -7,6 +7,7 @@ import (
 	"github.com/dcm-project/acm-cluster-service-provider/internal/cluster"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
 	hyperv1 "github.com/openshift/hypershift/api/hypershift/v1beta1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -106,6 +107,17 @@ func (s *Service) BuildNodePool(req v1alpha1.Cluster, releaseImage string, label
 			hasPlatform = true
 		}
 		if hasPlatform {
+			if kvPlatform.RootVolume == nil {
+				defaultSize := resource.MustParse("32Gi")
+				kvPlatform.RootVolume = &hyperv1.KubevirtRootVolume{
+					KubevirtVolume: hyperv1.KubevirtVolume{
+						Type: hyperv1.KubevirtVolumeTypePersistent,
+						Persistent: &hyperv1.KubevirtPersistentVolume{
+							Size: &defaultSize,
+						},
+					},
+				}
+			}
 			np.Spec.Platform.Kubevirt = kvPlatform
 		}
 	}
