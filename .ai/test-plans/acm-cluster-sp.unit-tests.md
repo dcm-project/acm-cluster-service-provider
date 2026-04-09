@@ -403,8 +403,8 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Type:** Unit
 - **Priority:** High
 - **Given** no mock interaction needed
-- **When** `CreateCluster` is called with `nodes.control_plane` present but no `nodes.workers`
-- **Then** returns 400 with `type="INVALID_ARGUMENT"` and detail mentioning workers are required
+- **When** `CreateCluster` is called with `nodes.control_plane` present but `nodes.workers = nil` (pointer type)
+- **Then** returns 400 with `type="INVALID_ARGUMENT"`
 
 #### TC-HDL-CRT-UT-006: Invalid memory format
 - **Requirements:** REQ-API-170
@@ -446,15 +446,14 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **When** `CreateCluster` is called with `version="9.99"`
 - **Then** returns 422 with `type="UNPROCESSABLE_ENTITY"`
 
-#### TC-HDL-CRT-UT-011: Missing required fields (version, control_plane)
+#### TC-HDL-CRT-UT-011: Missing required field (version)
 - **Requirements:** REQ-API-070, REQ-API-150
 - **Type:** Unit
 - **Priority:** Medium
 - **Given** no mock interaction needed
 - **When** `CreateCluster` is called with body missing `version`
 - **Then** returns 400 with `type="INVALID_ARGUMENT"`
-- **When** `CreateCluster` is called with `nodes.workers` but no `nodes.control_plane`
-- **Then** returns 400 with `type="INVALID_ARGUMENT"`
+- **Note:** `nodes.control_plane` is OPTIONAL per REQ-API-070 — when omitted, HyperShift defaults are used for control plane resources. No validation error for missing `control_plane`.
 
 #### TC-HDL-CRT-UT-019: Empty `?id=` query parameter treated as absent
 - **Requirements:** REQ-API-100
@@ -479,7 +478,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Type:** Unit
 - **Priority:** Medium
 - **Given** no mock interaction needed
-- **When** `CreateCluster` is called with version, service_type, metadata but no `nodes` field
+- **When** `CreateCluster` is called with version, service_type, metadata but `nodes = nil` (pointer type)
 - **Then** returns 400 with `type="INVALID_ARGUMENT"`
 
 #### TC-HDL-CRT-UT-014: Workers count below minimum
@@ -874,8 +873,8 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **Priority:** Medium
 - **Given** a fake K8s client with a ClusterImageSet
 - **When** `Create()` is called with `control_plane.count=5, control_plane.storage="500GB"`
-- **Then** the HostedCluster does not contain an explicit control plane replica count
-- **And** `Spec.Etcd.Managed.Storage.Type` is `PersistentVolume` (caller's `control_plane.storage="500GB"` is not mapped to etcd storage)
+- **Then** the HostedCluster does not set `ControllerAvailabilityPolicy`
+- **And** `Spec.Etcd.Managed.Storage.Type` is `PersistentVolume` (DD-008 — always set, independent of `control_plane.storage`)
 
 #### TC-KV-UT-003: control_plane CPU and memory map to resource request override annotations
 - **Requirements:** REQ-ACM-060, REQ-ACM-061
@@ -1208,6 +1207,39 @@ Tests the KubeVirt `ClusterService` implementation with a fake K8s `client.Clien
 - **And** the Secret contains the base64-decoded content in the `.dockerconfigjson` key
 - **And** the Secret carries labels `dcm.project/managed-by=dcm`, `dcm.project/dcm-service-type=cluster`
 
+#### TC-OPS-UT-019: Update existing PullSecret with correct data and labels
+- **Requirements:** REQ-ACM-190
+- **Decisions:** DD-007
+- **Type:** Unit
+- **Priority:** High
+- **Given** a fake K8s client with an existing `<SP_NAME>-pull-secret` Secret of type `kubernetes.io/dockerconfigjson`
+- **And** `SP_PULL_SECRET` env var is set with new base64-encoded `.dockerconfigjson` content
+- **When** `EnsurePullSecret` is called
+- **Then** the existing Secret's `.Data` is updated with the new decoded content
+- **And** the existing Secret's `.Labels` are updated to `dcm.project/managed-by=dcm`, `dcm.project/dcm-service-type=cluster`
+- **And** the Secret's `.Type` remains `kubernetes.io/dockerconfigjson` (unchanged)
+
+#### TC-OPS-UT-020: Warn when existing PullSecret has wrong type
+- **Requirements:** REQ-ACM-190
+- **Decisions:** DD-007
+- **Type:** Unit
+- **Priority:** High
+- **Given** a fake K8s client with an existing `<SP_NAME>-pull-secret` Secret of type `Opaque`
+- **And** `SP_PULL_SECRET` env var is set with base64-encoded `.dockerconfigjson` content
+- **When** `EnsurePullSecret` is called
+- **Then** a warning is logged containing the secret name, namespace, expected type (`kubernetes.io/dockerconfigjson`), and actual type (`Opaque`)
+- **And** the existing Secret's `.Data` and `.Labels` are updated
+- **And** the existing Secret's `.Type` remains `Opaque` (NOT changed — K8s immutability)
+
+#### TC-OPS-UT-021: Error on invalid base64 in SP_PULL_SECRET
+- **Requirements:** REQ-ACM-190
+- **Decisions:** DD-007
+- **Type:** Unit
+- **Priority:** Medium
+- **Given** `SP_PULL_SECRET` env var contains invalid base64 content (`!!!not-base64!!!`)
+- **When** `EnsurePullSecret` is called
+- **Then** an error is returned containing `"decoding SP_PULL_SECRET"`
+
 ---
 
 ### 2.11 BareMetal Service (TC-BM-UT-xxx)
@@ -1300,7 +1332,7 @@ Tests the BareMetal `ClusterService` implementation. Status mapping is NOT retes
 - **Given** a fake K8s client with a ClusterImageSet
 - **When** `Create()` is called with `control_plane.count=5, control_plane.storage="500GB"`
 - **Then** the HostedCluster does not set `ControllerAvailabilityPolicy`
-- **And** `Spec.Etcd.Managed.Storage.Type` is `PersistentVolume` (caller's `control_plane.storage="500GB"` is not mapped to etcd storage)
+- **And** `Spec.Etcd.Managed.Storage.Type` is `PersistentVolume` (DD-008 — always set, independent of `control_plane.storage`)
 
 #### TC-BM-UT-014: control_plane CPU and memory map to resource request override annotations
 - **Requirements:** REQ-ACM-060, REQ-ACM-061
@@ -1937,7 +1969,7 @@ Tests `ComputeCompositeStatus()` — worst-of logic combining HC and NP statuses
 | REQ-ACM-160 | TC-STS-UT-001..012, TC-OPS-UT-001 | Covered (shared ops confirm delegation to shared mapper) |
 | REQ-ACM-170 | TC-KV-UT-017, TC-KV-UT-028, TC-BM-UT-008 | Covered |
 | REQ-ACM-180 | TC-KV-UT-001, TC-KV-UT-030, TC-BM-UT-001, TC-BM-UT-015, TC-INT-001, TC-INT-006 | Covered |
-| REQ-ACM-190 | TC-OPS-UT-018, TC-INT-009 | Covered |
+| REQ-ACM-190 | TC-OPS-UT-018, TC-OPS-UT-019, TC-OPS-UT-020, TC-OPS-UT-021, TC-INT-009 | Covered |
 | REQ-ACM-191 | TC-KV-UT-032, TC-BM-UT-016, TC-INT-001, TC-INT-006 | Covered |
 | REQ-ACM-195 | TC-CFG-UT-001, TC-INT-009 | Covered |
 | REQ-ACM-200 | TC-KV-UT-001, TC-KV-UT-033, TC-BM-UT-001, TC-BM-UT-017, TC-INT-001, TC-INT-006 | Covered |
@@ -2074,7 +2106,7 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 
 | Category | Count |
 |---|---|
-| **Total test cases defined** | **146** (142 unit + 4 reclassified as integration/middleware) |
+| **Total test cases defined** | **149** (145 unit + 4 reclassified as integration/middleware) |
 | High priority | 71 |
 | Medium priority | 60 |
 | Low priority | 15 |
@@ -2095,7 +2127,7 @@ This reduces 15+ potential duplicate tests to 12 without losing coverage.
 | Handler: Delete | TC-HDL-DEL-UT-xxx | 6 |
 | Error Mapping | TC-ERR-UT-xxx | 3 |
 | Status Mapping (shared) | TC-STS-UT-xxx | 12 |
-| Shared Operations | TC-OPS-UT-xxx | 17 |
+| Shared Operations | TC-OPS-UT-xxx | 20 |
 | KubeVirt Service | TC-KV-UT-xxx | 19 |
 | BareMetal Service | TC-BM-UT-xxx | 14 |
 | Status Monitoring | TC-MON-UT-xxx | 26 |

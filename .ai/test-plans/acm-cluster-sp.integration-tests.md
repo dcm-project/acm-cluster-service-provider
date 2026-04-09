@@ -612,7 +612,7 @@ Build constraint: `//go:build integration`
 | REQ-ACM-160 | TC-STS-UT-001..012, TC-OPS-UT-001 | Covered (shared ops confirm delegation to shared mapper) |
 | REQ-ACM-170 | TC-KV-UT-017, TC-KV-UT-028, TC-BM-UT-008 | Covered |
 | REQ-ACM-180 | TC-KV-UT-001, TC-KV-UT-030, TC-BM-UT-001, TC-BM-UT-015, TC-INT-001, TC-INT-006 | Covered |
-| REQ-ACM-190 | TC-OPS-UT-018, TC-INT-009 | Covered |
+| REQ-ACM-190 | TC-OPS-UT-018, TC-OPS-UT-019, TC-OPS-UT-020, TC-OPS-UT-021, TC-INT-009 | Covered |
 | REQ-ACM-191 | TC-KV-UT-032, TC-BM-UT-016, TC-INT-001, TC-INT-006 | Covered |
 | REQ-ACM-195 | TC-CFG-UT-001, TC-INT-009 | Covered |
 | REQ-ACM-200 | TC-KV-UT-001, TC-KV-UT-033, TC-BM-UT-001, TC-BM-UT-017, TC-INT-001, TC-INT-006 | Covered |
