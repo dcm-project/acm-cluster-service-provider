@@ -299,6 +299,19 @@ var _ = Describe("BareMetal Service", func() {
 			Expect(hc.Spec.Services).To(ContainElement(HaveField("Service", hyperv1.APIServer)))
 		})
 
+		It("TC-BM-UT-016: HostedCluster PullSecret references shared Secret", func() {
+			svc, k8s := newTestService(cfg)
+			req := validCreateCluster()
+
+			_, err := svc.Create(ctx, "bm-id", req)
+			Expect(err).NotTo(HaveOccurred())
+
+			var hcList hyperv1.HostedClusterList
+			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(hcList.Items).To(HaveLen(1))
+			Expect(hcList.Items[0].Spec.PullSecret.Name).To(Equal(cfg.PullSecretName))
+		})
+
 		It("TC-BM-UT-017: NodePool has Management.UpgradeType=InPlace", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()

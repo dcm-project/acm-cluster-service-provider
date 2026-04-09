@@ -12,6 +12,7 @@ import (
 	"github.com/dcm-project/acm-cluster-service-provider/internal/service"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
 	hyperv1 "github.com/openshift/hypershift/api/hypershift/v1beta1"
+	corev1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -61,6 +62,8 @@ func CreateCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 
 	hc := pb.BuildHostedCluster(req, baseDomain, releaseImage, labels)
 	applyControlPlaneResourceOverrides(hc, req)
+	hc.Spec.PullSecret = corev1.LocalObjectReference{Name: cfg.PullSecretName} // REQ-ACM-191
+
 	if err := c.Create(ctx, hc); err != nil {
 		if k8serrors.IsAlreadyExists(err) {
 			return nil, service.NewAlreadyExistsError(fmt.Sprintf("cluster with name %q already exists", req.Spec.Metadata.Name))

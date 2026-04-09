@@ -15,6 +15,7 @@ var _ = Describe("Config", func() {
 		"DCM_REGISTRATION_URL": "http://dcm",
 		"SP_ENDPOINT":          "http://sp",
 		"SP_CLUSTER_NAMESPACE": "clusters",
+		"SP_PULL_SECRET":       "eyJhdXRocyI6e319",
 		"SP_NATS_URL":          "nats://localhost:4222",
 	}
 
@@ -41,6 +42,7 @@ var _ = Describe("Config", func() {
 		Entry("DCM_REGISTRATION_URL missing", "DCM_REGISTRATION_URL"),
 		Entry("SP_ENDPOINT missing", "SP_ENDPOINT"),
 		Entry("SP_CLUSTER_NAMESPACE missing", "SP_CLUSTER_NAMESPACE"),
+		Entry("SP_PULL_SECRET missing", "SP_PULL_SECRET"),
 		Entry("SP_NATS_URL missing", "SP_NATS_URL"),
 	)
 

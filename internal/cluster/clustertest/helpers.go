@@ -26,6 +26,7 @@ func DefaultConfig() config.ClusterConfig {
 	return config.ClusterConfig{
 		ClusterNamespace:  TestNamespace,
 		BaseDomain:        TestBaseDomain,
+		PullSecretName:    "test-sp-pull-secret",
 		ConsoleURIPattern: "https://console-openshift-console.apps.{name}.{base_domain}",
 		VersionMatrix:     map[string]string(registration.DefaultCompatibilityMatrix),
 	}
