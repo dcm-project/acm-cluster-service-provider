@@ -36,18 +36,21 @@ func (s *Service) BuildHostedCluster(req v1alpha1.Cluster, baseDomain, releaseIm
 			DNS: hyperv1.DNSSpec{
 				BaseDomain: baseDomain,
 			},
+			Services: cluster.DefaultServicePublishingStrategies, // REQ-ACM-180
+			Etcd: hyperv1.EtcdSpec{ // REQ-ACM-210
+				ManagementType: hyperv1.Managed,
+				Managed: &hyperv1.ManagedEtcdSpec{
+					Storage: hyperv1.ManagedEtcdStorageSpec{
+						Type: hyperv1.PersistentVolumeEtcdStorage,
+					},
+				},
+			},
 		},
 	}
 }
 
 func (s *Service) BuildNodePool(req v1alpha1.Cluster, releaseImage string, labels map[string]string) *hyperv1.NodePool {
-	replicas := int32(req.Spec.Nodes.Workers.Count)
-
-	// Errors ignored: OpenAPI middleware validates format (^[1-9][0-9]*(MB|GB|TB)$)
-	memory, _ := cluster.ParseDCMMemory(req.Spec.Nodes.Workers.Memory)
-	storage, _ := cluster.ParseDCMMemory(req.Spec.Nodes.Workers.Storage)
-
-	return &hyperv1.NodePool{
+	np := &hyperv1.NodePool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      req.Spec.Metadata.Name,
 			Namespace: s.config.ClusterNamespace,
@@ -55,27 +58,55 @@ func (s *Service) BuildNodePool(req v1alpha1.Cluster, releaseImage string, label
 		},
 		Spec: hyperv1.NodePoolSpec{
 			ClusterName: req.Spec.Metadata.Name,
-			Replicas:    &replicas,
 			Release: hyperv1.Release{
 				Image: releaseImage,
 			},
+			Management: hyperv1.NodePoolManagement{ // REQ-ACM-200
+				UpgradeType: hyperv1.UpgradeTypeInPlace,
+			},
 			Platform: hyperv1.NodePoolPlatform{
 				Type: hyperv1.KubevirtPlatform,
-				Kubevirt: &hyperv1.KubevirtNodePoolPlatform{
-					Compute: &hyperv1.KubevirtCompute{
-						Memory: &memory,
-						Cores:  util.Ptr(uint32(req.Spec.Nodes.Workers.Cpu)),
-					},
-					RootVolume: &hyperv1.KubevirtRootVolume{
-						KubevirtVolume: hyperv1.KubevirtVolume{
-							Type: hyperv1.KubevirtVolumeTypePersistent,
-							Persistent: &hyperv1.KubevirtPersistentVolume{
-								Size: &storage,
-							},
-						},
-					},
-				},
 			},
 		},
 	}
+
+	if req.Spec.Nodes != nil && req.Spec.Nodes.Workers != nil {
+		w := req.Spec.Nodes.Workers
+		if w.Count != nil {
+			replicas := int32(*w.Count)
+			np.Spec.Replicas = &replicas
+		}
+
+		kvPlatform := &hyperv1.KubevirtNodePoolPlatform{}
+		hasPlatform := false
+		if w.Memory != nil {
+			memory, _ := cluster.ParseDCMMemory(*w.Memory)
+			kvPlatform.Compute = &hyperv1.KubevirtCompute{Memory: &memory}
+			hasPlatform = true
+		}
+		if w.Cpu != nil {
+			if kvPlatform.Compute == nil {
+				kvPlatform.Compute = &hyperv1.KubevirtCompute{}
+			}
+			kvPlatform.Compute.Cores = util.Ptr(uint32(*w.Cpu))
+			hasPlatform = true
+		}
+		if w.Storage != nil {
+			storage, _ := cluster.ParseDCMMemory(*w.Storage)
+			kvPlatform.RootVolume = &hyperv1.KubevirtRootVolume{
+				KubevirtVolume: hyperv1.KubevirtVolume{
+					Type: hyperv1.KubevirtVolumeTypePersistent,
+					Persistent: &hyperv1.KubevirtPersistentVolume{
+						Size: &storage,
+					},
+				},
+			}
+			hasPlatform = true
+		}
+		if hasPlatform {
+			np.Spec.Platform.Kubevirt = kvPlatform
+		}
+	}
+
+	return np
 }

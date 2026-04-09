@@ -61,13 +61,20 @@ func (b *builder) BuildHostedCluster(req v1alpha1.Cluster, baseDomain, releaseIm
 			DNS: hyperv1.DNSSpec{
 				BaseDomain: baseDomain,
 			},
+			Services: cluster.DefaultServicePublishingStrategies, // REQ-ACM-180
+			Etcd: hyperv1.EtcdSpec{ // REQ-ACM-210
+				ManagementType: hyperv1.Managed,
+				Managed: &hyperv1.ManagedEtcdSpec{
+					Storage: hyperv1.ManagedEtcdStorageSpec{
+						Type: hyperv1.PersistentVolumeEtcdStorage,
+					},
+				},
+			},
 		},
 	}
 }
 
 func (b *builder) BuildNodePool(req v1alpha1.Cluster, releaseImage string, labels map[string]string) *hyperv1.NodePool {
-	replicas := int32(req.Spec.Nodes.Workers.Count)
-
 	matchLabels := map[string]string{
 		b.config.InfraEnvLabelKey: b.infraEnv,
 	}
@@ -78,7 +85,7 @@ func (b *builder) BuildNodePool(req v1alpha1.Cluster, releaseImage string, label
 		}
 	}
 
-	return &hyperv1.NodePool{
+	np := &hyperv1.NodePool{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      req.Spec.Metadata.Name,
 			Namespace: b.config.ClusterNamespace,
@@ -86,9 +93,11 @@ func (b *builder) BuildNodePool(req v1alpha1.Cluster, releaseImage string, label
 		},
 		Spec: hyperv1.NodePoolSpec{
 			ClusterName: req.Spec.Metadata.Name,
-			Replicas:    &replicas,
 			Release: hyperv1.Release{
 				Image: releaseImage,
+			},
+			Management: hyperv1.NodePoolManagement{ // REQ-ACM-200
+				UpgradeType: hyperv1.UpgradeTypeInPlace,
 			},
 			Platform: hyperv1.NodePoolPlatform{
 				Type: hyperv1.AgentPlatform,
@@ -100,4 +109,11 @@ func (b *builder) BuildNodePool(req v1alpha1.Cluster, releaseImage string, label
 			},
 		},
 	}
+
+	if req.Spec.Nodes != nil && req.Spec.Nodes.Workers != nil && req.Spec.Nodes.Workers.Count != nil {
+		replicas := int32(*req.Spec.Nodes.Workers.Count)
+		np.Spec.Replicas = &replicas
+	}
+
+	return np
 }

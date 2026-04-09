@@ -40,18 +40,18 @@ func validCreateCluster() v1alpha1.Cluster {
 			Metadata: v1alpha1.ClusterMetadata{
 				Name: "test-cluster",
 			},
-			Nodes: v1alpha1.ClusterNodes{
-				ControlPlane: v1alpha1.ControlPlaneSpec{
-					Count:   v1alpha1.N3,
-					Cpu:     4,
-					Memory:  "16GB",
-					Storage: "120GB",
+			Nodes: &v1alpha1.ClusterNodes{
+				ControlPlane: &v1alpha1.ControlPlaneSpec{
+					Count:   util.Ptr(v1alpha1.N3),
+					Cpu:     util.Ptr(4),
+					Memory:  util.Ptr("16GB"),
+					Storage: util.Ptr("120GB"),
 				},
-				Workers: v1alpha1.WorkerSpec{
-					Count:   3,
-					Cpu:     8,
-					Memory:  "32GB",
-					Storage: "500GB",
+				Workers: &v1alpha1.WorkerSpec{
+					Count:   util.Ptr(3),
+					Cpu:     util.Ptr(8),
+					Memory:  util.Ptr("32GB"),
+					Storage: util.Ptr("500GB"),
 				},
 			},
 			ProviderHints: &v1alpha1.ProviderHints{
