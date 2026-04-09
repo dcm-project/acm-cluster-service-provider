@@ -1,7 +1,9 @@
 package apiserver
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
@@ -77,13 +79,21 @@ func requestLoggingMiddleware(logger *slog.Logger) func(http.Handler) http.Handl
 
 // openAPIValidationMiddleware validates incoming requests against the OpenAPI
 // spec. Routes not found in the spec are passed through to the chi router.
-func openAPIValidationMiddleware(specRouter routers.Router, badReq func(http.ResponseWriter, *http.Request, error)) func(http.Handler) http.Handler {
+func openAPIValidationMiddleware(logger *slog.Logger, specRouter routers.Router, badReq func(http.ResponseWriter, *http.Request, error)) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			route, pathParams, err := specRouter.FindRoute(r)
 			if err != nil {
 				next.ServeHTTP(w, r)
 				return
+			}
+
+			// Buffer the body so it can be logged on validation failure
+			// and replayed for downstream handlers.
+			var bodyBytes []byte
+			if r.Body != nil {
+				bodyBytes, _ = io.ReadAll(r.Body)
+				r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 			}
 
 			input := &openapi3filter.RequestValidationInput{
@@ -93,8 +103,20 @@ func openAPIValidationMiddleware(specRouter routers.Router, badReq func(http.Res
 			}
 
 			if err := openapi3filter.ValidateRequest(r.Context(), input); err != nil {
+				detail := scrubValidationError(err)
+				logger.Warn("request validation failed",
+					"method", r.Method,
+					"path", r.URL.Path,
+					"detail", detail,
+					"body", string(bodyBytes),
+				)
 				badReq(w, r, err)
 				return
+			}
+
+			// Restore body for downstream handlers.
+			if bodyBytes != nil {
+				r.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 			}
 
 			next.ServeHTTP(w, r)

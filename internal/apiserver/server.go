@@ -53,7 +53,7 @@ func New(cfg *config.Config, logger *slog.Logger, handler oapigen.ServerInterfac
 		if routerErr != nil {
 			logger.Warn("failed to create OpenAPI router, request validation disabled", "error", routerErr)
 		} else {
-			r.Use(openAPIValidationMiddleware(specRouter, badReq))
+			r.Use(openAPIValidationMiddleware(logger, specRouter, badReq))
 		}
 	}
 
