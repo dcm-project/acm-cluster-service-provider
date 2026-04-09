@@ -95,25 +95,9 @@ var _ = Describe("CreateCluster Handler", func() {
 		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
 	})
 
-	It("returns 400 when workers are missing (TC-HDL-CRT-UT-005)", func() {
-		body := validClusterBody()
-		body.Spec.Nodes.Workers = oapigen.WorkerSpec{}
-
-		req := oapigen.CreateClusterRequestObject{
-			Body: &body,
-		}
-
-		resp, err := h.CreateCluster(ctx, req)
-		Expect(err).NotTo(HaveOccurred())
-
-		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
-		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
-	})
-
 	It("returns 400 for invalid memory format (TC-HDL-CRT-UT-006)", func() {
 		body := validClusterBody()
-		body.Spec.Nodes.Workers.Memory = "invalid"
+		body.Spec.Nodes.Workers.Memory = util.Ptr("invalid")
 
 		req := oapigen.CreateClusterRequestObject{
 			Body: &body,
@@ -246,25 +230,9 @@ var _ = Describe("CreateCluster Handler", func() {
 		}
 	})
 
-	It("returns 400 when nodes are missing entirely (TC-HDL-CRT-UT-013)", func() {
-		body := validClusterBody()
-		body.Spec.Nodes = oapigen.ClusterNodes{}
-
-		req := oapigen.CreateClusterRequestObject{
-			Body: &body,
-		}
-
-		resp, err := h.CreateCluster(ctx, req)
-		Expect(err).NotTo(HaveOccurred())
-
-		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
-		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
-		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
-	})
-
 	It("returns 400 when workers count is below minimum (TC-HDL-CRT-UT-014)", func() {
 		body := validClusterBody()
-		body.Spec.Nodes.Workers.Count = 0
+		body.Spec.Nodes.Workers.Count = util.Ptr(0)
 
 		req := oapigen.CreateClusterRequestObject{
 			Body: &body,
@@ -298,6 +266,38 @@ var _ = Describe("CreateCluster Handler", func() {
 	It("returns 400 when service_type is missing (TC-HDL-CRT-UT-016)", func() {
 		body := validClusterBody()
 		body.Spec.ServiceType = ""
+
+		req := oapigen.CreateClusterRequestObject{
+			Body: &body,
+		}
+
+		resp, err := h.CreateCluster(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+
+		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
+		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
+	})
+
+	It("returns 400 when nodes object is missing (TC-HDL-CRT-UT-013)", func() {
+		body := validClusterBody()
+		body.Spec.Nodes = nil
+
+		req := oapigen.CreateClusterRequestObject{
+			Body: &body,
+		}
+
+		resp, err := h.CreateCluster(ctx, req)
+		Expect(err).NotTo(HaveOccurred())
+
+		errResp, ok := resp.(oapigen.CreateCluster400ApplicationProblemPlusJSONResponse)
+		Expect(ok).To(BeTrue(), "expected CreateCluster400ApplicationProblemPlusJSONResponse")
+		Expect(errResp.Type).To(Equal(oapigen.ErrorTypeINVALIDARGUMENT))
+	})
+
+	It("returns 400 when workers are missing (TC-HDL-CRT-UT-005)", func() {
+		body := validClusterBody()
+		body.Spec.Nodes.Workers = nil
 
 		req := oapigen.CreateClusterRequestObject{
 			Body: &body,

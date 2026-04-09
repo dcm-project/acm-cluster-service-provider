@@ -19,6 +19,9 @@ import (
 	"github.com/dcm-project/acm-cluster-service-provider/internal/monitoring"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/registration"
 	spmclient "github.com/dcm-project/service-provider-manager/pkg/client/provider"
+	hyperv1 "github.com/openshift/hypershift/api/hypershift/v1beta1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -61,7 +64,13 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("loading kubeconfig: %w", err)
 	}
 
-	k8sClient, err := client.New(restCfg, client.Options{})
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+	if err := hyperv1.AddToScheme(scheme); err != nil {
+		return fmt.Errorf("registering HyperShift types: %w", err)
+	}
+
+	k8sClient, err := client.New(restCfg, client.Options{Scheme: scheme})
 	if err != nil {
 		return fmt.Errorf("creating kubernetes client: %w", err)
 	}

@@ -33,7 +33,7 @@ var _ = Describe("KubeVirt Service", func() {
 		It("TC-KV-UT-001: creates HostedCluster + NodePool with correct platform, labels, and replicas", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.Workers.Count = 2
+			req.Spec.Nodes.Workers.Count = util.Ptr(2)
 
 			result, err := svc.Create(ctx, "test-id", req)
 
@@ -70,8 +70,8 @@ var _ = Describe("KubeVirt Service", func() {
 		It("TC-KV-UT-002: control_plane.count and storage are ignored", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.ControlPlane.Count = v1alpha1.N5
-			req.Spec.Nodes.ControlPlane.Storage = "500GB"
+			req.Spec.Nodes.ControlPlane.Count = util.Ptr(v1alpha1.N5)
+			req.Spec.Nodes.ControlPlane.Storage = util.Ptr("500GB")
 
 			result, err := svc.Create(ctx, "test-id", req)
 			Expect(err).NotTo(HaveOccurred())
@@ -82,14 +82,13 @@ var _ = Describe("KubeVirt Service", func() {
 			Expect(hcList.Items).To(HaveLen(1))
 			hc := hcList.Items[0]
 			Expect(hc.Spec.ControllerAvailabilityPolicy).To(BeZero())
-			Expect(hc.Spec.Etcd.Managed).To(BeNil())
 		})
 
 		It("TC-KV-UT-003: control_plane CPU and memory map to resource request override annotations", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.ControlPlane.Cpu = 4
-			req.Spec.Nodes.ControlPlane.Memory = "16GB"
+			req.Spec.Nodes.ControlPlane.Cpu = util.Ptr(4)
+			req.Spec.Nodes.ControlPlane.Memory = util.Ptr("16GB")
 
 			result, err := svc.Create(ctx, "test-id", req)
 			Expect(err).NotTo(HaveOccurred())
@@ -216,8 +215,8 @@ var _ = Describe("KubeVirt Service", func() {
 		It("TC-KV-UT-008: memory/storage format conversion (DCM to K8s)", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.Workers.Memory = "16GB"
-			req.Spec.Nodes.Workers.Storage = "120GB"
+			req.Spec.Nodes.Workers.Memory = util.Ptr("16GB")
+			req.Spec.Nodes.Workers.Storage = util.Ptr("120GB")
 
 			result, err := svc.Create(ctx, "test-id", req)
 			Expect(err).NotTo(HaveOccurred())
@@ -235,7 +234,7 @@ var _ = Describe("KubeVirt Service", func() {
 		It("TC-KV-UT-009: workers storage maps to root disk size", func() {
 			svc, k8s := newTestService(cfg)
 			req := validCreateCluster()
-			req.Spec.Nodes.Workers.Storage = "120GB"
+			req.Spec.Nodes.Workers.Storage = util.Ptr("120GB")
 
 			result, err := svc.Create(ctx, "test-id", req)
 			Expect(err).NotTo(HaveOccurred())
@@ -416,6 +415,53 @@ var _ = Describe("KubeVirt Service", func() {
 				client.MatchingLabels{"dcm.project/dcm-instance-id": "test-id"},
 			)).To(Succeed())
 			Expect(hcList.Items).To(HaveLen(1))
+		})
+
+		It("TC-KV-UT-030: HostedCluster has exactly 4 service publishing strategies", func() {
+			svc, k8s := newTestService(cfg)
+			req := validCreateCluster()
+
+			_, err := svc.Create(ctx, "test-id", req)
+			Expect(err).NotTo(HaveOccurred())
+
+			var hcList hyperv1.HostedClusterList
+			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(hcList.Items).To(HaveLen(1))
+			hc := hcList.Items[0]
+			Expect(hc.Spec.Services).To(HaveLen(4))
+			Expect(hc.Spec.Services).To(ContainElement(HaveField("Service", hyperv1.OAuthServer)))
+			Expect(hc.Spec.Services).To(ContainElement(HaveField("Service", hyperv1.Konnectivity)))
+			Expect(hc.Spec.Services).To(ContainElement(HaveField("Service", hyperv1.Ignition)))
+			Expect(hc.Spec.Services).To(ContainElement(HaveField("Service", hyperv1.APIServer)))
+		})
+
+		It("TC-KV-UT-033: NodePool has Management.UpgradeType=InPlace", func() {
+			svc, k8s := newTestService(cfg)
+			req := validCreateCluster()
+
+			_, err := svc.Create(ctx, "test-id", req)
+			Expect(err).NotTo(HaveOccurred())
+
+			var npList hyperv1.NodePoolList
+			Expect(k8s.List(ctx, &npList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(npList.Items).To(HaveLen(1))
+			Expect(npList.Items[0].Spec.Management.UpgradeType).To(Equal(hyperv1.UpgradeTypeInPlace))
+		})
+
+		It("TC-KV-UT-034: HostedCluster has Etcd Managed with PersistentVolume storage", func() {
+			svc, k8s := newTestService(cfg)
+			req := validCreateCluster()
+
+			_, err := svc.Create(ctx, "test-id", req)
+			Expect(err).NotTo(HaveOccurred())
+
+			var hcList hyperv1.HostedClusterList
+			Expect(k8s.List(ctx, &hcList, client.InNamespace(testNamespace))).To(Succeed())
+			Expect(hcList.Items).To(HaveLen(1))
+			hc := hcList.Items[0]
+			Expect(hc.Spec.Etcd.ManagementType).To(Equal(hyperv1.Managed))
+			Expect(hc.Spec.Etcd.Managed).NotTo(BeNil())
+			Expect(hc.Spec.Etcd.Managed.Storage.Type).To(Equal(hyperv1.PersistentVolumeEtcdStorage))
 		})
 	})
 })

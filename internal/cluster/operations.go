@@ -15,8 +15,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// findByInstanceID lists HostedClusters matching the dcm-instance-id label.
-// Returns the first match or a NotFoundError if none exist.
+// findByInstanceID lists HostedClusters matching the dcm-instance-id label
+// in the given namespace. Returns the first match or a NotFoundError if none exist.
 func findByInstanceID(ctx context.Context, c client.Client, namespace, id string) (*hyperv1.HostedCluster, error) {
 	var hcList hyperv1.HostedClusterList
 	if err := c.List(ctx, &hcList,
@@ -33,7 +33,8 @@ func findByInstanceID(ctx context.Context, c client.Client, namespace, id string
 	return &hcList.Items[0], nil
 }
 
-// deleteNodePools deletes all NodePools matching the given instance ID.
+// deleteNodePools deletes all NodePools matching the given instance ID
+// in the specified namespace.
 func deleteNodePools(ctx context.Context, c client.Client, namespace, instanceID string) error {
 	var npList hyperv1.NodePoolList
 	if err := c.List(ctx, &npList,
@@ -63,7 +64,7 @@ func GetCluster(ctx context.Context, c client.Client, cfg config.ClusterConfig, 
 	return &result, nil
 }
 
-// ListClusters returns a paginated list of all managed clusters.
+// ListClusters returns a paginated list of all managed clusters in the configured namespace.
 func ListClusters(ctx context.Context, c client.Client, cfg config.ClusterConfig, pageSize int, pageToken string) (*v1alpha1.ClusterList, error) {
 	var hcList hyperv1.HostedClusterList
 	if err := c.List(ctx, &hcList,
@@ -127,7 +128,7 @@ func DeleteCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 		return err
 	}
 
-	if err := deleteNodePools(ctx, c, cfg.ClusterNamespace, id); err != nil {
+	if err := deleteNodePools(ctx, c, hc.Namespace, id); err != nil {
 		return err
 	}
 

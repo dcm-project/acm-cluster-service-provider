@@ -16,6 +16,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// DefaultServicePublishingStrategies defines the standard service publishing
+// strategies for HostedCluster control plane services (REQ-ACM-180).
+var DefaultServicePublishingStrategies = []hyperv1.ServicePublishingStrategyMapping{
+	{Service: hyperv1.OAuthServer, ServicePublishingStrategy: hyperv1.ServicePublishingStrategy{Type: hyperv1.Route}},
+	{Service: hyperv1.Konnectivity, ServicePublishingStrategy: hyperv1.ServicePublishingStrategy{Type: hyperv1.Route}},
+	{Service: hyperv1.Ignition, ServicePublishingStrategy: hyperv1.ServicePublishingStrategy{Type: hyperv1.Route}},
+	{Service: hyperv1.APIServer, ServicePublishingStrategy: hyperv1.ServicePublishingStrategy{Type: hyperv1.LoadBalancer}},
+}
+
 // PlatformBuilder builds platform-specific HostedCluster and NodePool resources.
 type PlatformBuilder interface {
 	BuildHostedCluster(req v1alpha1.Cluster, baseDomain, releaseImage string, labels map[string]string) *hyperv1.HostedCluster
@@ -86,8 +95,23 @@ func CreateCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 // applyControlPlaneResourceOverrides sets HyperShift resource request override
 // annotations for kube-apiserver and etcd (REQ-ACM-060, REQ-ACM-061).
 func applyControlPlaneResourceOverrides(hc *hyperv1.HostedCluster, req v1alpha1.Cluster) {
+	if req.Spec.Nodes == nil || req.Spec.Nodes.ControlPlane == nil {
+		return
+	}
 	cp := req.Spec.Nodes.ControlPlane
-	value := fmt.Sprintf("cpu=%d,memory=%s", cp.Cpu, strings.TrimSuffix(cp.Memory, "B"))
+	if cp.Cpu == nil && cp.Memory == nil {
+		return
+	}
+
+	var cpu int
+	if cp.Cpu != nil {
+		cpu = *cp.Cpu
+	}
+	var memory string
+	if cp.Memory != nil {
+		memory = strings.TrimSuffix(*cp.Memory, "B")
+	}
+	value := fmt.Sprintf("cpu=%d,memory=%s", cpu, memory)
 
 	if hc.Annotations == nil {
 		hc.Annotations = make(map[string]string)
