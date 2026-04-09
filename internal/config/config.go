@@ -41,6 +41,8 @@ type RegistrationConfig struct {
 type ClusterConfig struct {
 	ClusterNamespace  string            `env:"SP_CLUSTER_NAMESPACE,required"`
 	BaseDomain        string            `env:"SP_BASE_DOMAIN"`
+	PullSecret        string            `env:"SP_PULL_SECRET,required"` // REQ-ACM-195
+	PullSecretName    string            `env:"-"`
 	ConsoleURIPattern string            `env:"SP_CONSOLE_URI_PATTERN" envDefault:"https://console-openshift-console.apps.{name}.{base_domain}"`
 	VersionMatrixPath string            `env:"SP_VERSION_MATRIX_PATH"`
 	DefaultInfraEnv   string            `env:"SP_DEFAULT_INFRA_ENV"`

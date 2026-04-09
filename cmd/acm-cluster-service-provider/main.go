@@ -12,6 +12,7 @@ import (
 
 	oapigen "github.com/dcm-project/acm-cluster-service-provider/internal/api/server"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/apiserver"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/cluster"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/cluster/dispatcher"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/handler"
@@ -85,6 +86,11 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("loading compatibility matrix: %w", err)
 	}
 	cfg.Cluster.VersionMatrix = map[string]string(matrix)
+
+	cfg.Cluster.PullSecretName = cfg.Registration.ProviderName + "-pull-secret"
+	if err := cluster.EnsurePullSecret(ctx, k8sClient, cfg.Cluster, logger); err != nil { // REQ-ACM-190
+		return fmt.Errorf("ensuring pull secret: %w", err)
+	}
 
 	registrar := registration.New(cfg.Registration, dcmClient, k8sClient, logger, matrix)
 	clusterService := dispatcher.New(k8sClient, cfg.Cluster, cfg.Health.EnabledPlatforms)
