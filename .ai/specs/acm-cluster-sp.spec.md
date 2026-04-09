@@ -519,7 +519,7 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 | ID | Requirement | Priority |
 |----|-------------|----------|
 | REQ-API-060 | MUST accept a JSON body conforming to the `Cluster` schema | MUST |
-| REQ-API-070 | `version` and `nodes.control_plane` MUST be present (required fields) | MUST |
+| REQ-API-070 | `version` MUST be present (required field); `nodes.control_plane` is OPTIONAL — when omitted, HyperShift defaults are used for control plane resources | MUST |
 | REQ-API-080 | `nodes.workers` MUST be present and have `count >= 1`; if omitted, MUST return 400 with `type=INVALID_ARGUMENT` and a message indicating workers are required | MUST |
 | REQ-API-090 | The SP MUST validate that `service_type == "cluster"` and return 400 with `type=INVALID_ARGUMENT` if not | MUST |
 | REQ-API-100 | `id` MUST be the cluster resource identifier. If a client-specified `id` is provided via `?id=` query parameter, it MUST be used; if `?id=` is present but empty, it MUST be treated as absent (generate UUID). Otherwise the SP MUST generate a UUID. `path` MUST be set to `"clusters/<id>"`. The `dcm.project/dcm-instance-id` K8s label MUST be set to `id`. `metadata.name` MUST be used as the K8s HostedCluster resource name | MUST |
@@ -586,7 +586,7 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 ##### AC-API-010: Create cluster with server-generated id
 - **Requirements:** REQ-API-100, REQ-API-110
 - **Given** no clusters exist
-- **When** `POST /api/v1alpha1/clusters` (no `?id=` param) with valid body (service_type, version, nodes with control_plane and workers, metadata.name="my-cluster")
+- **When** `POST /api/v1alpha1/clusters` (no `?id=` param) with valid body (service_type, version, nodes with workers, metadata.name="my-cluster")
 - **Then** response is 201
 - **And** body contains a server-generated `id` (valid UUID)
 - **And** body contains `path="clusters/<id>"`
@@ -827,7 +827,7 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 | REQ-ACM-160 | When multiple HostedCluster conditions are true simultaneously, status MUST be resolved using the following precedence (highest to lowest): `deletionTimestamp != nil` → DELETING, `Degraded=True` → FAILED, `Available=True + Progressing=False` → READY, `Progressing=True + Available=False` → PROVISIONING, `Available=False + Progressing=False` → UNAVAILABLE, `Progressing=Unknown` → PENDING. The highest-precedence matching condition wins. | MUST |
 | REQ-ACM-170 | On partial create failure (HostedCluster created but NodePool creation fails), the SP MUST delete the orphaned HostedCluster before returning the error | MUST |
 | REQ-ACM-180 | The SP MUST set `Spec.Services` on every HostedCluster to 4 entries: `APIServer` with `LoadBalancer`, and `OAuthServer`, `Konnectivity`, `Ignition` with `Route` strategy (DD-005) | MUST |
-| REQ-ACM-190 | At startup, the SP MUST create (or update if existing) a K8s Secret named `<SP_NAME>-pull-secret` of type `kubernetes.io/dockerconfigjson` from the base64-decoded `SP_PULL_SECRET` env var in `SP_CLUSTER_NAMESPACE`. The Secret carries labels `dcm.project/managed-by=dcm` and `dcm.project/dcm-service-type=cluster` (DD-007) | MUST |
+| REQ-ACM-190 | At startup, the SP MUST create a K8s Secret named `<SP_NAME>-pull-secret` of type `kubernetes.io/dockerconfigjson` from the base64-decoded `SP_PULL_SECRET` env var in `SP_CLUSTER_NAMESPACE`, with labels `dcm.project/managed-by=dcm` and `dcm.project/dcm-service-type=cluster`. If the Secret already exists, the SP MUST update its `.Data` and `.Labels` to match. If the existing Secret's type is not `kubernetes.io/dockerconfigjson`, the SP MUST log a warning (K8s Secret type is immutable and cannot be changed via update). (DD-007) | MUST |
 | REQ-ACM-191 | The HostedCluster's `Spec.PullSecret.Name` MUST reference the shared PullSecret Secret (`<SP_NAME>-pull-secret`) created at startup (DD-007) | MUST |
 | REQ-ACM-195 | The SP MUST fail to start if `SP_PULL_SECRET` env var is not set or empty, with an error naming the missing variable (DD-007) | MUST |
 | REQ-ACM-200 | The SP MUST set `Spec.Management.UpgradeType` to `InPlace` on every NodePool, for all platforms (DD-006) | MUST |
@@ -978,8 +978,9 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 - **Requirements:** REQ-ACM-190
 - **Given** `SP_PULL_SECRET` env var contains base64-encoded `.dockerconfigjson` content
 - **When** the SP starts up
-- **Then** a Secret named `<SP_NAME>-pull-secret` of type `kubernetes.io/dockerconfigjson` is created (or updated if existing) in `SP_CLUSTER_NAMESPACE` with the base64-decoded content in the `.dockerconfigjson` key
-- **And** the Secret carries labels `dcm.project/managed-by=dcm`, `dcm.project/dcm-service-type=cluster`
+- **Then** a Secret named `<SP_NAME>-pull-secret` of type `kubernetes.io/dockerconfigjson` is created in `SP_CLUSTER_NAMESPACE` with the decoded content and labels `dcm.project/managed-by=dcm`, `dcm.project/dcm-service-type=cluster`
+- **And** if the Secret already exists, its `.Data` and `.Labels` are updated to match (type is not changed — K8s immutability constraint)
+- **And** if the existing Secret's type differs from `kubernetes.io/dockerconfigjson`, a warning is logged with the secret name, namespace, expected type, and actual type
 
 ##### AC-ACM-191: HostedCluster PullSecret references shared Secret
 - **Requirements:** REQ-ACM-191
