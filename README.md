@@ -96,6 +96,13 @@ This service provider registers with DCM using the following metadata:
 - **ServiceType:** `cluster`
 - **Operations:** `CREATE`, `DELETE`, `READ`
 
+### Releasing
+
+Images are pushed to `quay.io/dcm-project/acm-cluster-service-provider`.
+See [Releasing](https://github.com/dcm-project/shared-workflows#release-flow)
+in shared-workflows for the full release process, tag behavior, and version conventions.
+
+
 ## License
 
 Apache License 2.0
