@@ -9,35 +9,6 @@ The **ACM Cluster Service Provider** is a REST API that manages OpenShift cluste
 - **Organization:** [dcm-project](https://github.com/dcm-project)
 - **Container base:** UBI9 (`registry.access.redhat.com/ubi9`)
 
-## Build & Test
-
-```bash
-make build              # compile to bin/acm-cluster-service-provider
-make run                # go run
-make test               # Ginkgo test suite (--race)
-make test-cover         # with coverage
-make lint               # golangci-lint (config: .golangci.yml)
-make vet                # go vet
-make fmt                # gofmt -s
-make check              # fmt + vet + lint + test
-make generate-api       # regenerate all code from OpenAPI spec
-make check-generate-api # verify generated code is up-to-date (used in CI)
-make check-aep          # OpenAPI AEP compliance via Spectral (.spectral.yaml)
-make tidy               # go mod tidy
-make clean              # rm -rf bin/
-```
-
-### CI/CD (GitHub Actions)
-
-| Workflow | Purpose |
-|----------|---------|
-| `ci.yaml` | Runs on push to `main` and PRs. Uses `dcm-project/shared-workflows` shared Go CI. Post-test: `vet`. |
-| `lint.yaml` | golangci-lint |
-| `check-generate.yaml` | Verifies generated code is in sync with OpenAPI spec |
-| `check-aep.yaml` | Spectral AEP compliance linting on the OpenAPI spec |
-| `check-clean-commits.yaml` | Commit hygiene checks |
-| `build-push-quay.yaml` | Build container image and push to Quay |
-
 ## Code Generation
 
 Types, server, spec, and client are generated from `api/v1alpha1/openapi.yaml` via [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen). Always run `make generate-api` after modifying the OpenAPI spec. **Never edit `*.gen.go` files by hand.**
