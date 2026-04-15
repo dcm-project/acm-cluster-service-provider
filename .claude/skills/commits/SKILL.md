@@ -1,3 +1,8 @@
+---
+name: commits
+description: Commit format and git remote conventions for this project. Use when creating git commits, pushing, or pulling.
+---
+
 # Commits
 
 - Format: `<type>(<scope>): <subject>` (conventional commits)
