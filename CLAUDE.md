@@ -261,41 +261,6 @@ dcm.project/dcm-service-type: cluster
 
 Defined in `internal/cluster/labels.go`. Used for lookup, listing, filtering, and informer label selectors.
 
-## Conventions
-
-### Code Style
-
-- External test packages (`package xxx_test`)
-- Test suite bootstrap in separate `_test.go` file (Ginkgo v2 + Gomega)
-- Pointer fields: use `util.Ptr(v)` from `internal/util/ptr.go`
-- K8s fake client: `controller-runtime/pkg/client/fake` with explicit scheme registration
-- Domain error assertions: use `errors.As(err, &domainErr)` not `BeAssignableToTypeOf`
-- HyperShift API imported as `hyperv1` (`github.com/openshift/hypershift/api/hypershift/v1beta1`)
-- DCM SP Manager client imported as `spmclient`
-- Structured logging via `log/slog` with JSON handler
-- Compile-time interface checks: `var _ Interface = (*Impl)(nil)`
-- Version set at build time via `-ldflags "-X main.version=X.Y.Z"`
-
-### Commits
-
-- Format: `<type>(<scope>): <subject>` (conventional commits)
-- Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
-- Always use `git commit -s` for sign-off
-- Footer: `Assisted by: Claude Code - <model>`
-
-### Linting
-
-- `golangci-lint` v2 with extensive linter set (`.golangci.yml`)
-- Generated files excluded (`api/v1alpha1`, `pkg/client` paths excluded)
-- `ginkgolinter` enabled for test style enforcement
-- `gofumpt` + `goimports` for formatting
-- Spectral for OpenAPI AEP compliance (`.spectral.yaml` extends `aep-dev/aep-openapi-linter`)
-
-### Remotes
-
-- `origin` = contributor fork
-- `upstream` = `dcm-project` org
-
 ## Development Methodology
 
 ### Spec-Driven BDD Development
