@@ -70,7 +70,7 @@ wait_for_csv() {
 
     while [[ ${elapsed} -lt ${CSV_TIMEOUT} ]]; do
         local csv_name
-        csv_name=$(oc get subscription -n "${namespace}" "${subscription_name}" -o jsonpath='{.status.currentCSV}' 2>/dev/null || true)
+        csv_name=$(oc get subscription.operators.coreos.com -n "${namespace}" "${subscription_name}" -o jsonpath='{.status.currentCSV}' 2>/dev/null || true)
 
         if [[ -n "${csv_name}" ]]; then
             local phase
