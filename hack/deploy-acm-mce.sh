@@ -14,7 +14,7 @@
 #   MCE_CHANNEL - override MCE subscription channel (default: auto-detect)
 #   OCP_RELEASE_IMAGE - override ClusterImageSet release image (default: auto-detect from cluster)
 #   STORAGE_CLASS     - override StorageClass for AgentServiceConfig PVCs (default: cluster default)
-#   CSV_TIMEOUT       - seconds to wait for CSV to reach Succeeded (default: 300)
+#   CSV_TIMEOUT       - seconds to wait for CSV to reach Succeeded (default: 600)
 #   DEPLOY_TIMEOUT    - seconds to wait for product CR to reach ready state (default: 1200)
 #
 # Exit codes:
@@ -36,7 +36,7 @@ else
     NC=''
 fi
 
-CSV_TIMEOUT="${CSV_TIMEOUT:-300}"
+CSV_TIMEOUT="${CSV_TIMEOUT:-600}"
 DEPLOY_TIMEOUT="${DEPLOY_TIMEOUT:-1200}"
 STORAGE_CLASS="${STORAGE_CLASS:-}"
 
