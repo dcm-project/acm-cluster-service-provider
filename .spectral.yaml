@@ -12,3 +12,31 @@ rules:
       functionOptions:
         schema:
           type: object
+
+  aep-134-update-required:
+    description: Resource endpoints should support Update (PATCH) operations per AEP-134
+    message: "Resource endpoint {{property}} has GET but missing PATCH operation for updates"
+    severity: warn
+    given: $.paths[?(@property.match(/.*\{[^}]+\}$/) && @.get)]
+    then:
+      field: patch
+      function: truthy
+
+  aep-132-list-results-field:
+    description: List responses should use 'results' field per AEP-132
+    message: "List response schema should use 'results' field for resource array (AEP-132)"
+    severity: warn
+    given: $.components.schemas.ClusterList.properties
+    then:
+      field: results
+      function: truthy
+
+  aep-101-openapi-version:
+    description: OpenAPI version should be 3.1.x per AEP-101
+    message: "OpenAPI version {{value}} should be 3.1.x for full AEP compliance (currently recommended, not required)"
+    severity: info
+    given: $.openapi
+    then:
+      function: pattern
+      functionOptions:
+        match: "^3\\.1\\."

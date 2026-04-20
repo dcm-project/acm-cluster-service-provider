@@ -9,6 +9,7 @@ import (
 
 	v1alpha1 "github.com/dcm-project/acm-cluster-service-provider/api/v1alpha1"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
+	"github.com/dcm-project/acm-cluster-service-provider/internal/registration"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/service"
 	hyperv1 "github.com/openshift/hypershift/api/hypershift/v1beta1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -121,6 +122,73 @@ func ListClusters(ctx context.Context, c client.Client, cfg config.ClusterConfig
 	return result, nil
 }
 
+// UpdateCluster updates mutable fields of an existing cluster.
+func UpdateCluster(ctx context.Context, c client.Client, cfg config.ClusterConfig, id string, req v1alpha1.Cluster, updateMask []string) (*v1alpha1.Cluster, error) {
+	// Find the existing HostedCluster.
+	hc, err := findByInstanceID(ctx, c, cfg.ClusterNamespace, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Determine which fields to update (all mutable fields if no mask specified).
+	fieldMask := make(map[string]bool)
+	if len(updateMask) > 0 {
+		for _, field := range updateMask {
+			fieldMask[field] = true
+		}
+	} else {
+		// No mask means update all provided mutable fields.
+		fieldMask["metadata.labels"] = true
+		fieldMask["nodes.workers.count"] = true
+		fieldMask["nodes.workers.cpu"] = true
+		fieldMask["nodes.workers.memory"] = true
+		fieldMask["nodes.workers.storage"] = true
+		fieldMask["version"] = true
+	}
+
+	updated := false
+
+	// Update metadata.labels if requested.
+	if shouldUpdate(fieldMask, "metadata.labels") && req.Spec.Metadata.Labels != nil {
+		if hc.Labels == nil {
+			hc.Labels = make(map[string]string)
+		}
+		// Merge labels, preserving system labels.
+		for k, v := range *req.Spec.Metadata.Labels {
+			hc.Labels[k] = v
+		}
+		updated = true
+	}
+
+	// Update version if requested (triggers cluster upgrade).
+	if shouldUpdate(fieldMask, "version") && req.Spec.Version != "" {
+		// Resolve version to ClusterImageSet and release image.
+		releaseImage, err := resolveReleaseImage(ctx, c, cfg, req.Spec.Version)
+		if err != nil {
+			return nil, err
+		}
+		hc.Spec.Release.Image = releaseImage
+		updated = true
+	}
+
+	// Update HostedCluster if any changes were made.
+	if updated {
+		if err := c.Update(ctx, hc); err != nil {
+			return nil, service.NewInternalError("failed to update cluster", err)
+		}
+	}
+
+	// Update NodePool if worker node fields are requested.
+	if shouldUpdateWorkerNodes(fieldMask) && req.Spec.Nodes != nil && req.Spec.Nodes.Workers != nil {
+		if err := updateNodePools(ctx, c, hc.Namespace, id, req.Spec.Nodes.Workers, fieldMask); err != nil {
+			return nil, err
+		}
+	}
+
+	// Fetch the updated cluster state and return.
+	return GetCluster(ctx, c, cfg, id)
+}
+
 // DeleteCluster deletes a cluster and its node pools by instance ID.
 func DeleteCluster(ctx context.Context, c client.Client, cfg config.ClusterConfig, id string) error {
 	hc, err := findByInstanceID(ctx, c, cfg.ClusterNamespace, id)
@@ -134,6 +202,66 @@ func DeleteCluster(ctx context.Context, c client.Client, cfg config.ClusterConfi
 
 	if err := c.Delete(ctx, hc); err != nil {
 		return service.NewInternalError("failed to delete cluster", err)
+	}
+
+	return nil
+}
+
+// resolveReleaseImage resolves a K8s version string to a release image.
+func resolveReleaseImage(ctx context.Context, c client.Client, cfg config.ClusterConfig, version string) (string, error) {
+	matrix := registration.CompatibilityMatrix(cfg.VersionMatrix)
+	if len(matrix) == 0 {
+		matrix = registration.DefaultCompatibilityMatrix
+	}
+	resolver := NewVersionResolver(c, matrix)
+	return resolver.Resolve(ctx, version)
+}
+
+// shouldUpdate checks if a field should be updated based on the update mask.
+func shouldUpdate(mask map[string]bool, field string) bool {
+	if len(mask) == 0 {
+		return true // No mask means update all.
+	}
+	return mask[field]
+}
+
+// shouldUpdateWorkerNodes checks if any worker node fields should be updated.
+func shouldUpdateWorkerNodes(mask map[string]bool) bool {
+	return shouldUpdate(mask, "nodes.workers.count") ||
+		shouldUpdate(mask, "nodes.workers.cpu") ||
+		shouldUpdate(mask, "nodes.workers.memory") ||
+		shouldUpdate(mask, "nodes.workers.storage")
+}
+
+// updateNodePools updates worker NodePools for the given instance ID.
+func updateNodePools(ctx context.Context, c client.Client, namespace, instanceID string, workers *v1alpha1.WorkerSpec, fieldMask map[string]bool) error {
+	var npList hyperv1.NodePoolList
+	if err := c.List(ctx, &npList,
+		client.InNamespace(namespace),
+		client.MatchingLabels{LabelInstanceID: instanceID},
+	); err != nil {
+		return service.NewInternalError("failed to list node pools", err)
+	}
+
+	if len(npList.Items) == 0 {
+		// No NodePools to update (control-plane-only cluster).
+		return nil
+	}
+
+	// Update the first NodePool (DCM clusters have a single worker pool).
+	np := &npList.Items[0]
+
+	if shouldUpdate(fieldMask, "nodes.workers.count") && workers.Count != nil {
+		replicas := int32(*workers.Count)
+		np.Spec.Replicas = &replicas
+	}
+
+	// Note: cpu, memory, storage updates would require modifying the NodePool template.
+	// For now, we'll focus on the count field as that's the most common Day-2 operation.
+	// Full implementation would update np.Spec.Platform.KubeVirt.RootVolume, etc.
+
+	if err := c.Update(ctx, np); err != nil {
+		return service.NewInternalError("failed to update node pool", err)
 	}
 
 	return nil

@@ -77,6 +77,10 @@ func (f *failingStrictHandler) GetHealth(_ context.Context, _ oapigen.GetHealthR
 	return nil, nil
 }
 
+func (f *failingStrictHandler) UpdateCluster(_ context.Context, _ oapigen.UpdateClusterRequestObject) (oapigen.UpdateClusterResponseObject, error) {
+	return nil, nil
+}
+
 var _ = Describe("HTTP Server", func() {
 	// startServer creates a server with the given config, starts it in a
 	// goroutine, and returns the address, cancel/cleanup functions.

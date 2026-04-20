@@ -16,6 +16,7 @@ type mockClusterService struct {
 	CreateFunc func(ctx context.Context, id string, cluster v1alpha1.Cluster) (*v1alpha1.Cluster, error)
 	GetFunc    func(ctx context.Context, id string) (*v1alpha1.Cluster, error)
 	ListFunc   func(ctx context.Context, pageSize int, pageToken string) (*v1alpha1.ClusterList, error)
+	UpdateFunc func(ctx context.Context, id string, cluster v1alpha1.Cluster, updateMask []string) (*v1alpha1.Cluster, error)
 	DeleteFunc func(ctx context.Context, id string) error
 }
 
@@ -40,6 +41,13 @@ func (m *mockClusterService) List(ctx context.Context, pageSize int, pageToken s
 		panic("ListFunc not set")
 	}
 	return m.ListFunc(ctx, pageSize, pageToken)
+}
+
+func (m *mockClusterService) Update(ctx context.Context, id string, cluster v1alpha1.Cluster, updateMask []string) (*v1alpha1.Cluster, error) {
+	if m.UpdateFunc == nil {
+		panic("UpdateFunc not set")
+	}
+	return m.UpdateFunc(ctx, id, cluster, updateMask)
 }
 
 func (m *mockClusterService) Delete(ctx context.Context, id string) error {

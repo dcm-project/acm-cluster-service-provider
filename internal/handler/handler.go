@@ -130,6 +130,44 @@ func (h *Handler) DeleteCluster(ctx context.Context, req oapigen.DeleteClusterRe
 	return oapigen.DeleteCluster204Response{}, nil
 }
 
+// UpdateCluster validates the request, delegates to the cluster service, and returns the result.
+func (h *Handler) UpdateCluster(ctx context.Context, req oapigen.UpdateClusterRequestObject) (oapigen.UpdateClusterResponseObject, error) {
+	// Validate request body.
+	if req.Body == nil {
+		return updateError400("request body is required"), nil
+	}
+
+	if err := validateUpdateRequest(*req.Body); err != nil {
+		return updateError400(err.Error()), nil
+	}
+
+	// Parse update_mask parameter.
+	var updateMask []string
+	if req.Params.UpdateMask != nil && *req.Params.UpdateMask != "" {
+		updateMask = parseUpdateMask(*req.Params.UpdateMask)
+	}
+
+	// Convert to service-layer type.
+	svcCluster, err := toServiceCluster(*req.Body)
+	if err != nil {
+		return updateError500(), nil //nolint:nilerr // error translated to HTTP 500 response
+	}
+
+	// Delegate to service.
+	result, err := h.clusterService.Update(ctx, req.ClusterId, svcCluster, updateMask)
+	if err != nil {
+		h.logServiceError("UpdateCluster", err)
+		return mapUpdateError(err), nil
+	}
+
+	// Convert result back to API type.
+	apiCluster, err := toAPICluster(result)
+	if err != nil {
+		return updateError500(), nil //nolint:nilerr // error translated to HTTP 500 response
+	}
+	return oapigen.UpdateCluster200JSONResponse(apiCluster), nil
+}
+
 func (h *Handler) logServiceError(op string, err error) {
 	errType, status, _, detail := MapDomainError(err)
 	h.logger.Warn("service error",
@@ -227,5 +265,32 @@ func mapDeleteError(err error) oapigen.DeleteClusterResponseObject {
 		return oapigen.DeleteCluster404ApplicationProblemPlusJSONResponse(errObj)
 	default:
 		return oapigen.DeleteCluster500ApplicationProblemPlusJSONResponse(errObj)
+	}
+}
+
+func updateError400(detail string) oapigen.UpdateCluster400ApplicationProblemPlusJSONResponse {
+	return oapigen.UpdateCluster400ApplicationProblemPlusJSONResponse(
+		buildErrorResponse(oapigen.ErrorTypeINVALIDARGUMENT, 400, "Bad Request", detail),
+	)
+}
+
+func updateError500() oapigen.UpdateCluster500ApplicationProblemPlusJSONResponse {
+	return oapigen.UpdateCluster500ApplicationProblemPlusJSONResponse(
+		buildErrorResponse(oapigen.ErrorTypeINTERNAL, 500, "Internal Server Error", "an internal error occurred"),
+	)
+}
+
+func mapUpdateError(err error) oapigen.UpdateClusterResponseObject {
+	errType, status, title, detail := MapDomainError(err)
+	errObj := buildErrorResponse(oapigen.ErrorType(errType), int32(status), title, detail)
+	switch status {
+	case 400:
+		return oapigen.UpdateCluster400ApplicationProblemPlusJSONResponse(errObj)
+	case 404:
+		return oapigen.UpdateCluster404ApplicationProblemPlusJSONResponse(errObj)
+	case 422:
+		return oapigen.UpdateCluster422ApplicationProblemPlusJSONResponse(errObj)
+	default:
+		return oapigen.UpdateCluster500ApplicationProblemPlusJSONResponse(errObj)
 	}
 }
