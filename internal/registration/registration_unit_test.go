@@ -88,7 +88,7 @@ func defaultRegistrationConfig(serverURL string) config.RegistrationConfig {
 	return config.RegistrationConfig{
 		DCMRegistrationURL:         serverURL,
 		ProviderName:               "acm-cluster-sp",
-		ProviderEndpoint:           "https://my-sp.example.com/api/v1alpha1/clusters",
+		ProviderEndpoint:           "https://my-sp.example.com",
 		RegistrationInitialBackoff: 20 * time.Millisecond,
 		RegistrationMaxBackoff:     200 * time.Millisecond,
 		VersionCheckInterval:       100 * time.Millisecond,
@@ -161,7 +161,7 @@ var _ = Describe("Registration", func() {
 			Expect(receivedMethod).To(Equal(http.MethodPost))
 			Expect(receivedPath).To(Equal("/providers"))
 			Expect(receivedBody.ServiceType).To(Equal("cluster"))
-			Expect(receivedBody.Endpoint).To(Equal(cfg.ProviderEndpoint))
+			Expect(receivedBody.Endpoint).To(Equal(cfg.ProviderEndpoint + "/api/v1alpha1/clusters"))
 			Expect(receivedBody.Operations).NotTo(BeNil())
 			Expect(*receivedBody.Operations).To(ConsistOf("CREATE", "DELETE", "READ"))
 
