@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"slices"
 	"sync"
 	"time"
@@ -15,8 +16,19 @@ import (
 	spmclient "github.com/dcm-project/service-provider-manager/pkg/client/provider"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	v1alpha1 "github.com/dcm-project/acm-cluster-service-provider/api/v1alpha1"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
 )
+
+var endpointSuffix = mustPostPath()
+
+func mustPostPath() string {
+	p, err := v1alpha1.PostPath()
+	if err != nil {
+		panic(fmt.Sprintf("registration: resolving endpoint path from OpenAPI spec: %v", err))
+	}
+	return p
+}
 
 // retryableError wraps an error to indicate the operation can be retried.
 type retryableError struct {
@@ -122,11 +134,16 @@ func (r *Registrar) buildPayload(versions []string) spmv1alpha1.Provider {
 	metadata.Set("supportedProvisioningTypes", []string{"hypershift"})
 	metadata.Set("kubernetesSupportedVersions", versions)
 
+	endpoint, err := url.JoinPath(r.cfg.ProviderEndpoint, endpointSuffix)
+	if err != nil {
+		endpoint = r.cfg.ProviderEndpoint
+		r.logger.Error("registration: joining endpoint and suffix", "error", err)
+	}
 	provider := spmv1alpha1.Provider{
 		Name:          r.cfg.ProviderName,
 		ServiceType:   "cluster",
 		SchemaVersion: "v1alpha1",
-		Endpoint:      r.cfg.ProviderEndpoint,
+		Endpoint:      endpoint,
 		Operations:    &ops,
 		Metadata:      metadata,
 	}
