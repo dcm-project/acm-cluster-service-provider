@@ -12,6 +12,7 @@ type ClusterService interface {
 	Create(ctx context.Context, id string, cluster v1alpha1.Cluster) (*v1alpha1.Cluster, error)
 	Get(ctx context.Context, id string) (*v1alpha1.Cluster, error)
 	List(ctx context.Context, pageSize int, pageToken string) (*v1alpha1.ClusterList, error)
+	Update(ctx context.Context, id string, cluster v1alpha1.Cluster, updateMask []string) (*v1alpha1.Cluster, error)
 	Delete(ctx context.Context, id string) error
 }
 

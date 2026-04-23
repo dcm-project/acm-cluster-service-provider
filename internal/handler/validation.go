@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	oapigen "github.com/dcm-project/acm-cluster-service-provider/internal/api/server"
 )
@@ -58,4 +59,40 @@ func validateMaxPageSize(size int32) error {
 		return fmt.Errorf("max_page_size must be between 1 and 100")
 	}
 	return nil
+}
+
+// validateUpdateRequest validates the UpdateCluster request body.
+// Only mutable fields are validated; immutable fields are ignored.
+func validateUpdateRequest(body oapigen.Cluster) error {
+	// Validate worker node specifications if provided.
+	if body.Spec.Nodes != nil {
+		if w := body.Spec.Nodes.Workers; w != nil {
+			if w.Count != nil && *w.Count < 1 {
+				return fmt.Errorf("nodes.workers.count must be >= 1")
+			}
+			if w.Memory != nil && !memoryFormatRe.MatchString(*w.Memory) {
+				return fmt.Errorf("nodes.workers.memory must match format: [1-9][0-9]*(MB|GB|TB)")
+			}
+			if w.Storage != nil && !memoryFormatRe.MatchString(*w.Storage) {
+				return fmt.Errorf("nodes.workers.storage must match format: [1-9][0-9]*(MB|GB|TB)")
+			}
+		}
+	}
+	return nil
+}
+
+// parseUpdateMask parses a comma-separated update_mask string into field paths.
+func parseUpdateMask(mask string) []string {
+	if mask == "" {
+		return nil
+	}
+	parts := strings.Split(mask, ",")
+	result := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+	return result
 }

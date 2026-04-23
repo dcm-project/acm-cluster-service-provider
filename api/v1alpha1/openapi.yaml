@@ -237,6 +237,83 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+    patch:
+      operationId: updateCluster
+      summary: Update a cluster
+      description: |
+        Updates mutable fields of an existing cluster. Supports partial updates via JSON merge patch.
+        Only the following fields can be updated:
+        - metadata.labels: Update cluster labels
+        - nodes.workers.count: Scale worker nodes
+        - nodes.workers.cpu/memory/storage: Update worker node resources
+        - version: Upgrade cluster version (triggers OpenShift upgrade)
+
+        Immutable fields (e.g., metadata.name, platform, base_domain) are silently ignored if present.
+      tags:
+        - Clusters
+      parameters:
+        - $ref: '#/components/parameters/ClusterIdPath'
+        - name: update_mask
+          in: query
+          description: >-
+            Optional comma-separated list of field paths to update (e.g., "nodes.workers.count,metadata.labels").
+            If omitted, all mutable fields in the request body are updated.
+            Follows Google API field mask syntax.
+          required: false
+          schema:
+            type: string
+            pattern: '^[a-z_]+(\.[a-z_]+)*(,[a-z_]+(\.[a-z_]+)*)*$'
+            example: "nodes.workers.count,metadata.labels"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: '#/components/schemas/Cluster'
+      responses:
+        '200':
+          description: Cluster updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cluster'
+        '400':
+          description: Invalid request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthenticated
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Permission denied
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Cluster not found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Update validation failed
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /api/v1alpha1/clusters/health:
     get:
       operationId: getHealth

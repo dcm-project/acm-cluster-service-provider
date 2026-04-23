@@ -344,8 +344,17 @@ type CreateClusterParams struct {
 	Id *string `form:"id,omitempty" json:"id,omitempty"`
 }
 
+// UpdateClusterParams defines parameters for UpdateCluster.
+type UpdateClusterParams struct {
+	// UpdateMask Optional comma-separated list of field paths to update (e.g., "nodes.workers.count,metadata.labels"). If omitted, all mutable fields in the request body are updated. Follows Google API field mask syntax.
+	UpdateMask *string `form:"update_mask,omitempty" json:"update_mask,omitempty"`
+}
+
 // CreateClusterJSONRequestBody defines body for CreateCluster for application/json ContentType.
 type CreateClusterJSONRequestBody = Cluster
+
+// UpdateClusterApplicationMergePatchPlusJSONRequestBody defines body for UpdateCluster for application/merge-patch+json ContentType.
+type UpdateClusterApplicationMergePatchPlusJSONRequestBody = Cluster
 
 // Getter for additional properties for ProviderHints. Returns the specified
 // element and whether it was found
@@ -432,6 +441,9 @@ type ServerInterface interface {
 	// Get cluster details
 	// (GET /api/v1alpha1/clusters/{clusterId})
 	GetCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath)
+	// Update a cluster
+	// (PATCH /api/v1alpha1/clusters/{clusterId})
+	UpdateCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath, params UpdateClusterParams)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -465,6 +477,12 @@ func (_ Unimplemented) DeleteCluster(w http.ResponseWriter, r *http.Request, clu
 // Get cluster details
 // (GET /api/v1alpha1/clusters/{clusterId})
 func (_ Unimplemented) GetCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update a cluster
+// (PATCH /api/v1alpha1/clusters/{clusterId})
+func (_ Unimplemented) UpdateCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath, params UpdateClusterParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -603,6 +621,42 @@ func (siw *ServerInterfaceWrapper) GetCluster(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// UpdateCluster operation middleware
+func (siw *ServerInterfaceWrapper) UpdateCluster(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "clusterId" -------------
+	var clusterId ClusterIdPath
+
+	err = runtime.BindStyledParameterWithOptions("simple", "clusterId", chi.URLParam(r, "clusterId"), &clusterId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "clusterId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateClusterParams
+
+	// ------------- Optional query parameter "update_mask" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "update_mask", r.URL.Query(), &params.UpdateMask, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "update_mask", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateCluster(w, r, clusterId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -730,6 +784,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/api/v1alpha1/clusters/{clusterId}", wrapper.GetCluster)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/api/v1alpha1/clusters/{clusterId}", wrapper.UpdateCluster)
 	})
 
 	return r
@@ -1091,6 +1148,114 @@ func (response GetCluster500ApplicationProblemPlusJSONResponse) VisitGetClusterR
 	return err
 }
 
+type UpdateClusterRequestObject struct {
+	ClusterId ClusterIdPath `json:"clusterId"`
+	Params    UpdateClusterParams
+	Body      *UpdateClusterApplicationMergePatchPlusJSONRequestBody
+}
+
+type UpdateClusterResponseObject interface {
+	VisitUpdateClusterResponse(w http.ResponseWriter) error
+}
+
+type UpdateCluster200JSONResponse Cluster
+
+func (response UpdateCluster200JSONResponse) VisitUpdateClusterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateCluster400ApplicationProblemPlusJSONResponse Error
+
+func (response UpdateCluster400ApplicationProblemPlusJSONResponse) VisitUpdateClusterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(400)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateCluster401ApplicationProblemPlusJSONResponse Error
+
+func (response UpdateCluster401ApplicationProblemPlusJSONResponse) VisitUpdateClusterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateCluster403ApplicationProblemPlusJSONResponse Error
+
+func (response UpdateCluster403ApplicationProblemPlusJSONResponse) VisitUpdateClusterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateCluster404ApplicationProblemPlusJSONResponse Error
+
+func (response UpdateCluster404ApplicationProblemPlusJSONResponse) VisitUpdateClusterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateCluster422ApplicationProblemPlusJSONResponse Error
+
+func (response UpdateCluster422ApplicationProblemPlusJSONResponse) VisitUpdateClusterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type UpdateCluster500ApplicationProblemPlusJSONResponse Error
+
+func (response UpdateCluster500ApplicationProblemPlusJSONResponse) VisitUpdateClusterResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(500)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// List all clusters
@@ -1108,6 +1273,9 @@ type StrictServerInterface interface {
 	// Get cluster details
 	// (GET /api/v1alpha1/clusters/{clusterId})
 	GetCluster(ctx context.Context, request GetClusterRequestObject) (GetClusterResponseObject, error)
+	// Update a cluster
+	// (PATCH /api/v1alpha1/clusters/{clusterId})
+	UpdateCluster(ctx context.Context, request UpdateClusterRequestObject) (UpdateClusterResponseObject, error)
 }
 
 type StrictHandlerFunc = strictnethttp.StrictHTTPHandlerFunc
@@ -1267,6 +1435,40 @@ func (sh *strictHandler) GetCluster(w http.ResponseWriter, r *http.Request, clus
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetClusterResponseObject); ok {
 		if err := validResponse.VisitGetClusterResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateCluster operation middleware
+func (sh *strictHandler) UpdateCluster(w http.ResponseWriter, r *http.Request, clusterId ClusterIdPath, params UpdateClusterParams) {
+	var request UpdateClusterRequestObject
+
+	request.ClusterId = clusterId
+	request.Params = params
+
+	var body UpdateClusterApplicationMergePatchPlusJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateCluster(ctx, request.(UpdateClusterRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateCluster")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateClusterResponseObject); ok {
+		if err := validResponse.VisitUpdateClusterResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

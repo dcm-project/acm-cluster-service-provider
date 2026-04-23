@@ -337,8 +337,17 @@ type CreateClusterParams struct {
 	Id *string `form:"id,omitempty" json:"id,omitempty"`
 }
 
+// UpdateClusterParams defines parameters for UpdateCluster.
+type UpdateClusterParams struct {
+	// UpdateMask Optional comma-separated list of field paths to update (e.g., "nodes.workers.count,metadata.labels"). If omitted, all mutable fields in the request body are updated. Follows Google API field mask syntax.
+	UpdateMask *string `form:"update_mask,omitempty" json:"update_mask,omitempty"`
+}
+
 // CreateClusterJSONRequestBody defines body for CreateCluster for application/json ContentType.
 type CreateClusterJSONRequestBody = Cluster
+
+// UpdateClusterApplicationMergePatchPlusJSONRequestBody defines body for UpdateCluster for application/merge-patch+json ContentType.
+type UpdateClusterApplicationMergePatchPlusJSONRequestBody = Cluster
 
 // Getter for additional properties for ProviderHints. Returns the specified
 // element and whether it was found

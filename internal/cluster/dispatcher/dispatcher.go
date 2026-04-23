@@ -64,6 +64,10 @@ func (s *Service) List(ctx context.Context, pageSize int, pageToken string) (*v1
 	return cluster.ListClusters(ctx, s.client, s.config, pageSize, pageToken)
 }
 
+func (s *Service) Update(ctx context.Context, id string, req v1alpha1.Cluster, updateMask []string) (*v1alpha1.Cluster, error) {
+	return cluster.UpdateCluster(ctx, s.client, s.config, id, req, updateMask)
+}
+
 func (s *Service) Delete(ctx context.Context, id string) error {
 	return cluster.DeleteCluster(ctx, s.client, s.config, id)
 }

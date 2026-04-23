@@ -106,6 +106,11 @@ type ClientInterface interface {
 
 	// GetCluster request
 	GetCluster(ctx context.Context, clusterId ClusterIdPath, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateClusterWithBody request with any body
+	UpdateClusterWithBody(ctx context.Context, clusterId ClusterIdPath, params *UpdateClusterParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	UpdateClusterWithApplicationMergePatchPlusJSONBody(ctx context.Context, clusterId ClusterIdPath, params *UpdateClusterParams, body UpdateClusterApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 func (c *Client) ListClusters(ctx context.Context, params *ListClustersParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -170,6 +175,30 @@ func (c *Client) DeleteCluster(ctx context.Context, clusterId ClusterIdPath, req
 
 func (c *Client) GetCluster(ctx context.Context, clusterId ClusterIdPath, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetClusterRequest(c.Server, clusterId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateClusterWithBody(ctx context.Context, clusterId ClusterIdPath, params *UpdateClusterParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateClusterRequestWithBody(c.Server, clusterId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) UpdateClusterWithApplicationMergePatchPlusJSONBody(ctx context.Context, clusterId ClusterIdPath, params *UpdateClusterParams, body UpdateClusterApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateClusterRequestWithApplicationMergePatchPlusJSONBody(c.Server, clusterId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -402,6 +431,75 @@ func NewGetClusterRequest(server string, clusterId ClusterIdPath) (*http.Request
 	return req, nil
 }
 
+// NewUpdateClusterRequestWithApplicationMergePatchPlusJSONBody calls the generic UpdateCluster builder with application/merge-patch+json body
+func NewUpdateClusterRequestWithApplicationMergePatchPlusJSONBody(server string, clusterId ClusterIdPath, params *UpdateClusterParams, body UpdateClusterApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateClusterRequestWithBody(server, clusterId, params, "application/merge-patch+json", bodyReader)
+}
+
+// NewUpdateClusterRequestWithBody generates requests for UpdateCluster with any type of body
+func NewUpdateClusterRequestWithBody(server string, clusterId ClusterIdPath, params *UpdateClusterParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "clusterId", clusterId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/api/v1alpha1/clusters/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		queryValues := queryURL.Query()
+
+		if params.UpdateMask != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "update_mask", *params.UpdateMask, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
+				return nil, err
+			} else {
+				for k, v := range parsed {
+					for _, v2 := range v {
+						queryValues.Add(k, v2)
+					}
+				}
+			}
+
+		}
+
+		queryURL.RawQuery = queryValues.Encode()
+	}
+
+	req, err := http.NewRequest("PATCH", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 func (c *Client) applyEditors(ctx context.Context, req *http.Request, additionalEditors []RequestEditorFn) error {
 	for _, r := range c.RequestEditors {
 		if err := r(ctx, req); err != nil {
@@ -461,6 +559,11 @@ type ClientWithResponsesInterface interface {
 
 	// GetClusterWithResponse request
 	GetClusterWithResponse(ctx context.Context, clusterId ClusterIdPath, reqEditors ...RequestEditorFn) (*GetClusterResponse, error)
+
+	// UpdateClusterWithBodyWithResponse request with any body
+	UpdateClusterWithBodyWithResponse(ctx context.Context, clusterId ClusterIdPath, params *UpdateClusterParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateClusterResponse, error)
+
+	UpdateClusterWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, clusterId ClusterIdPath, params *UpdateClusterParams, body UpdateClusterApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateClusterResponse, error)
 }
 
 type ListClustersResponse struct {
@@ -590,6 +693,34 @@ func (r GetClusterResponse) StatusCode() int {
 	return 0
 }
 
+type UpdateClusterResponse struct {
+	Body                      []byte
+	HTTPResponse              *http.Response
+	JSON200                   *Cluster
+	ApplicationproblemJSON400 *Error
+	ApplicationproblemJSON401 *Error
+	ApplicationproblemJSON403 *Error
+	ApplicationproblemJSON404 *Error
+	ApplicationproblemJSON422 *Error
+	ApplicationproblemJSON500 *Error
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateClusterResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateClusterResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
 // ListClustersWithResponse request returning *ListClustersResponse
 func (c *ClientWithResponses) ListClustersWithResponse(ctx context.Context, params *ListClustersParams, reqEditors ...RequestEditorFn) (*ListClustersResponse, error) {
 	rsp, err := c.ListClusters(ctx, params, reqEditors...)
@@ -641,6 +772,23 @@ func (c *ClientWithResponses) GetClusterWithResponse(ctx context.Context, cluste
 		return nil, err
 	}
 	return ParseGetClusterResponse(rsp)
+}
+
+// UpdateClusterWithBodyWithResponse request with arbitrary body returning *UpdateClusterResponse
+func (c *ClientWithResponses) UpdateClusterWithBodyWithResponse(ctx context.Context, clusterId ClusterIdPath, params *UpdateClusterParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateClusterResponse, error) {
+	rsp, err := c.UpdateClusterWithBody(ctx, clusterId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateClusterResponse(rsp)
+}
+
+func (c *ClientWithResponses) UpdateClusterWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, clusterId ClusterIdPath, params *UpdateClusterParams, body UpdateClusterApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateClusterResponse, error) {
+	rsp, err := c.UpdateClusterWithApplicationMergePatchPlusJSONBody(ctx, clusterId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateClusterResponse(rsp)
 }
 
 // ParseListClustersResponse parses an HTTP response from a ListClustersWithResponse call
@@ -879,6 +1027,74 @@ func ParseGetClusterResponse(rsp *http.Response) (*GetClusterResponse, error) {
 			return nil, err
 		}
 		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON500 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateClusterResponse parses an HTTP response from a UpdateClusterWithResponse call
+func ParseUpdateClusterResponse(rsp *http.Response) (*UpdateClusterResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateClusterResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Cluster
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 400:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON400 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 401:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON401 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 403:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON403 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 404:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON404 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 422:
+		var dest Error
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON422 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 500:
 		var dest Error
