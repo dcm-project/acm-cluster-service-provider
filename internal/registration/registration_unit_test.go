@@ -790,9 +790,9 @@ var _ = Describe("Registration", func() {
 		It("excludes CIS versions not in the compatibility matrix (TC-REG-UT-012)", func() {
 			cis416 := newClusterImageSet("img4.16.0-multi", "4.16.0-multi")
 			cis417 := newClusterImageSet("img4.17.0-multi", "4.17.0-multi")
-			// 4.19 is NOT in the DefaultCompatibilityMatrix
-			cis419 := newClusterImageSet("img4.19.0-multi", "4.19.0-multi")
-			k8sClient := newFakeK8sClient(cis416, cis417, cis419).Build()
+			// 4.22 is NOT in the DefaultCompatibilityMatrix
+			cis422 := newClusterImageSet("img4.22.0-multi", "4.22.0-multi")
+			k8sClient := newFakeK8sClient(cis416, cis417, cis422).Build()
 
 			discoverer := registration.NewVersionDiscoverer(k8sClient, registration.DefaultCompatibilityMatrix)
 
@@ -805,7 +805,7 @@ var _ = Describe("Registration", func() {
 
 			sort.Strings(versions)
 			Expect(versions).To(Equal([]string{"1.29", "1.30"}),
-				"versions should include 1.29 (4.16) and 1.30 (4.17) but NOT anything for 4.19")
+				"versions should include 1.29 (4.16) and 1.30 (4.17) but NOT anything for 4.22")
 		})
 
 		// ---------------------------------------------------------------

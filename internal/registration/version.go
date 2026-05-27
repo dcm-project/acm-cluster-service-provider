@@ -23,6 +23,9 @@ var DefaultCompatibilityMatrix = CompatibilityMatrix{
 	"4.16": "1.29",
 	"4.17": "1.30",
 	"4.18": "1.31",
+	"4.19": "1.32",
+	"4.20": "1.33",
+	"4.21": "1.34",
 }
 
 // VersionDiscoverer queries ClusterImageSets from K8s and maps OCP versions
