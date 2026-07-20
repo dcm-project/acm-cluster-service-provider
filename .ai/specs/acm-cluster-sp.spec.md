@@ -341,7 +341,7 @@ Foundational HTTP server infrastructure. Sets up the router, mounts generated ha
 | REQ-HTTP-070 | The server MUST apply panic recovery middleware | MUST |
 | REQ-HTTP-080 | The server MUST log lifecycle events: startup (with listen address) and shutdown initiation | MUST |
 | REQ-HTTP-090 | Request validation errors MUST return RFC 7807 `application/problem+json` responses | MUST |
-| REQ-HTTP-091 | Response serialization errors MUST return RFC 7807 responses with `type=INTERNAL` | MUST |
+| REQ-HTTP-091 | Response serialization errors MUST return RFC 7807 responses with `type=https://dcm.example.com/errors/internal` | MUST |
 | REQ-HTTP-110 | The server SHOULD apply a request timeout middleware | SHOULD |
 
 #### Configuration Introduced
@@ -393,12 +393,12 @@ Foundational HTTP server infrastructure. Sets up the router, mounts generated ha
 - **Then** the server returns 500
 - **And** the server continues accepting new requests
 
-##### AC-HTTP-060: Response errors return RFC 7807 with type=INTERNAL
+##### AC-HTTP-060: Response errors return RFC 7807 with type=https://dcm.example.com/errors/internal
 - **Requirements:** REQ-HTTP-091
 - **Given** the server encounters an internal error while serializing a response
 - **When** the `ResponseErrorHandlerFunc` is invoked
 - **Then** the response Content-Type is `application/problem+json`
-- **And** the body contains `type="INTERNAL"`
+- **And** the body contains `type="https://dcm.example.com/errors/internal"`
 
 ##### AC-HTTP-070: Lifecycle events are logged
 - **Requirements:** REQ-HTTP-080
@@ -520,17 +520,17 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 |----|-------------|----------|
 | REQ-API-060 | MUST accept a JSON body conforming to the `Cluster` schema | MUST |
 | REQ-API-070 | `version` MUST be present (required field); `nodes` is OPTIONAL — when omitted, SP defaults to 1 worker replica and HyperShift applies platform defaults for CPU, memory, and storage. `nodes.control_plane` is OPTIONAL — when omitted, HyperShift defaults are used for control plane resources | MUST |
-| REQ-API-080 | `nodes.workers` is OPTIONAL; when omitted, SP defaults to 1 replica and HyperShift applies platform defaults. When provided, `count` (if present) MUST be `>= 1`; `memory` and `storage` (if present) MUST match `[1-9][0-9]*(MB\|GB\|TB)`. Invalid values MUST return 400 with `type=INVALID_ARGUMENT` | MUST |
-| REQ-API-090 | The SP MUST validate that `service_type == "cluster"` and return 400 with `type=INVALID_ARGUMENT` if not | MUST |
+| REQ-API-080 | `nodes.workers` is OPTIONAL; when omitted, SP defaults to 1 replica and HyperShift applies platform defaults. When provided, `count` (if present) MUST be `>= 1`; `memory` and `storage` (if present) MUST match `[1-9][0-9]*(MB\|GB\|TB)`. Invalid values MUST return 400 with `type=https://dcm.example.com/errors/invalid-argument` | MUST |
+| REQ-API-090 | The SP MUST validate that `service_type == "cluster"` and return 400 with `type=https://dcm.example.com/errors/invalid-argument` if not | MUST |
 | REQ-API-100 | `id` MUST be the cluster resource identifier. If a client-specified `id` is provided via `?id=` query parameter, it MUST be used; if `?id=` is present but empty, it MUST be treated as absent (generate UUID). Otherwise the SP MUST generate a UUID. `path` MUST be set to `"clusters/<id>"`. The `dcm.project/dcm-instance-id` K8s label MUST be set to `id`. `metadata.name` MUST be used as the K8s HostedCluster resource name | MUST |
 | REQ-API-101 | `id` MUST be readOnly. If `id` appears in the request body, it MUST be ignored (IMPL-001) | MUST |
-| REQ-API-102 | On creation, the SP MUST check for an existing resource with the same `id` (by querying the `dcm.project/dcm-instance-id` label). If found, MUST return 409 with `type=ALREADY_EXISTS` | MUST |
-| REQ-API-103 | On creation, the SP MUST check for an existing K8s HostedCluster with the same `metadata.name` in the target namespace. If found, MUST return 409 with `type=ALREADY_EXISTS` and a detail message indicating the name conflict | MUST |
+| REQ-API-102 | On creation, the SP MUST check for an existing resource with the same `id` (by querying the `dcm.project/dcm-instance-id` label). If found, MUST return 409 with `type=https://dcm.example.com/errors/already-exists` | MUST |
+| REQ-API-103 | On creation, the SP MUST check for an existing K8s HostedCluster with the same `metadata.name` in the target namespace. If found, MUST return 409 with `type=https://dcm.example.com/errors/already-exists` and a detail message indicating the name conflict | MUST |
 | REQ-API-104 | If both `?id=` query parameter and `id` in the request body are provided, the query parameter MUST take precedence and the body value MUST be ignored | MUST |
 | REQ-API-110 | Successful creation MUST return 201 with the full `Cluster` resource including server-set fields: `id`, `path`, `status=PENDING`, `create_time`, `update_time` | MUST |
-| REQ-API-130 | If the platform is not supported, MUST return 422 with `type=UNPROCESSABLE_ENTITY` | MUST |
-| REQ-API-140 | If the version has no matching ClusterImageSet, MUST return 422 with `type=UNPROCESSABLE_ENTITY` | MUST |
-| REQ-API-150 | If the body is malformed or fails validation, MUST return 400 with `type=INVALID_ARGUMENT` | MUST |
+| REQ-API-130 | If the platform is not supported, MUST return 422 with `type=https://dcm.example.com/errors/unprocessable-entity` | MUST |
+| REQ-API-140 | If the version has no matching ClusterImageSet, MUST return 422 with `type=https://dcm.example.com/errors/unprocessable-entity` | MUST |
+| REQ-API-150 | If the body is malformed or fails validation, MUST return 400 with `type=https://dcm.example.com/errors/invalid-argument` | MUST |
 | REQ-API-160 | Read-only fields in the request body (`id`, `status`, `api_endpoint`, `kubeconfig`, `create_time`, `update_time`, `path`, `status_message`, `console_uri`) MUST be ignored (IMPL-001: enforced by OpenAPI middleware, not handler) | MUST |
 | REQ-API-165 | `update_time` MUST reflect the timestamp of the most recent status transition as determined by the HostedCluster condition `lastTransitionTime`, or equal `create_time` if no transition has occurred | MUST |
 | REQ-API-166 | When `status` is `FAILED`, `status_message` SHOULD contain the failure reason from the HostedCluster's `Degraded` condition message | SHOULD |
@@ -548,7 +548,7 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 |----|-------------|----------|
 | REQ-API-180 | MUST return the `Cluster` resource with the given ID | MUST |
 | REQ-API-190 | Cluster state MUST be sourced from the K8s HostedCluster resource (K8s is the read source) | MUST |
-| REQ-API-200 | If no cluster exists, MUST return 404 with `type=NOT_FOUND` | MUST |
+| REQ-API-200 | If no cluster exists, MUST return 404 with `type=https://dcm.example.com/errors/not-found` | MUST |
 | REQ-API-210 | `clusterId` MUST match `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` (1-63 chars) | MUST |
 | REQ-API-220 | When status is `READY`, response MUST include populated `api_endpoint`, `console_uri`, `kubeconfig` (base64-encoded) | MUST |
 | REQ-API-230 | When status is `PENDING`, `PROVISIONING`, `FAILED`, `DELETING`, or `DELETED`, `api_endpoint`, `console_uri`, `kubeconfig` MUST be empty/absent | MUST |
@@ -562,9 +562,9 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 | REQ-API-240 | MUST return a paginated `ClusterList` | MUST |
 | REQ-API-250 | MUST support cursor-based pagination with `page_token` and `max_page_size` | MUST |
 | REQ-API-260 | `max_page_size` MUST default to 50 | MUST |
-| REQ-API-270 | `max_page_size` values above 100 MUST return 400 with `type=INVALID_ARGUMENT` and a detail message indicating the allowed range is 1-100 | MUST |
-| REQ-API-280 | `max_page_size` below 1 MUST return 400 with `type=INVALID_ARGUMENT` and a detail message indicating the minimum allowed value is 1 | MUST |
-| REQ-API-290 | Invalid or expired `page_token` MUST return 400 with `type=INVALID_ARGUMENT` | MUST |
+| REQ-API-270 | `max_page_size` values above 100 MUST return 400 with `type=https://dcm.example.com/errors/invalid-argument` and a detail message indicating the allowed range is 1-100 | MUST |
+| REQ-API-280 | `max_page_size` below 1 MUST return 400 with `type=https://dcm.example.com/errors/invalid-argument` and a detail message indicating the minimum allowed value is 1 | MUST |
+| REQ-API-290 | Invalid or expired `page_token` MUST return 400 with `type=https://dcm.example.com/errors/invalid-argument` | MUST |
 | REQ-API-291 | Pagination tokens MUST be opaque to clients. Tokens MAY expire after a reasonable duration. Pagination provides eventual consistency — results may reflect concurrent modifications | MUST |
 | REQ-API-300 | When no more results exist, `next_page_token` MUST be absent or empty | MUST |
 | REQ-API-310 | Cluster state for each result MUST be sourced from K8s (same as GetCluster) | MUST |
@@ -576,7 +576,7 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 |----|-------------|----------|
 | REQ-API-320 | MUST return 204 No Content on success | MUST |
 | REQ-API-330 | The DELETE endpoint returns 204 after initiating HostedCluster deletion via K8s. Actual resource cleanup (control plane teardown, NodePool removal) is asynchronous and managed by the HyperShift operator | MUST |
-| REQ-API-340 | If no cluster exists, MUST return 404 with `type=NOT_FOUND` | MUST |
+| REQ-API-340 | If no cluster exists, MUST return 404 with `type=https://dcm.example.com/errors/not-found` | MUST |
 | REQ-API-350 | The handler MUST delegate to the ACM service to initiate HostedCluster + NodePool deletion | MUST |
 | REQ-API-360 | Deleting a cluster already in `DELETED` status SHOULD return 404 | SHOULD |
 | REQ-API-370 | Deleting a cluster already being deleted (status `DELETING`) SHOULD be idempotent and return 204. GET returns `DELETING` during the teardown window | SHOULD |
@@ -602,18 +602,18 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 - **Requirements:** REQ-API-103
 - **Given** a cluster with `metadata.name="my-cluster"` exists
 - **When** `POST /api/v1alpha1/clusters` with a new `?id=` but `metadata.name="my-cluster"`
-- **Then** response is 409 with `type="ALREADY_EXISTS"` and detail indicating the name conflict
+- **Then** response is 409 with `type="https://dcm.example.com/errors/already-exists"` and detail indicating the name conflict
 
 ##### AC-API-021: Create cluster with duplicate id
 - **Requirements:** REQ-API-102
 - **Given** a cluster with `id="abc123"` exists
 - **When** `POST /api/v1alpha1/clusters?id=abc123` with a different `metadata.name`
-- **Then** response is 409 with `type="ALREADY_EXISTS"`
+- **Then** response is 409 with `type="https://dcm.example.com/errors/already-exists"`
 
 ##### AC-API-030: Create with invalid service_type
 - **Requirements:** REQ-API-090
 - **When** `POST /api/v1alpha1/clusters` with `service_type="compute"`
-- **Then** response is 400 with `type="INVALID_ARGUMENT"`
+- **Then** response is 400 with `type="https://dcm.example.com/errors/invalid-argument"`
 
 ##### AC-API-040: Create with missing nodes/workers
 - **Requirements:** REQ-API-070, REQ-API-080
@@ -623,12 +623,12 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 ##### AC-API-050: Create with unsupported platform
 - **Requirements:** REQ-API-130
 - **When** `POST` with `provider_hints.acm.platform="aws"`
-- **Then** response is 422 with `type="UNPROCESSABLE_ENTITY"`
+- **Then** response is 422 with `type="https://dcm.example.com/errors/unprocessable-entity"`
 
 ##### AC-API-060: Create with invalid memory format
 - **Requirements:** REQ-API-170
 - **When** `POST` with `nodes.control_plane.memory="16Gi"` (K8s format instead of DCM format)
-- **Then** response is 400 with `type="INVALID_ARGUMENT"`
+- **Then** response is 400 with `type="https://dcm.example.com/errors/invalid-argument"`
 
 ##### AC-API-070: Read-only fields in request are ignored
 - **Requirements:** REQ-API-160, REQ-API-101
@@ -656,7 +656,7 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 ##### AC-API-100: Get non-existent cluster
 - **Requirements:** REQ-API-200
 - **When** `GET /api/v1alpha1/clusters/nonexistent-id`
-- **Then** response is 404 with `type="NOT_FOUND"`
+- **Then** response is 404 with `type="https://dcm.example.com/errors/not-found"`
 
 ##### AC-API-110: List with default pagination
 - **Requirements:** REQ-API-240, REQ-API-260
@@ -667,7 +667,7 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 ##### AC-API-120: List with max_page_size exceeding maximum
 - **Requirements:** REQ-API-270
 - **When** `GET /api/v1alpha1/clusters?max_page_size=200`
-- **Then** response is 400 with `type="INVALID_ARGUMENT"` and detail indicating the allowed range is 1-100
+- **Then** response is 400 with `type="https://dcm.example.com/errors/invalid-argument"` and detail indicating the allowed range is 1-100
 
 ##### AC-API-130: Delete existing cluster
 - **Requirements:** REQ-API-320
@@ -707,17 +707,17 @@ Thin HTTP handler implementations of `StrictServerInterface` (defined at `intern
 - **Requirements:** REQ-API-140
 - **When** `POST /api/v1alpha1/clusters` with `version="9.99"`
 - **And** no K8s-to-OCP mapping exists for version "9.99" in the compatibility matrix
-- **Then** response is 422 with `type="UNPROCESSABLE_ENTITY"`
+- **Then** response is 422 with `type="https://dcm.example.com/errors/unprocessable-entity"`
 
 ##### AC-API-200: max_page_size below 1 returns 400
 - **Requirements:** REQ-API-280
 - **When** `GET /api/v1alpha1/clusters?max_page_size=0`
-- **Then** response is 400 with `type="INVALID_ARGUMENT"` and detail indicating the minimum allowed value is 1
+- **Then** response is 400 with `type="https://dcm.example.com/errors/invalid-argument"` and detail indicating the minimum allowed value is 1
 
 ##### AC-API-210: Invalid page_token returns 400
 - **Requirements:** REQ-API-290
 - **When** `GET /api/v1alpha1/clusters?page_token=invalid-token`
-- **Then** response is 400 with `type="INVALID_ARGUMENT"`
+- **Then** response is 400 with `type="https://dcm.example.com/errors/invalid-argument"`
 
 ##### AC-API-220: Last page has empty next_page_token
 - **Requirements:** REQ-API-300
@@ -846,7 +846,7 @@ Reference: [Red Hat KB - Which Kubernetes API version is included by each OpenSh
 
 #### Common Acceptance Criteria
 
-> **Note (concurrent create):** Two simultaneous `POST` requests with the same `metadata.name` could both pass the conflict check before either creates the resource. The K8s API server provides the final uniqueness guarantee — the SP MUST handle K8s `AlreadyExists` errors and translate them to domain `ALREADY_EXISTS` errors.
+> **Note (concurrent create):** Two simultaneous `POST` requests with the same `metadata.name` could both pass the conflict check before either creates the resource. The K8s API server provides the final uniqueness guarantee — the SP MUST handle K8s `AlreadyExists` errors and translate them to domain `https://dcm.example.com/errors/already-exists` errors.
 
 > **Note (external deletion):** If a HostedCluster is deleted outside DCM (e.g., via `kubectl delete`), the informer detects the deletion and publishes a `DELETED` CloudEvent. API endpoints return 404 for the deleted resource. External deletions are handled transparently — no special handling is required beyond the existing informer + API behavior.
 
@@ -1368,12 +1368,12 @@ Error type to HTTP status mapping:
 
 | ErrorType | HTTP Status |
 |-----------|-------------|
-| `INVALID_ARGUMENT` | 400 |
-| `NOT_FOUND` | 404 |
-| `ALREADY_EXISTS` | 409 |
-| `UNPROCESSABLE_ENTITY` | 422 |
-| `INTERNAL` | 500 |
-| `UNAVAILABLE` | 503 |
+| `https://dcm.example.com/errors/invalid-argument` | 400 |
+| `https://dcm.example.com/errors/not-found` | 404 |
+| `https://dcm.example.com/errors/already-exists` | 409 |
+| `https://dcm.example.com/errors/unprocessable-entity` | 422 |
+| `https://dcm.example.com/errors/internal` | 500 |
+| `https://dcm.example.com/errors/unavailable` | 503 |
 
 ### 6.2 Resource Labeling
 
