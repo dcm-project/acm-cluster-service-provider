@@ -133,7 +133,7 @@ var _ = Describe("Registration Integration", func() {
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = json.NewEncoder(w).Encode(spmv1alpha1.Error{
 				Title: "Internal Server Error",
-				Type:  "INTERNAL",
+				Type:  "https://dcm.example.com/errors/internal",
 			})
 		}))
 
@@ -215,7 +215,7 @@ var _ = Describe("Registration Integration", func() {
 			w.WriteHeader(http.StatusInternalServerError)
 			_ = json.NewEncoder(w).Encode(spmv1alpha1.Error{
 				Title: "Internal Server Error",
-				Type:  "INTERNAL",
+				Type:  "https://dcm.example.com/errors/internal",
 			})
 		}))
 

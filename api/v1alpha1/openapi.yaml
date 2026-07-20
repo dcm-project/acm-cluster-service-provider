@@ -303,6 +303,14 @@ components:
             - DELETING
             - DELETED
             - UNAVAILABLE
+          x-enum-varnames:
+            - ClusterStatusPENDING
+            - ClusterStatusPROVISIONING
+            - ClusterStatusREADY
+            - ClusterStatusFAILED
+            - ClusterStatusDELETING
+            - ClusterStatusDELETED
+            - ClusterStatusUNAVAILABLE
           readOnly: true
         status_message:
           type: string
@@ -535,18 +543,25 @@ components:
         type:
           type: string
           format: uri-reference
-          description: |
-            URI reference identifying the problem type. This is the canonical
-            error code.
+          description: URI reference identifying the error type
           enum:
-            - INVALID_ARGUMENT
-            - NOT_FOUND
-            - ALREADY_EXISTS
-            - PERMISSION_DENIED
-            - UNAUTHENTICATED
-            - INTERNAL
-            - UNAVAILABLE
-            - UNPROCESSABLE_ENTITY
+            - https://dcm.example.com/errors/invalid-argument
+            - https://dcm.example.com/errors/not-found
+            - https://dcm.example.com/errors/already-exists
+            - https://dcm.example.com/errors/permission-denied
+            - https://dcm.example.com/errors/unauthenticated
+            - https://dcm.example.com/errors/internal
+            - https://dcm.example.com/errors/unavailable
+            - https://dcm.example.com/errors/unprocessable-entity
+          x-enum-varnames:
+            - ErrorTypeINVALIDARGUMENT
+            - ErrorTypeNOTFOUND
+            - ErrorTypeALREADYEXISTS
+            - ErrorTypePERMISSIONDENIED
+            - ErrorTypeUNAUTHENTICATED
+            - ErrorTypeINTERNAL
+            - ErrorTypeUNAVAILABLE
+            - ErrorTypeUNPROCESSABLEENTITY
         title:
           type: string
           description: Short, human-readable summary of the problem
@@ -560,6 +575,4 @@ components:
         instance:
           type: string
           format: uri-reference
-          description: |
-            Unique identifier for this specific error occurrence. Useful for
-            tracking and debugging.
+          description: URI reference for this specific error occurrence

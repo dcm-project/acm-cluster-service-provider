@@ -262,7 +262,7 @@ var _ = Describe("HTTP Server", func() {
 
 		var problemJSON map[string]any
 		Expect(json.Unmarshal(body, &problemJSON)).To(Succeed())
-		Expect(problemJSON).To(HaveKeyWithValue("type", "INTERNAL"))
+		Expect(problemJSON).To(HaveKeyWithValue("type", "https://dcm.example.com/errors/internal"))
 		Expect(problemJSON["status"]).To(BeNumerically("==", 500))
 
 		// Server should still be alive after the panic.
@@ -325,7 +325,7 @@ var _ = Describe("HTTP Server", func() {
 
 		var problemJSON map[string]any
 		Expect(json.Unmarshal(body, &problemJSON)).To(Succeed())
-		Expect(problemJSON).To(HaveKeyWithValue("type", "INTERNAL"))
+		Expect(problemJSON).To(HaveKeyWithValue("type", "https://dcm.example.com/errors/internal"))
 
 		// Must not leak internal details.
 		bodyStr := string(body)
