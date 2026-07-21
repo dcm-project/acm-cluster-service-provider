@@ -219,14 +219,14 @@ These requirements are validated by compilation, code review, or static analysis
 - **Then** Content-Type is `application/problem+json`
 - **And** the body contains `type`, `title`, and `status` fields
 
-#### TC-HTTP-IT-005: Response errors return RFC 7807 with type=INTERNAL
+#### TC-HTTP-IT-005: Response errors return RFC 7807 with type=https://dcm.example.com/errors/internal
 - **Requirements:** REQ-HTTP-091
 - **Type:** Integration
 - **Priority:** Medium
 - **Given** the ClusterService returns an unexpected internal error
 - **When** a request is processed
 - **Then** the response Content-Type is `application/problem+json`
-- **And** `type` is `"INTERNAL"`
+- **And** `type` is `"https://dcm.example.com/errors/internal"`
 - **And** no stack traces or K8s error details are leaked
 
 #### TC-HTTP-IT-008: Request timeout middleware

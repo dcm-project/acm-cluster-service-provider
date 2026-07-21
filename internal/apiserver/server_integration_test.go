@@ -18,6 +18,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	v1alpha1 "github.com/dcm-project/acm-cluster-service-provider/api/v1alpha1"
 	oapigen "github.com/dcm-project/acm-cluster-service-provider/internal/api/server"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/apiserver"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
@@ -262,7 +263,7 @@ var _ = Describe("HTTP Server", func() {
 
 		var problemJSON map[string]any
 		Expect(json.Unmarshal(body, &problemJSON)).To(Succeed())
-		Expect(problemJSON).To(HaveKeyWithValue("type", "INTERNAL"))
+		Expect(problemJSON).To(HaveKeyWithValue("type", string(v1alpha1.ErrorTypeINTERNAL)))
 		Expect(problemJSON["status"]).To(BeNumerically("==", 500))
 
 		// Server should still be alive after the panic.
@@ -325,7 +326,7 @@ var _ = Describe("HTTP Server", func() {
 
 		var problemJSON map[string]any
 		Expect(json.Unmarshal(body, &problemJSON)).To(Succeed())
-		Expect(problemJSON).To(HaveKeyWithValue("type", "INTERNAL"))
+		Expect(problemJSON).To(HaveKeyWithValue("type", string(v1alpha1.ErrorTypeINTERNAL)))
 
 		// Must not leak internal details.
 		bodyStr := string(body)

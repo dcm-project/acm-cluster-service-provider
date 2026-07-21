@@ -20,6 +20,7 @@ import (
 	spmv1alpha1 "github.com/dcm-project/service-provider-manager/api/v1alpha1/provider"
 	spmclient "github.com/dcm-project/service-provider-manager/pkg/client/provider"
 
+	v1alpha1 "github.com/dcm-project/acm-cluster-service-provider/api/v1alpha1"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/config"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/registration"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
@@ -359,7 +360,7 @@ var _ = Describe("Registration", func() {
 					w.WriteHeader(http.StatusInternalServerError)
 					_ = json.NewEncoder(w).Encode(spmv1alpha1.Error{
 						Title: "Internal Server Error",
-						Type:  "INTERNAL",
+						Type:  string(v1alpha1.ErrorTypeINTERNAL),
 					})
 				}))
 
@@ -727,7 +728,7 @@ var _ = Describe("Registration", func() {
 					w.WriteHeader(http.StatusInternalServerError)
 					_ = json.NewEncoder(w).Encode(spmv1alpha1.Error{
 						Title: "Internal Server Error",
-						Type:  "INTERNAL",
+						Type:  string(v1alpha1.ErrorTypeINTERNAL),
 					})
 				}
 			}))

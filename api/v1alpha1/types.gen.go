@@ -98,14 +98,14 @@ func (e ControlPlaneSpecCount) Valid() bool {
 
 // Defines values for ErrorType.
 const (
-	ErrorTypeALREADYEXISTS       ErrorType = "ALREADY_EXISTS"
-	ErrorTypeINTERNAL            ErrorType = "INTERNAL"
-	ErrorTypeINVALIDARGUMENT     ErrorType = "INVALID_ARGUMENT"
-	ErrorTypeNOTFOUND            ErrorType = "NOT_FOUND"
-	ErrorTypePERMISSIONDENIED    ErrorType = "PERMISSION_DENIED"
-	ErrorTypeUNAUTHENTICATED     ErrorType = "UNAUTHENTICATED"
-	ErrorTypeUNAVAILABLE         ErrorType = "UNAVAILABLE"
-	ErrorTypeUNPROCESSABLEENTITY ErrorType = "UNPROCESSABLE_ENTITY"
+	ErrorTypeALREADYEXISTS       ErrorType = "https://dcm.example.com/errors/already-exists"
+	ErrorTypeINTERNAL            ErrorType = "https://dcm.example.com/errors/internal"
+	ErrorTypeINVALIDARGUMENT     ErrorType = "https://dcm.example.com/errors/invalid-argument"
+	ErrorTypeNOTFOUND            ErrorType = "https://dcm.example.com/errors/not-found"
+	ErrorTypePERMISSIONDENIED    ErrorType = "https://dcm.example.com/errors/permission-denied"
+	ErrorTypeUNAUTHENTICATED     ErrorType = "https://dcm.example.com/errors/unauthenticated"
+	ErrorTypeUNAVAILABLE         ErrorType = "https://dcm.example.com/errors/unavailable"
+	ErrorTypeUNPROCESSABLEENTITY ErrorType = "https://dcm.example.com/errors/unprocessable-entity"
 )
 
 // Valid indicates whether the value is a known member of the ErrorType enum.
@@ -260,8 +260,7 @@ type Error struct {
 	// Detail Human-readable explanation specific to this occurrence
 	Detail *string `json:"detail,omitempty"`
 
-	// Instance Unique identifier for this specific error occurrence. Useful for
-	// tracking and debugging.
+	// Instance URI reference for this specific error occurrence
 	Instance *string `json:"instance,omitempty"`
 
 	// Status HTTP status code
@@ -270,13 +269,11 @@ type Error struct {
 	// Title Short, human-readable summary of the problem
 	Title string `json:"title"`
 
-	// Type URI reference identifying the problem type. This is the canonical
-	// error code.
+	// Type URI reference identifying the error type
 	Type ErrorType `json:"type"`
 }
 
-// ErrorType URI reference identifying the problem type. This is the canonical
-// error code.
+// ErrorType URI reference identifying the error type
 type ErrorType string
 
 // Health Health status singleton resource
