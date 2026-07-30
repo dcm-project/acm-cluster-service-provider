@@ -14,7 +14,6 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
@@ -24,18 +23,10 @@ import (
 var (
 	hostedClusterGVK     = util.HostedClusterGVK
 	hostedClusterListGVK = util.HostedClusterListGVK
-	kubevirtVMIGVK       = schema.GroupVersionKind{
-		Group: "kubevirt.io", Version: "v1", Kind: "VirtualMachineInstance",
-	}
-	kubevirtVMIListGVK = schema.GroupVersionKind{
-		Group: "kubevirt.io", Version: "v1", Kind: "VirtualMachineInstanceList",
-	}
-	agentGVK = schema.GroupVersionKind{
-		Group: "agent-install.openshift.io", Version: "v1beta1", Kind: "Agent",
-	}
-	agentListGVK = schema.GroupVersionKind{
-		Group: "agent-install.openshift.io", Version: "v1beta1", Kind: "AgentList",
-	}
+	kubevirtVMIGVK       = util.KubevirtVMIGVK
+	kubevirtVMIListGVK   = util.KubevirtVMIListGVK
+	agentGVK             = util.AgentGVK
+	agentListGVK         = util.AgentListGVK
 )
 
 // newHealthyScheme creates a scheme with ALL GVKs needed for a fully healthy check
