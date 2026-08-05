@@ -54,7 +54,7 @@ internal/
   handler/
     handler.go                     # StrictServerInterface impl, delegates to services
     convert.go                     # oapigen <-> v1alpha1 JSON roundtrip conversion
-    errors.go                      # Domain error -> RFC 7807 mapping
+    errors.go                      # Domain error -> RFC 9457 mapping
     validation.go                  # Request validation (service_type, memory format, ID)
 
   service/
@@ -180,7 +180,7 @@ Documented in `.ai/decisions/design-decisions.md`:
 - **Domain errors**: `service.DomainError` with typed `ErrorType` (from OpenAPI enum)
 - **Error constructors**: `NewNotFoundError`, `NewAlreadyExistsError`, `NewInvalidArgumentError`, `NewUnprocessableEntityError`, `NewInternalError`, `NewUnavailableError`
 - **Error assertion**: Use `errors.As(err, &domainErr)` — never `BeAssignableToTypeOf`
-- **HTTP errors**: RFC 7807 `application/problem+json` format via `handler.MapDomainError()`
+- **HTTP errors**: RFC 9457 `application/problem+json` format via `handler.MapDomainError()`
 - **Mapping**: ErrorType -> HTTP status (400, 404, 409, 422, 500, 503) in `handler/errors.go`
 
 ### Status Mapping
@@ -206,7 +206,7 @@ Documented in `.ai/decisions/design-decisions.md`:
 ### Middleware Stack (Chi router)
 
 Applied in order:
-1. `rfc7807RecoveryMiddleware` — panic recovery, RFC 7807 error response
+1. `rfc9457RecoveryMiddleware` — panic recovery, RFC 9457 error response
 2. `requestLoggingMiddleware` — structured logging (method, path, status, duration)
 3. `openAPIValidationMiddleware` — kin-openapi request validation against embedded spec
 4. `requestTimeoutMiddleware` — context deadline per request
