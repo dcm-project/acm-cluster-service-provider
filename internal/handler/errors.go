@@ -2,68 +2,80 @@ package handler
 
 import (
 	"errors"
+	"net/http"
 
 	v1alpha1 "github.com/dcm-project/acm-cluster-service-provider/api/v1alpha1"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/service"
 )
 
-// MapDomainError maps a domain error to RFC 7807 error fields.
-// Returns (errorType, httpStatus, title, detail).
-func MapDomainError(err error) (v1alpha1.ErrorType, int, string, string) {
+// DetailInternalError is the detail string for INTERNAL error responses.
+const DetailInternalError = "an internal error occurred"
+
+// ProblemFields holds RFC 9457 problem detail fields mapped from a domain error.
+type ProblemFields struct {
+	Type   v1alpha1.ErrorType
+	Status int
+	Title  string
+	Detail string
+}
+
+// MapDomainError maps a domain error to RFC 9457 problem detail fields.
+func MapDomainError(err error) ProblemFields {
 	var domainErr *service.DomainError
 	if !errors.As(err, &domainErr) {
-		return v1alpha1.ErrorTypeINTERNAL, 500, "Internal Server Error", "an internal error occurred"
+		m := mapErrorType(v1alpha1.ErrorTypeINTERNAL)
+		return ProblemFields{
+			Type:   v1alpha1.ErrorTypeINTERNAL,
+			Status: m.Status,
+			Title:  m.Title,
+			Detail: DetailInternalError,
+		}
 	}
 
-	status := mapErrorTypeToStatus(domainErr.Type)
-	title := mapErrorTypeToTitle(domainErr.Type)
+	m := mapErrorType(domainErr.Type)
 
 	detail := domainErr.Message
 	if domainErr.Detail != "" {
 		detail = domainErr.Detail
 	}
-
 	if domainErr.Type == v1alpha1.ErrorTypeINTERNAL {
-		detail = "an internal error occurred"
+		detail = DetailInternalError
 	}
 
-	return domainErr.Type, status, title, detail
-}
-
-func mapErrorTypeToStatus(t v1alpha1.ErrorType) int {
-	switch t {
-	case v1alpha1.ErrorTypeINVALIDARGUMENT:
-		return 400
-	case v1alpha1.ErrorTypeNOTFOUND:
-		return 404
-	case v1alpha1.ErrorTypeALREADYEXISTS:
-		return 409
-	case v1alpha1.ErrorTypeUNPROCESSABLEENTITY:
-		return 422
-	case v1alpha1.ErrorTypeINTERNAL:
-		return 500
-	case v1alpha1.ErrorTypeUNAVAILABLE:
-		return 503
-	default:
-		return 500
+	return ProblemFields{
+		Type:   domainErr.Type,
+		Status: m.Status,
+		Title:  m.Title,
+		Detail: detail,
 	}
 }
 
-func mapErrorTypeToTitle(t v1alpha1.ErrorType) string {
+// problemMapping combines HTTP status code and RFC 9457 title for a problem type.
+// Titles follow the humanized-slug convention aligned with K8s Container SP.
+type problemMapping struct {
+	Status int
+	Title  string
+}
+
+func mapErrorType(t v1alpha1.ErrorType) problemMapping {
 	switch t {
 	case v1alpha1.ErrorTypeINVALIDARGUMENT:
-		return "Bad Request"
+		return problemMapping{http.StatusBadRequest, "Invalid argument"}
 	case v1alpha1.ErrorTypeNOTFOUND:
-		return "Not Found"
+		return problemMapping{http.StatusNotFound, "Not found"}
 	case v1alpha1.ErrorTypeALREADYEXISTS:
-		return "Conflict"
+		return problemMapping{http.StatusConflict, "Already exists"}
 	case v1alpha1.ErrorTypeUNPROCESSABLEENTITY:
-		return "Unprocessable Entity"
+		return problemMapping{http.StatusUnprocessableEntity, "Unprocessable entity"}
 	case v1alpha1.ErrorTypeINTERNAL:
-		return "Internal Server Error"
+		return problemMapping{http.StatusInternalServerError, "Internal Server Error"}
 	case v1alpha1.ErrorTypeUNAVAILABLE:
-		return "Service Unavailable"
+		return problemMapping{http.StatusServiceUnavailable, "Service unavailable"}
+	case v1alpha1.ErrorTypePERMISSIONDENIED:
+		return problemMapping{http.StatusForbidden, "Permission denied"}
+	case v1alpha1.ErrorTypeUNAUTHENTICATED:
+		return problemMapping{http.StatusUnauthorized, "Unauthenticated"}
 	default:
-		return "Internal Server Error"
+		return problemMapping{http.StatusInternalServerError, "Internal Server Error"}
 	}
 }

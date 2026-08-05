@@ -14,14 +14,14 @@ import (
 	"github.com/getkin/kin-openapi/routers"
 )
 
-// rfc7807RecoveryMiddleware catches panics and returns an RFC 7807
+// rfc9457RecoveryMiddleware catches panics and returns an RFC 9457
 // application/problem+json response instead of a plain-text stack trace.
 //
 // Special cases:
 //   - http.ErrAbortHandler is re-panicked so net/http aborts the connection.
 //   - If the handler already called WriteHeader/Write, the middleware logs the
 //     panic but does not attempt to write a response (headers already on the wire).
-func rfc7807RecoveryMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
+func rfc9457RecoveryMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
@@ -34,11 +34,11 @@ func rfc7807RecoveryMiddleware(logger *slog.Logger) func(http.Handler) http.Hand
 					logger.Error("panic recovered", "panic", rec, "stack", string(debug.Stack()))
 
 					if rw.wroteHeader {
-						logger.Warn("headers already sent, cannot write RFC 7807 response")
+						logger.Warn("headers already sent, cannot write RFC 9457 response")
 						return
 					}
 
-					writeRFC7807(w, logger, http.StatusInternalServerError, v1alpha1.ErrorTypeINTERNAL, "Internal Server Error", "an unexpected error occurred")
+					writeRFC9457(w, logger, http.StatusInternalServerError, v1alpha1.ErrorTypeINTERNAL, http.StatusText(http.StatusInternalServerError), detailUnexpectedPanicError)
 				}
 			}()
 			next.ServeHTTP(rw, r)

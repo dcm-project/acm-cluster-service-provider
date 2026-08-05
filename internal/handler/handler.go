@@ -4,7 +4,9 @@ package handler
 import (
 	"context"
 	"log/slog"
+	"net/http"
 
+	v1alpha1 "github.com/dcm-project/acm-cluster-service-provider/api/v1alpha1"
 	oapigen "github.com/dcm-project/acm-cluster-service-provider/internal/api/server"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/service"
 	"github.com/dcm-project/acm-cluster-service-provider/internal/util"
@@ -131,12 +133,12 @@ func (h *Handler) DeleteCluster(ctx context.Context, req oapigen.DeleteClusterRe
 }
 
 func (h *Handler) logServiceError(op string, err error) {
-	errType, status, _, detail := MapDomainError(err)
+	p := MapDomainError(err)
 	h.logger.Warn("service error",
 		"operation", op,
-		"status", status,
-		"error_type", errType,
-		"detail", detail,
+		"status", p.Status,
+		"error_type", p.Type,
+		"detail", p.Detail,
 		"error", err.Error(),
 	)
 }
@@ -152,27 +154,33 @@ func buildErrorResponse(errType oapigen.ErrorType, status int32, title, detail s
 	}
 }
 
+func domainErrorObject(err error) (oapigen.Error, int) {
+	p := MapDomainError(err)
+	return buildErrorResponse(oapigen.ErrorType(p.Type), int32(p.Status), p.Title, p.Detail), p.Status
+}
+
 func createError400(detail string) oapigen.CreateCluster400ApplicationProblemPlusJSONResponse {
+	m := mapErrorType(v1alpha1.ErrorTypeINVALIDARGUMENT)
 	return oapigen.CreateCluster400ApplicationProblemPlusJSONResponse(
-		buildErrorResponse(oapigen.ErrorTypeINVALIDARGUMENT, 400, "Bad Request", detail),
+		buildErrorResponse(oapigen.ErrorTypeINVALIDARGUMENT, int32(m.Status), m.Title, detail),
 	)
 }
 
 func createError500() oapigen.CreateCluster500ApplicationProblemPlusJSONResponse {
+	m := mapErrorType(v1alpha1.ErrorTypeINTERNAL)
 	return oapigen.CreateCluster500ApplicationProblemPlusJSONResponse(
-		buildErrorResponse(oapigen.ErrorTypeINTERNAL, 500, "Internal Server Error", "an internal error occurred"),
+		buildErrorResponse(oapigen.ErrorTypeINTERNAL, int32(m.Status), m.Title, DetailInternalError),
 	)
 }
 
 func mapCreateError(err error) oapigen.CreateClusterResponseObject {
-	errType, status, title, detail := MapDomainError(err)
-	errObj := buildErrorResponse(oapigen.ErrorType(errType), int32(status), title, detail)
+	errObj, status := domainErrorObject(err)
 	switch status {
-	case 400:
+	case http.StatusBadRequest:
 		return oapigen.CreateCluster400ApplicationProblemPlusJSONResponse(errObj)
-	case 409:
+	case http.StatusConflict:
 		return oapigen.CreateCluster409ApplicationProblemPlusJSONResponse(errObj)
-	case 422:
+	case http.StatusUnprocessableEntity:
 		return oapigen.CreateCluster422ApplicationProblemPlusJSONResponse(errObj)
 	default:
 		return oapigen.CreateCluster500ApplicationProblemPlusJSONResponse(errObj)
@@ -180,16 +188,16 @@ func mapCreateError(err error) oapigen.CreateClusterResponseObject {
 }
 
 func getError500() oapigen.GetCluster500ApplicationProblemPlusJSONResponse {
+	m := mapErrorType(v1alpha1.ErrorTypeINTERNAL)
 	return oapigen.GetCluster500ApplicationProblemPlusJSONResponse(
-		buildErrorResponse(oapigen.ErrorTypeINTERNAL, 500, "Internal Server Error", "an internal error occurred"),
+		buildErrorResponse(oapigen.ErrorTypeINTERNAL, int32(m.Status), m.Title, DetailInternalError),
 	)
 }
 
 func mapGetError(err error) oapigen.GetClusterResponseObject {
-	errType, status, title, detail := MapDomainError(err)
-	errObj := buildErrorResponse(oapigen.ErrorType(errType), int32(status), title, detail)
+	errObj, status := domainErrorObject(err)
 	switch status {
-	case 404:
+	case http.StatusNotFound:
 		return oapigen.GetCluster404ApplicationProblemPlusJSONResponse(errObj)
 	default:
 		return oapigen.GetCluster500ApplicationProblemPlusJSONResponse(errObj)
@@ -197,22 +205,23 @@ func mapGetError(err error) oapigen.GetClusterResponseObject {
 }
 
 func listError400(detail string) oapigen.ListClusters400ApplicationProblemPlusJSONResponse {
+	m := mapErrorType(v1alpha1.ErrorTypeINVALIDARGUMENT)
 	return oapigen.ListClusters400ApplicationProblemPlusJSONResponse(
-		buildErrorResponse(oapigen.ErrorTypeINVALIDARGUMENT, 400, "Bad Request", detail),
+		buildErrorResponse(oapigen.ErrorTypeINVALIDARGUMENT, int32(m.Status), m.Title, detail),
 	)
 }
 
 func listError500() oapigen.ListClusters500ApplicationProblemPlusJSONResponse {
+	m := mapErrorType(v1alpha1.ErrorTypeINTERNAL)
 	return oapigen.ListClusters500ApplicationProblemPlusJSONResponse(
-		buildErrorResponse(oapigen.ErrorTypeINTERNAL, 500, "Internal Server Error", "an internal error occurred"),
+		buildErrorResponse(oapigen.ErrorTypeINTERNAL, int32(m.Status), m.Title, DetailInternalError),
 	)
 }
 
 func mapListError(err error) oapigen.ListClustersResponseObject {
-	errType, status, title, detail := MapDomainError(err)
-	errObj := buildErrorResponse(oapigen.ErrorType(errType), int32(status), title, detail)
+	errObj, status := domainErrorObject(err)
 	switch status {
-	case 400:
+	case http.StatusBadRequest:
 		return oapigen.ListClusters400ApplicationProblemPlusJSONResponse(errObj)
 	default:
 		return oapigen.ListClusters500ApplicationProblemPlusJSONResponse(errObj)
@@ -220,10 +229,9 @@ func mapListError(err error) oapigen.ListClustersResponseObject {
 }
 
 func mapDeleteError(err error) oapigen.DeleteClusterResponseObject {
-	errType, status, title, detail := MapDomainError(err)
-	errObj := buildErrorResponse(oapigen.ErrorType(errType), int32(status), title, detail)
+	errObj, status := domainErrorObject(err)
 	switch status {
-	case 404:
+	case http.StatusNotFound:
 		return oapigen.DeleteCluster404ApplicationProblemPlusJSONResponse(errObj)
 	default:
 		return oapigen.DeleteCluster500ApplicationProblemPlusJSONResponse(errObj)

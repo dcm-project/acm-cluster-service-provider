@@ -16,10 +16,21 @@ import (
 
 const (
 	contentTypeProblemJSON = "application/problem+json"
+
+	// detailUnexpectedPanicError is the detail for panic-recovery responses.
+	// Intentionally distinct from the handler's "an internal error occurred"
+	// to aid debugging: panic = truly unexpected; domain INTERNAL = known error category.
+	detailUnexpectedPanicError = "an unexpected error occurred"
+
+	// marshalFailBody is a pre-built problem+json response for the unreachable
+	// case where json.Marshal fails on the Error struct. Using a static literal
+	// ensures the response maintains application/problem+json content type
+	// per REQ-API-020, even in a double-fault scenario.
+	marshalFailBody = `{"type":"https://dcm-project.github.io/problems/internal","title":"Internal Server Error","status":500,"detail":"an internal error occurred"}`
 )
 
-// writeRFC7807 writes an RFC 7807 application/problem+json response.
-func writeRFC7807(w http.ResponseWriter, logger *slog.Logger, statusCode int, errType v1alpha1.ErrorType, title, detail string) {
+// writeRFC9457 writes an RFC 9457 application/problem+json response.
+func writeRFC9457(w http.ResponseWriter, logger *slog.Logger, statusCode int, errType v1alpha1.ErrorType, title, detail string) {
 	status := int32(statusCode)
 	resp := v1alpha1.Error{
 		Type:   errType,
@@ -27,20 +38,32 @@ func writeRFC7807(w http.ResponseWriter, logger *slog.Logger, statusCode int, er
 		Status: util.Ptr(status),
 		Detail: util.Ptr(detail),
 	}
+	body, err := json.Marshal(resp)
+	if err != nil {
+		logger.Error("failed to marshal error response", "error", err)
+		w.Header().Set("Content-Type", contentTypeProblemJSON)
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = w.Write([]byte(marshalFailBody))
+		return
+	}
 	w.Header().Set("Content-Type", contentTypeProblemJSON)
 	w.WriteHeader(statusCode)
-	if encErr := json.NewEncoder(w).Encode(resp); encErr != nil {
-		logger.Error("failed to encode error response", "error", encErr)
+	if _, err = w.Write(body); err != nil {
+		logger.Warn("failed to write error response body", "error", err)
+		return
 	}
+	_, _ = w.Write([]byte("\n"))
 }
 
 // newBadRequestHandler returns a handler that writes a 400 Bad Request
-// response with an RFC 7807 application/problem+json body. It is used
+// response with an RFC 9457 application/problem+json body. It is used
 // by the parameter binding layer (generated chi wrapper) and OpenAPI
 // validation middleware.
 func newBadRequestHandler(logger *slog.Logger) func(http.ResponseWriter, *http.Request, error) {
 	return func(w http.ResponseWriter, _ *http.Request, err error) {
-		writeRFC7807(w, logger, http.StatusBadRequest, v1alpha1.ErrorTypeINVALIDARGUMENT, "Bad Request", scrubValidationError(err))
+		// Title aligned with handler/errors.go mapErrorType(INVALID_ARGUMENT)
+		// and K8s Container SP for cross-repo consistency.
+		writeRFC9457(w, logger, http.StatusBadRequest, v1alpha1.ErrorTypeINVALIDARGUMENT, "Invalid argument", scrubValidationError(err))
 	}
 }
 

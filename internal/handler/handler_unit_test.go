@@ -2,9 +2,11 @@ package handler_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -685,41 +687,51 @@ var _ = Describe("Error Mapping", func() {
 		cases := []struct {
 			errType    v1alpha1.ErrorType
 			wantStatus int
+			wantTitle  string
 		}{
-			{v1alpha1.ErrorTypeINVALIDARGUMENT, 400},
-			{v1alpha1.ErrorTypeNOTFOUND, 404},
-			{v1alpha1.ErrorTypeALREADYEXISTS, 409},
-			{v1alpha1.ErrorTypeUNPROCESSABLEENTITY, 422},
-			{v1alpha1.ErrorTypeINTERNAL, 500},
-			{v1alpha1.ErrorTypeUNAVAILABLE, 503},
+			{v1alpha1.ErrorTypeINVALIDARGUMENT, 400, "Invalid argument"},
+			{v1alpha1.ErrorTypeNOTFOUND, 404, "Not found"},
+			{v1alpha1.ErrorTypeALREADYEXISTS, 409, "Already exists"},
+			{v1alpha1.ErrorTypeUNPROCESSABLEENTITY, 422, "Unprocessable entity"},
+			{v1alpha1.ErrorTypeINTERNAL, 500, "Internal Server Error"},
+			{v1alpha1.ErrorTypeUNAVAILABLE, 503, "Service unavailable"},
+			{v1alpha1.ErrorTypePERMISSIONDENIED, 403, "Permission denied"},
+			{v1alpha1.ErrorTypeUNAUTHENTICATED, 401, "Unauthenticated"},
 		}
 
 		for _, tc := range cases {
 			domainErr := &service.DomainError{Type: tc.errType, Message: "test"}
-			errType, status, title, _ := handler.MapDomainError(domainErr)
-			Expect(status).To(Equal(tc.wantStatus), "for error type %s", tc.errType)
-			Expect(errType).To(Equal(tc.errType), "errType should match input for %s", tc.errType)
-			Expect(title).NotTo(BeEmpty(), "title must be non-empty for %s", tc.errType)
+			p := handler.MapDomainError(domainErr)
+			Expect(p.Status).To(Equal(tc.wantStatus), "for error type %s", tc.errType)
+			Expect(p.Type).To(Equal(tc.errType), "errType should match input for %s", tc.errType)
+			Expect(p.Title).To(Equal(tc.wantTitle), "title must match problem type for %s", tc.errType)
 		}
+
+		By("falling back to INTERNAL for non-DomainError inputs")
+		p := handler.MapDomainError(errors.New("boom"))
+		Expect(p.Type).To(Equal(v1alpha1.ErrorTypeINTERNAL))
+		Expect(p.Status).To(Equal(http.StatusInternalServerError))
+		Expect(p.Title).To(Equal("Internal Server Error"))
+		Expect(p.Detail).To(Equal(handler.DetailInternalError))
 	})
 
 	It("does not leak internal details for INTERNAL errors (TC-ERR-UT-002)", func() {
 		cause := fmt.Errorf("k8s api error: connection refused to kube-apiserver:6443")
 		domainErr := service.NewInternalError("cluster creation failed", cause)
 
-		_, _, _, detail := handler.MapDomainError(domainErr)
-		Expect(detail).NotTo(ContainSubstring("k8s"))
-		Expect(detail).NotTo(ContainSubstring("kube-apiserver"))
-		Expect(detail).NotTo(BeEmpty())
+		p := handler.MapDomainError(domainErr)
+		Expect(p.Detail).To(Equal(handler.DetailInternalError))
+		Expect(p.Detail).NotTo(ContainSubstring("k8s"))
+		Expect(p.Detail).NotTo(ContainSubstring("kube-apiserver"))
 	})
 
 	It("includes detail and instance when provided (TC-ERR-UT-003)", func() {
 		domainErr := service.NewNotFoundError("cluster not found").
 			WithDetail("cluster abc-123 does not exist")
 
-		errType, status, _, detail := handler.MapDomainError(domainErr)
-		Expect(errType).To(Equal(v1alpha1.ErrorTypeNOTFOUND))
-		Expect(status).To(Equal(404))
-		Expect(detail).To(Equal("cluster abc-123 does not exist"))
+		p := handler.MapDomainError(domainErr)
+		Expect(p.Type).To(Equal(v1alpha1.ErrorTypeNOTFOUND))
+		Expect(p.Status).To(Equal(404))
+		Expect(p.Detail).To(Equal("cluster abc-123 does not exist"))
 	})
 })

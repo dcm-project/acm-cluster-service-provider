@@ -39,7 +39,7 @@ func New(cfg *config.Config, logger *slog.Logger, handler oapigen.ServerInterfac
 	badReq := newBadRequestHandler(logger)
 
 	r := chi.NewRouter()
-	r.Use(rfc7807RecoveryMiddleware(logger))
+	r.Use(rfc9457RecoveryMiddleware(logger))
 	r.Use(requestLoggingMiddleware(logger))
 
 	spec, err := v1alpha1.GetSwagger()

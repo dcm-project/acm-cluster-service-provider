@@ -63,4 +63,13 @@ check-generate-api: generate-api
 check-aep:
 	spectral lint --fail-severity=warn ./api/v1alpha1/openapi.yaml
 
-.PHONY: build run clean fmt vet test test-cover lint check tidy generate-types generate-spec generate-server generate-client generate-api check-generate-api check-aep
+check-problem-uris:
+	@output=$$(find api internal pkg cmd -type f \( -name '*.go' -o -name '*.yaml' \) \
+		-exec grep -n 'dcm\.example\.com' {} + 2>&1) || true; \
+	if [ -n "$$output" ]; then \
+		printf '%s\n' "$$output"; \
+		echo "ERROR: Old problem type URIs found. Update to dcm-project.github.io/problems/*"; \
+		exit 1; \
+	fi
+
+.PHONY: build run clean fmt vet test test-cover lint check tidy generate-types generate-spec generate-server generate-client generate-api check-generate-api check-aep check-problem-uris

@@ -105,14 +105,14 @@ func (e ControlPlaneSpecCount) Valid() bool {
 
 // Defines values for ErrorType.
 const (
-	ErrorTypeALREADYEXISTS       ErrorType = "https://dcm.example.com/errors/already-exists"
-	ErrorTypeINTERNAL            ErrorType = "https://dcm.example.com/errors/internal"
-	ErrorTypeINVALIDARGUMENT     ErrorType = "https://dcm.example.com/errors/invalid-argument"
-	ErrorTypeNOTFOUND            ErrorType = "https://dcm.example.com/errors/not-found"
-	ErrorTypePERMISSIONDENIED    ErrorType = "https://dcm.example.com/errors/permission-denied"
-	ErrorTypeUNAUTHENTICATED     ErrorType = "https://dcm.example.com/errors/unauthenticated"
-	ErrorTypeUNAVAILABLE         ErrorType = "https://dcm.example.com/errors/unavailable"
-	ErrorTypeUNPROCESSABLEENTITY ErrorType = "https://dcm.example.com/errors/unprocessable-entity"
+	ErrorTypeALREADYEXISTS       ErrorType = "https://dcm-project.github.io/problems/already-exists"
+	ErrorTypeINTERNAL            ErrorType = "https://dcm-project.github.io/problems/internal"
+	ErrorTypeINVALIDARGUMENT     ErrorType = "https://dcm-project.github.io/problems/invalid-argument"
+	ErrorTypeNOTFOUND            ErrorType = "https://dcm-project.github.io/problems/not-found"
+	ErrorTypePERMISSIONDENIED    ErrorType = "https://dcm-project.github.io/problems/permission-denied"
+	ErrorTypeUNAUTHENTICATED     ErrorType = "https://dcm-project.github.io/problems/unauthenticated"
+	ErrorTypeUNAVAILABLE         ErrorType = "https://dcm-project.github.io/problems/unavailable"
+	ErrorTypeUNPROCESSABLEENTITY ErrorType = "https://dcm-project.github.io/problems/unprocessable-entity"
 )
 
 // Valid indicates whether the value is a known member of the ErrorType enum.
@@ -262,7 +262,24 @@ type ControlPlaneSpec struct {
 // ControlPlaneSpecCount Number of control plane nodes
 type ControlPlaneSpecCount int
 
-// Error RFC 7807 compliant error response
+// Error RFC 9457 compliant error response (Problem Details for HTTP APIs).
+//
+// Defined problem types:
+//
+//	| Type URI | Title | HTTP Status |
+//	|----------|-------|-------------|
+//	| .../problems/invalid-argument | Invalid argument | 400 |
+//	| .../problems/not-found | Not found | 404 |
+//	| .../problems/already-exists | Already exists | 409 |
+//	| .../problems/unprocessable-entity | Unprocessable entity | 422 |
+//	| .../problems/internal | Internal Server Error | 500 |
+//	| .../problems/unavailable | Service unavailable | 503 |
+//	| .../problems/permission-denied | Permission denied | 403 |
+//	| .../problems/unauthenticated | Unauthenticated | 401 |
+//
+// Note: permission-denied and unauthenticated are defined in the enum
+// but not yet emitted by any handler. Titles follow the humanized-slug
+// convention for forward-compatibility with K8s Container SP.
 type Error struct {
 	// Detail Human-readable explanation specific to this occurrence
 	Detail *string `json:"detail,omitempty"`
