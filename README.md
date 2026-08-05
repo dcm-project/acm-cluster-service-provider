@@ -82,7 +82,11 @@ All endpoints are under the `/api/v1alpha1` base path. The full OpenAPI 3.0.4 sp
 
 ### Error format
 
-Errors follow [RFC 7807](https://datatracker.ietf.org/doc/html/rfc7807) (`application/problem+json`).
+Errors follow [RFC 9457](https://datatracker.ietf.org/doc/html/rfc9457) (`application/problem+json`).
+
+> **BREAKING:** Error `type` URIs migrated from `https://dcm.example.com/errors/*` to
+> `https://dcm-project.github.io/problems/*`. The previous domain was an IANA-reserved
+> example domain (RFC 2606) not under project control.
 
 ## Health check
 

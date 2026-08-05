@@ -87,7 +87,6 @@ internal/
   testutil/
     builders.go                            # Test fixture builders (Cluster, HostedCluster)
     fakes.go                               # Reusable mock/fake implementations
-    assertions.go                          # RFC 7807 assertion helpers
 test/
   integration/
     suite_test.go                          # envtest setup, shared TestMain
@@ -100,7 +99,7 @@ test/
 | Layer | Mocks/Fakes | Tests What | Does NOT Test |
 |-------|-------------|------------|---------------|
 | Shared: Status | None (pure function) | Condition precedence, all 7 DCM statuses. Implemented within service test files (kubevirt_test.go, baremetal_test.go) | K8s client calls |
-| Shared: Errors | None (pure function) | Error type -> HTTP status mapping, RFC 7807 | Business logic |
+| Shared: Errors | None (pure function) | Error type -> HTTP status mapping, RFC 9457 | Business logic |
 | Handler | Mock ClusterService, Mock HealthChecker | Input validation, HTTP codes, read-only fields, pagination, delegation | K8s CRD construction, status mapping |
 | KubeVirt Service | Fake K8s client (`controller-runtime/pkg/client/fake`) | CRD construction, labels, ClusterImageSet lookup, kubeconfig extraction, rollback | HTTP codes, validation already done by handler |
 | BareMetal Service | Fake K8s client | Agent platform CRD, InfraEnv ref, agent labels | Status mapping (shared), format conversion (shared) |
@@ -396,7 +395,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** High
 - **Given** no mock interaction needed (validation fails before delegation)
 - **When** `CreateCluster` is called with `service_type="compute"`
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 
 #### ~~TC-HDL-CRT-UT-005: Missing workers~~ — REMOVED
 - **Reason:** `nodes.workers` is now OPTIONAL per updated REQ-API-080; SP defaults to 1 replica when omitted
@@ -407,7 +406,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** Medium
 - **Given** no mock interaction needed
 - **When** `CreateCluster` is called with `nodes.control_plane.memory="16Gi"` (K8s format, not DCM)
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 
 #### TC-HDL-CRT-UT-007: Duplicate ID error from service
 - **Requirements:** REQ-API-102
@@ -415,7 +414,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** High
 - **Given** a mock `ClusterService.Create` that returns an `AlreadyExists` domain error for the given ID
 - **When** `CreateCluster` is called with `?id=abc123`
-- **Then** returns 409 with `type="https://dcm.example.com/errors/already-exists"`
+- **Then** returns 409 with `type="https://dcm-project.github.io/problems/already-exists"`
 
 #### TC-HDL-CRT-UT-008: Duplicate metadata.name error from service
 - **Requirements:** REQ-API-103
@@ -423,7 +422,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** High
 - **Given** a mock `ClusterService.Create` that returns an `AlreadyExists` domain error with name conflict detail
 - **When** `CreateCluster` is called with `metadata.name="my-cluster"`
-- **Then** returns 409 with `type="https://dcm.example.com/errors/already-exists"` and detail indicating the name conflict
+- **Then** returns 409 with `type="https://dcm-project.github.io/problems/already-exists"` and detail indicating the name conflict
 
 #### TC-HDL-CRT-UT-009: Unsupported platform error from service
 - **Requirements:** REQ-API-130
@@ -431,7 +430,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** Medium
 - **Given** a mock `ClusterService.Create` that returns an `UnprocessableEntity` domain error
 - **When** `CreateCluster` is called with `platform="aws"`
-- **Then** returns 422 with `type="https://dcm.example.com/errors/unprocessable-entity"`
+- **Then** returns 422 with `type="https://dcm-project.github.io/problems/unprocessable-entity"`
 
 #### TC-HDL-CRT-UT-010: Version not found error from service
 - **Requirements:** REQ-API-140
@@ -439,7 +438,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** Medium
 - **Given** a mock `ClusterService.Create` that returns an `UnprocessableEntity` domain error for version
 - **When** `CreateCluster` is called with `version="9.99"`
-- **Then** returns 422 with `type="https://dcm.example.com/errors/unprocessable-entity"`
+- **Then** returns 422 with `type="https://dcm-project.github.io/problems/unprocessable-entity"`
 
 #### TC-HDL-CRT-UT-011: Missing required field (version)
 - **Requirements:** REQ-API-070, REQ-API-150
@@ -447,7 +446,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** Medium
 - **Given** no mock interaction needed
 - **When** `CreateCluster` is called with body missing `version`
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 - **Note:** `nodes.control_plane` is OPTIONAL per REQ-API-070 — when omitted, HyperShift defaults are used for control plane resources. No validation error for missing `control_plane`.
 
 #### TC-HDL-CRT-UT-019: Empty `?id=` query parameter treated as absent
@@ -465,7 +464,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** Medium
 - **Given** a mock `ClusterService.Create` that returns a wrapped K8s API error containing "etcd leader changed: 10.0.0.5"
 - **When** `CreateCluster` is called with a valid body
-- **Then** returns 500 with `type="https://dcm.example.com/errors/internal"`
+- **Then** returns 500 with `type="https://dcm-project.github.io/problems/internal"`
 - **And** response body does NOT contain K8s-specific error text
 
 #### ~~TC-HDL-CRT-UT-013: Missing nodes object entirely~~ — REMOVED
@@ -477,7 +476,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** Medium
 - **Given** no mock interaction needed
 - **When** `CreateCluster` is called with `nodes.workers.count=0`
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"` and detail indicating workers count must be >= 1
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"` and detail indicating workers count must be >= 1
 
 #### TC-HDL-CRT-UT-015: Invalid client-specified ?id= format
 - **Requirements:** REQ-API-100, REQ-API-150
@@ -485,9 +484,9 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** Medium
 - **Given** no mock interaction needed
 - **When** `CreateCluster` is called with `?id=INVALID_ID!` (uppercase, special characters)
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 - **When** `CreateCluster` is called with `?id=` followed by a 64-character string
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"` (exceeds 63-char K8s limit)
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"` (exceeds 63-char K8s limit)
 
 #### TC-HDL-CRT-UT-016: Missing service_type field
 - **Requirements:** REQ-API-090, REQ-API-150
@@ -495,7 +494,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** Medium
 - **Given** no mock interaction needed
 - **When** `CreateCluster` is called with valid body but missing `service_type` field
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 
 #### TC-HDL-CRT-UT-017: Zero-value memory rejected by middleware
 - **Requirements:** REQ-API-170
@@ -505,7 +504,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Reclassified:** Moved from unit to integration scope. The OpenAPI spec defines `pattern: '^[1-9][0-9]*(MB|GB|TB)$'` on memory fields, which rejects `"0GB"` at the validation middleware before the request reaches the handler. This TC must be tested through the full HTTP middleware stack.
 - **Given** no mock interaction needed (middleware rejects before handler)
 - **When** `POST /api/v1alpha1/clusters` is sent with `workers.memory="0GB"`
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 
 #### TC-HDL-CRT-UT-018: Zero-value storage rejected by middleware
 - **Requirements:** REQ-API-170
@@ -515,7 +514,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Reclassified:** Moved from unit to integration scope. The OpenAPI spec defines `pattern: '^[1-9][0-9]*(MB|GB|TB)$'` on storage fields, which rejects `"0TB"` at the validation middleware before the request reaches the handler. This TC must be tested through the full HTTP middleware stack.
 - **Given** no mock interaction needed (middleware rejects before handler)
 - **When** `POST /api/v1alpha1/clusters` is sent with `control_plane.storage="0TB"`
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 
 ---
 
@@ -551,7 +550,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** High
 - **Given** a mock `ClusterService.Get` that returns a `NotFound` domain error
 - **When** `GetCluster` is called for `id="nonexistent-id"`
-- **Then** returns 404 with `type="https://dcm.example.com/errors/not-found"`
+- **Then** returns 404 with `type="https://dcm-project.github.io/problems/not-found"`
 
 #### TC-HDL-GET-UT-004: clusterId format validation
 - **Requirements:** REQ-API-210
@@ -561,11 +560,11 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Reclassified:** Moved from unit to integration scope. The OpenAPI spec defines a `pattern` on `ClusterIdPath` (`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`), enforced by the validation middleware before the request reaches the handler. The generated `StrictServerInterface` has no `GetCluster400` response type, confirming the handler cannot return 400. This TC must be tested through the full HTTP middleware stack.
 - **Given** no mock needed (validation at middleware layer)
 - **When** `GET /api/v1alpha1/clusters/INVALID_ID!` is sent (uppercase/special chars)
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 - **When** `GET /api/v1alpha1/clusters/<64-char-id>` is sent
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 - **When** `GET /api/v1alpha1/clusters/-starts-with-hyphen` is sent
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 
 ---
 
@@ -586,7 +585,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** High
 - **Given** no mock needed
 - **When** `ListClusters` is called with `max_page_size=200`
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"` and detail mentioning allowed range 1-100
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"` and detail mentioning allowed range 1-100
 
 #### TC-HDL-LST-UT-003: max_page_size below minimum
 - **Requirements:** REQ-API-280
@@ -594,9 +593,9 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** Medium
 - **Given** no mock needed
 - **When** `ListClusters` is called with `max_page_size=0`
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"` and detail mentioning minimum value is 1
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"` and detail mentioning minimum value is 1
 - **When** `ListClusters` is called with `max_page_size=-5`
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 
 #### TC-HDL-LST-UT-004: Invalid page_token
 - **Requirements:** REQ-API-290
@@ -604,7 +603,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** Medium
 - **Given** a mock `ClusterService.List` that returns an `InvalidArgument` domain error for bad token
 - **When** `ListClusters` is called with `page_token="garbage-token"`
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 
 #### TC-HDL-LST-UT-005: Last page has no next_page_token
 - **Requirements:** REQ-API-300
@@ -632,7 +631,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **When** `ListClusters` is called with `max_page_size=100`
 - **Then** returns 200 (100 is valid maximum)
 - **When** `ListClusters` is called with `max_page_size=101`
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 
 #### TC-HDL-LST-UT-008: Empty page_token treated as absent
 - **Requirements:** REQ-API-290
@@ -662,7 +661,7 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Priority:** High
 - **Given** a mock `ClusterService.Delete` that returns a `NotFound` domain error
 - **When** `DeleteCluster` is called for `id="nonexistent-id"`
-- **Then** returns 404 with `type="https://dcm.example.com/errors/not-found"`
+- **Then** returns 404 with `type="https://dcm-project.github.io/problems/not-found"`
 
 #### TC-HDL-DEL-UT-003: Delete already-deleted cluster
 - **Requirements:** REQ-API-360
@@ -696,23 +695,23 @@ These test the handler (`StrictServerInterface` implementation) with a mock `Clu
 - **Reclassified:** Moved from unit to integration scope. The OpenAPI spec defines a `pattern` on `ClusterIdPath` (`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`), enforced by the validation middleware before the request reaches the handler. The generated `StrictServerInterface` has no `DeleteCluster400` response type, confirming the handler cannot return 400. This TC must be tested through the full HTTP middleware stack.
 - **Given** no mock needed (validation at middleware layer)
 - **When** `DELETE /api/v1alpha1/clusters/INVALID_ID!` is sent (uppercase/special chars)
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 - **When** `DELETE /api/v1alpha1/clusters/<64-char-id>` is sent
-- **Then** returns 400 with `type="https://dcm.example.com/errors/invalid-argument"`
+- **Then** returns 400 with `type="https://dcm-project.github.io/problems/invalid-argument"`
 
 ---
 
 ### 2.8 Error Mapping (TC-ERR-UT-xxx)
 
-Tests the shared domain-error-to-RFC-7807 mapping used by all handlers.
+Tests the shared domain-error-to-RFC-9457 mapping used by all handlers.
 
 #### TC-ERR-UT-001: Error type to HTTP status mapping (table-driven)
 - **Requirements:** REQ-API-020, REQ-API-030, REQ-API-040, REQ-XC-ERR-010, REQ-XC-ERR-020
 - **Type:** Unit
 - **Priority:** High
 - **Given** a set of domain error types
-- **When** each error is converted to an RFC 7807 response
-- **Then** the mapping is: `https://dcm.example.com/errors/invalid-argument` -> 400, `https://dcm.example.com/errors/not-found` -> 404, `https://dcm.example.com/errors/already-exists` -> 409, `https://dcm.example.com/errors/unprocessable-entity` -> 422, `https://dcm.example.com/errors/internal` -> 500, `https://dcm.example.com/errors/unavailable` -> 503
+- **When** each error is converted to an RFC 9457 response
+- **Then** the mapping is: `https://dcm-project.github.io/problems/invalid-argument` -> 400, `https://dcm-project.github.io/problems/not-found` -> 404, `https://dcm-project.github.io/problems/already-exists` -> 409, `https://dcm-project.github.io/problems/unprocessable-entity` -> 422, `https://dcm-project.github.io/problems/internal` -> 500, `https://dcm-project.github.io/problems/unavailable` -> 503
 - **And** Content-Type is `application/problem+json`
 - **And** `type`, `title`, `status` are all present in each response
 
@@ -721,16 +720,16 @@ Tests the shared domain-error-to-RFC-7807 mapping used by all handlers.
 - **Type:** Unit
 - **Priority:** High
 - **Given** an internal domain error wrapping a K8s API error message "etcd leader changed: 10.0.0.5"
-- **When** converted to an RFC 7807 response
+- **When** converted to an RFC 9457 response
 - **Then** the `detail` field does NOT contain the original K8s error text
-- **And** `type="https://dcm.example.com/errors/internal"` and a generic `title` is used
+- **And** `type="https://dcm-project.github.io/problems/internal"` and a generic `title` is used
 
 #### TC-ERR-UT-003: Error response includes optional tracing fields
 - **Requirements:** REQ-XC-ERR-030
 - **Type:** Unit
 - **Priority:** Low
 - **Given** a domain error with detail and instance context
-- **When** converted to an RFC 7807 response
+- **When** converted to an RFC 9457 response
 - **Then** `detail` and `instance` fields are present in the response
 
 ---

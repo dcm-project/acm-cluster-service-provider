@@ -87,7 +87,6 @@ internal/
   testutil/
     builders.go                            # Test fixture builders (Cluster, HostedCluster)
     fakes.go                               # Reusable mock/fake implementations
-    assertions.go                          # RFC 7807 assertion helpers
 test/
   integration/
     suite_test.go                          # envtest setup, shared TestMain
@@ -100,7 +99,7 @@ test/
 | Layer | Mocks/Fakes | Tests What | Does NOT Test |
 |-------|-------------|------------|---------------|
 | Shared: Status | None (pure function) | Condition precedence, all 7 DCM statuses. Implemented within service test files (kubevirt_test.go, baremetal_test.go) | K8s client calls |
-| Shared: Errors | None (pure function) | Error type -> HTTP status mapping, RFC 7807 | Business logic |
+| Shared: Errors | None (pure function) | Error type -> HTTP status mapping, RFC 9457 | Business logic |
 | Handler | Mock ClusterService, Mock HealthChecker | Input validation, HTTP codes, read-only fields, pagination, delegation | K8s CRD construction, status mapping |
 | KubeVirt Service | Fake K8s client (`controller-runtime/pkg/client/fake`) | CRD construction, labels, ClusterImageSet lookup, kubeconfig extraction, rollback | HTTP codes, validation already done by handler |
 | BareMetal Service | Fake K8s client | Agent platform CRD, InfraEnv ref, agent labels | Status mapping (shared), format conversion (shared) |
@@ -210,7 +209,7 @@ These requirements are validated by compilation, code review, or static analysis
 - **When** a subsequent normal request is sent
 - **Then** the response is successful (server did not crash)
 
-#### TC-HTTP-IT-004: Request errors return RFC 7807
+#### TC-HTTP-IT-004: Request errors return RFC 9457
 - **Requirements:** REQ-HTTP-090
 - **Type:** Integration
 - **Priority:** High
@@ -219,14 +218,14 @@ These requirements are validated by compilation, code review, or static analysis
 - **Then** Content-Type is `application/problem+json`
 - **And** the body contains `type`, `title`, and `status` fields
 
-#### TC-HTTP-IT-005: Response errors return RFC 7807 with type=https://dcm.example.com/errors/internal
+#### TC-HTTP-IT-005: Response errors return RFC 9457 with type=https://dcm-project.github.io/problems/internal
 - **Requirements:** REQ-HTTP-091
 - **Type:** Integration
 - **Priority:** Medium
 - **Given** the ClusterService returns an unexpected internal error
 - **When** a request is processed
 - **Then** the response Content-Type is `application/problem+json`
-- **And** `type` is `"https://dcm.example.com/errors/internal"`
+- **And** `type` is `"https://dcm-project.github.io/problems/internal"`
 - **And** no stack traces or K8s error details are leaked
 
 #### TC-HTTP-IT-008: Request timeout middleware
@@ -417,7 +416,7 @@ Build constraint: `//go:build integration`
 - **When** `GET /api/v1alpha1/clusters/health` is called
 - **Then** response is 200 with `status="healthy"`
 
-#### TC-INT-005: RFC 7807 error on actual HTTP request
+#### TC-INT-005: RFC 9457 error on actual HTTP request
 - **Requirements:** REQ-HTTP-090, REQ-XC-ERR-010
 - **Type:** Integration
 - **Priority:** Medium
