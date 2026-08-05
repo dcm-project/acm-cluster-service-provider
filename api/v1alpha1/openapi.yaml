@@ -535,7 +535,25 @@ components:
 
     Error:
       type: object
-      description: RFC 7807 compliant error response
+      description: |
+        RFC 9457 compliant error response (Problem Details for HTTP APIs).
+
+        Defined problem types:
+
+          | Type URI | Title | HTTP Status |
+          |----------|-------|-------------|
+          | .../problems/invalid-argument | Invalid argument | 400 |
+          | .../problems/not-found | Not found | 404 |
+          | .../problems/already-exists | Already exists | 409 |
+          | .../problems/unprocessable-entity | Unprocessable entity | 422 |
+          | .../problems/internal | Internal Server Error | 500 |
+          | .../problems/unavailable | Service unavailable | 503 |
+          | .../problems/permission-denied | Permission denied | 403 |
+          | .../problems/unauthenticated | Unauthenticated | 401 |
+
+        Note: permission-denied and unauthenticated are defined in the enum
+        but not yet emitted by any handler. Titles follow the humanized-slug
+        convention for forward-compatibility with K8s Container SP.
       required:
         - type
         - title
@@ -545,14 +563,14 @@ components:
           format: uri-reference
           description: URI reference identifying the error type
           enum:
-            - https://dcm.example.com/errors/invalid-argument
-            - https://dcm.example.com/errors/not-found
-            - https://dcm.example.com/errors/already-exists
-            - https://dcm.example.com/errors/permission-denied
-            - https://dcm.example.com/errors/unauthenticated
-            - https://dcm.example.com/errors/internal
-            - https://dcm.example.com/errors/unavailable
-            - https://dcm.example.com/errors/unprocessable-entity
+            - https://dcm-project.github.io/problems/invalid-argument
+            - https://dcm-project.github.io/problems/not-found
+            - https://dcm-project.github.io/problems/already-exists
+            - https://dcm-project.github.io/problems/permission-denied
+            - https://dcm-project.github.io/problems/unauthenticated
+            - https://dcm-project.github.io/problems/internal
+            - https://dcm-project.github.io/problems/unavailable
+            - https://dcm-project.github.io/problems/unprocessable-entity
           x-enum-varnames:
             - ErrorTypeINVALIDARGUMENT
             - ErrorTypeNOTFOUND
@@ -568,6 +586,8 @@ components:
         status:
           type: integer
           format: int32
+          minimum: 100
+          maximum: 599
           description: HTTP status code
         detail:
           type: string

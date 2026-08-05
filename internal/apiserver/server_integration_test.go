@@ -242,7 +242,7 @@ var _ = Describe("HTTP Server", func() {
 
 	// TC-HTTP-IT-003: Panic recovery keeps server alive
 	// REQ-HTTP-070
-	It("recovers from handler panic and returns RFC 7807 500 (TC-HTTP-IT-003)", func() {
+	It("recovers from handler panic and returns RFC 9457 500 (TC-HTTP-IT-003)", func() {
 		h := &panicOnListHandler{}
 		addr, cancel, errCh := startServer(defaultConfig(), nil, nil, h)
 		defer func() {
@@ -264,7 +264,13 @@ var _ = Describe("HTTP Server", func() {
 		var problemJSON map[string]any
 		Expect(json.Unmarshal(body, &problemJSON)).To(Succeed())
 		Expect(problemJSON).To(HaveKeyWithValue("type", string(v1alpha1.ErrorTypeINTERNAL)))
+		Expect(problemJSON["type"]).To(HavePrefix("https://dcm-project.github.io/problems/"),
+			"error type URI must use the project-controlled domain")
 		Expect(problemJSON["status"]).To(BeNumerically("==", 500))
+		Expect(problemJSON).To(HaveKeyWithValue("title", "Internal Server Error"))
+		Expect(problemJSON).To(HaveKeyWithValue("detail", "an unexpected error occurred"))
+		Expect(body[len(body)-1]).To(Equal(byte('\n')),
+			"problem+json response must end with trailing newline")
 
 		// Server should still be alive after the panic.
 		resp2, err := http.Get(fmt.Sprintf("http://%s/api/v1alpha1/clusters/health", addr))
@@ -272,9 +278,9 @@ var _ = Describe("HTTP Server", func() {
 		_ = resp2.Body.Close()
 	})
 
-	// TC-HTTP-IT-004: Request errors return RFC 7807
+	// TC-HTTP-IT-004: Request errors return RFC 9457
 	// REQ-HTTP-090
-	It("returns RFC 7807 for malformed request body (TC-HTTP-IT-004)", func() {
+	It("returns RFC 9457 for malformed request body (TC-HTTP-IT-004)", func() {
 		addr, cancel, errCh := startServer(defaultConfig(), nil, nil, nil)
 		defer func() {
 			cancel()
@@ -298,13 +304,15 @@ var _ = Describe("HTTP Server", func() {
 		var problemJSON map[string]any
 		Expect(json.Unmarshal(body, &problemJSON)).To(Succeed())
 		Expect(problemJSON).To(HaveKey("type"))
-		Expect(problemJSON).To(HaveKey("title"))
+		Expect(problemJSON["type"]).To(HavePrefix("https://dcm-project.github.io/problems/"),
+			"error type URI must use the project-controlled domain")
+		Expect(problemJSON).To(HaveKeyWithValue("title", "Invalid argument"))
 		Expect(problemJSON).To(HaveKey("status"))
 	})
 
-	// TC-HTTP-IT-005: Response errors return RFC 7807 with type=INTERNAL
+	// TC-HTTP-IT-005: Response errors return RFC 9457 with type=https://dcm-project.github.io/problems/internal
 	// REQ-HTTP-091
-	It("returns RFC 7807 with type=INTERNAL for response errors (TC-HTTP-IT-005)", func() {
+	It("returns RFC 9457 with type=INTERNAL for response errors (TC-HTTP-IT-005)", func() {
 		// Use a strict handler that returns an error from ListClusters.
 		strictHandler := &failingStrictHandler{}
 		wrappedHandler := oapigen.NewStrictHandlerWithOptions(strictHandler, nil, oapigen.StrictHTTPServerOptions{})
@@ -327,6 +335,9 @@ var _ = Describe("HTTP Server", func() {
 		var problemJSON map[string]any
 		Expect(json.Unmarshal(body, &problemJSON)).To(Succeed())
 		Expect(problemJSON).To(HaveKeyWithValue("type", string(v1alpha1.ErrorTypeINTERNAL)))
+		Expect(problemJSON["type"]).To(HavePrefix("https://dcm-project.github.io/problems/"),
+			"error type URI must use the project-controlled domain")
+		Expect(problemJSON).To(HaveKeyWithValue("title", "Internal Server Error"))
 
 		// Must not leak internal details.
 		bodyStr := string(body)
