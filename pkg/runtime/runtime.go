@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/dcm-project/acm-cluster-service-provider/internal/cluster"
@@ -34,6 +35,11 @@ type Runtime struct {
 	publisher      *monitoring.NATSPublisher
 	registrar      *registration.Registrar
 	logger         *slog.Logger
+
+	startOnce     sync.Once
+	monitorCancel context.CancelFunc
+	monitorDone   chan struct{}
+	closeOnce     sync.Once
 }
 
 // PrepareConfig loads derived configuration values that are not set directly
@@ -64,7 +70,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger, opts Opti
 		logger = slog.Default()
 	}
 	if cfg.Cluster.PullSecretName == "" {
-		return nil, fmt.Errorf("cluster pull secret name is empty")
+		return nil, fmt.Errorf("cluster pull secret name is empty: call PrepareConfig before New")
 	}
 
 	restCfg, err := ctrl.GetConfig()
@@ -167,24 +173,46 @@ func (r *Runtime) HealthChecker() service.HealthChecker {
 }
 
 // Start launches background workers (SPM registration and status monitor).
-// It is non-blocking and safe to call once after construction.
+// It is non-blocking. Background workers start at most once, even if Start is
+// called multiple times.
 func (r *Runtime) Start(ctx context.Context) {
 	if r.registrar != nil {
 		r.registrar.Start(ctx)
 	}
-	if r.monitor != nil {
+
+	r.startOnce.Do(func() {
+		if r.monitor == nil {
+			return
+		}
+
+		monitorCtx, cancel := context.WithCancel(ctx)
+		r.monitorCancel = cancel
+		done := make(chan struct{})
+		r.monitorDone = done
+
 		go func() {
-			if err := r.monitor.Start(ctx); err != nil {
+			defer close(done)
+			if err := r.monitor.Start(monitorCtx); err != nil && monitorCtx.Err() == nil {
 				r.logger.Error("status monitor failed", "error", err)
 			}
 		}()
-	}
+	})
 }
 
-// Close releases runtime resources such as the NATS connection.
+// Close stops the status monitor and releases runtime resources such as the
+// NATS connection. It is safe to call multiple times.
 func (r *Runtime) Close() error {
-	if r.publisher == nil {
-		return nil
-	}
-	return r.publisher.Close()
+	var err error
+	r.closeOnce.Do(func() {
+		if r.monitorCancel != nil {
+			r.monitorCancel()
+		}
+		if r.monitorDone != nil {
+			<-r.monitorDone
+		}
+		if r.publisher != nil {
+			err = r.publisher.Close()
+		}
+	})
+	return err
 }
