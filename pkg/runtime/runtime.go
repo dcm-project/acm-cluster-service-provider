@@ -40,6 +40,10 @@ type Runtime struct {
 // from environment variables: the OCP→K8s compatibility matrix and the shared
 // pull secret name.
 func PrepareConfig(cfg *config.Config) error {
+	if cfg == nil {
+		return fmt.Errorf("config is required")
+	}
+
 	matrix, err := registration.LoadCompatibilityMatrix(cfg.Cluster.VersionMatrixPath)
 	if err != nil {
 		return fmt.Errorf("loading compatibility matrix: %w", err)
@@ -58,6 +62,9 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger, opts Opti
 	}
 	if logger == nil {
 		logger = slog.Default()
+	}
+	if cfg.Cluster.PullSecretName == "" {
+		return nil, fmt.Errorf("cluster pull secret name is empty")
 	}
 
 	restCfg, err := ctrl.GetConfig()
