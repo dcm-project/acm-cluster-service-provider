@@ -70,7 +70,7 @@ func New(ctx context.Context, cfg *config.Config, logger *slog.Logger, opts Opti
 		logger = slog.Default()
 	}
 	if cfg.Cluster.PullSecretName == "" {
-		return nil, fmt.Errorf("cluster pull secret name is empty: call PrepareConfig before New")
+		return nil, fmt.Errorf("cluster pull secret name is empty")
 	}
 
 	restCfg, err := ctrl.GetConfig()

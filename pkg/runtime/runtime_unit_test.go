@@ -37,7 +37,7 @@ var _ = Describe("New", func() {
 		}
 
 		_, err := runtime.New(context.Background(), cfg, nil, runtime.Options{})
-		Expect(err).To(MatchError("cluster pull secret name is empty: call PrepareConfig before New"))
+		Expect(err).To(MatchError("cluster pull secret name is empty"))
 	})
 })
 
